@@ -118,7 +118,7 @@ class HomeScreen extends StatelessWidget {
         elevation: 0,
         backgroundColor: AppColors.primary,
         title: const Text(
-          'Dojo Walker - Buddy',
+          'Dojo App - Buddy',
           style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
         ),
         actions: [
