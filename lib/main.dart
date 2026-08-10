@@ -1,0 +1,29 @@
+import 'package:flutter/material.dart';
+import 'core/constants/app_colors.dart';
+import 'screens/login_screen.dart';
+
+void main() {
+  runApp(const DojoWalkerApp());
+}
+
+class DojoWalkerApp extends StatelessWidget {
+  const DojoWalkerApp({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return MaterialApp(
+      title: 'Dojo Walker',
+      theme: ThemeData(
+        primarySwatch: Colors.orange,
+        scaffoldBackgroundColor: const Color(0xFFF8FAFC),
+        colorScheme: ColorScheme.fromSeed(
+          seedColor: AppColors.primary,
+          primary: AppColors.primary,
+          secondary: AppColors.secondary,
+        ),
+      ),
+      home: const LoginScreen(),
+      debugShowCheckedModeBanner: false,
+    );
+  }
+}
