@@ -39,6 +39,9 @@ jobs:
           echo "zipStoreBase=GRADLE_USER_HOME" >> android/gradle/wrapper/gradle-wrapper.properties
           echo "zipStorePath=wrapper/dists" >> android/gradle/wrapper/gradle-wrapper.properties
 
+      - name: Clean Build Cache
+        run: flutter clean
+
       - name: Build APK
         run: flutter build apk --release --no-pub
 
