@@ -28,10 +28,16 @@ jobs:
       - name: Analyze code
         run: flutter analyze
 
-      - name: Set up Gradle Wrapper
+      - name: Create Gradle Wrapper Files
         run: |
-          cd android
-          gradle wrapper --distribution-url=https\://services.gradle.org/distributions/gradle-7.6.3-bin.zip
+          mkdir -p android/gradle/wrapper
+          echo "distributionBase=GRADLE_USER_HOME" > android/gradle/wrapper/gradle-wrapper.properties
+          echo "distributionPath=wrapper/dists" >> android/gradle/wrapper/gradle-wrapper.properties
+          echo "distributionUrl=https\://services.gradle.org/distributions/gradle-7.6.3-bin.zip" >> android/gradle/wrapper/gradle-wrapper.properties
+          echo "networkTimeout=10000" >> android/gradle/wrapper/gradle-wrapper.properties
+          echo "validateDistributionUrl=true" >> android/gradle/wrapper/gradle-wrapper.properties
+          echo "zipStoreBase=GRADLE_USER_HOME" >> android/gradle/wrapper/gradle-wrapper.properties
+          echo "zipStorePath=wrapper/dists" >> android/gradle/wrapper/gradle-wrapper.properties
 
       - name: Build APK
         run: flutter build apk --release --no-pub
