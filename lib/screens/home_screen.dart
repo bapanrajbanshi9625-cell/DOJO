@@ -44,7 +44,7 @@ class HomeScreen extends StatelessWidget {
                   borderRadius: BorderRadius.circular(16),
                   boxShadow: [
                     BoxShadow(
-                      color: Colors.grey.withValues(alpha: 0.15),
+                      color: Colors.grey.withOpacity(0.15),
                       blurRadius: 8,
                       spreadRadius: 2,
                     ),
@@ -89,7 +89,7 @@ class HomeScreen extends StatelessWidget {
         border: Border.all(color: Colors.grey.shade200, width: 1),
         boxShadow: [
           BoxShadow(
-            color: Colors.grey.withValues(alpha: 0.08),
+            color: Colors.grey.withOpacity(0.08),
             blurRadius: 6,
             spreadRadius: 1,
           ),
@@ -168,7 +168,7 @@ class HomeScreen extends StatelessWidget {
                         border: Border.all(color: Colors.grey.shade200, width: 1),
                         boxShadow: [
                           BoxShadow(
-                            color: Colors.grey.withValues(alpha: 0.1),
+                            color: Colors.grey.withOpacity(0.1),
                             blurRadius: 8,
                             spreadRadius: 2,
                           ),
@@ -220,7 +220,7 @@ class HomeScreen extends StatelessWidget {
                         border: Border.all(color: Colors.grey.shade200, width: 1),
                         boxShadow: [
                           BoxShadow(
-                            color: Colors.grey.withValues(alpha: 0.1),
+                            color: Colors.grey.withOpacity(0.1),
                             blurRadius: 6,
                             spreadRadius: 2,
                           ),
