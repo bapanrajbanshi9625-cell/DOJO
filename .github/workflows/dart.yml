@@ -28,11 +28,10 @@ jobs:
       - name: Analyze code
         run: flutter analyze
 
-      - name: Generate Gradle Wrapper
+      - name: Set up Gradle Wrapper
         run: |
           cd android
-          gradle wrapper --gradle-version 7.6.3
-          chmod +x gradlew
+          gradle wrapper --distribution-url=https\://services.gradle.org/distributions/gradle-7.6.3-bin.zip
 
       - name: Build APK
         run: flutter build apk --release --no-pub
