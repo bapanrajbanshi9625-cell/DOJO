@@ -1,7 +1,7 @@
 pluginManagement {
     def flutterSdkPath = {
         def properties = new Properties()
-        def file = new file('local.properties')
+        def file = new File('local.properties')
         if (file.exists()) {
             properties.load(file.newDataInputStream())
         }
