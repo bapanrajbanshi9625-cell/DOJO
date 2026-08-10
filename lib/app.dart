@@ -2,13 +2,13 @@ import 'package:flutter/material.dart';
 import 'core/constants/app_colors.dart';
 import 'screens/login_screen.dart';
 
-class DojoWalkerApp extends StatelessWidget {
-  const DojoWalkerApp({super.key});
+class DojoApp extends StatelessWidget {
+  const DojoApp({super.key});
 
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'Dojo Walker',
+      title: 'Dojo App',
       theme: ThemeData(
         primarySwatch: Colors.orange,
         scaffoldBackgroundColor: const Color(0xFFF8FAFC),
