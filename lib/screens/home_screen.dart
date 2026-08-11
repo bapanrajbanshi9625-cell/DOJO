@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'custom_app_bar.dart'; // Import Custom App Bar
+import 'generate_qr_code_screen.dart'; // Generate QR Screen
 
 class HomeScreen extends StatelessWidget {
   const HomeScreen({super.key});
@@ -133,7 +134,7 @@ class HomeScreen extends StatelessWidget {
               child: Column(
                 children: [
                   // -------------------------------------------
-                  // ROW 1: TOTAL WALKS & DISTANCE (Increased Height)
+                  // ROW 1: TOTAL WALKS & DISTANCE
                   // -------------------------------------------
                   Row(
                     children: [
@@ -169,7 +170,7 @@ class HomeScreen extends StatelessWidget {
                   const SizedBox(height: 12),
 
                   // -------------------------------------------
-                  // ROW 2: ACTIVE DURATION & REPORT CARD (Increased Height & 4o Walk Distance Duration Report height bar)
+                  // ROW 2: ACTIVE DURATION & REPORT CARD
                   // -------------------------------------------
                   Row(
                     children: [
@@ -223,14 +224,28 @@ class HomeScreen extends StatelessWidget {
       // =====================================================
       floatingActionButtonLocation:
           FloatingActionButtonLocation.centerFloat,
+
       floatingActionButton: FloatingActionButton.extended(
         backgroundColor: orange,
         foregroundColor: Colors.white,
         elevation: 8,
+
+        // ===================================================
+        // ONLY UPDATED PART:
+        // Generate QR Code button now opens QR screen
+        // ===================================================
         onPressed: () {
-          _showQrDialog(context);
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (context) =>
+                  const GenerateQRCodeScreen(),
+            ),
+          );
         },
+
         icon: const Icon(Icons.qr_code_2),
+
         label: const Text(
           'Generate QR Code',
           style: TextStyle(
@@ -269,7 +284,7 @@ class HomeScreen extends StatelessWidget {
   }
 
   // =========================================================
-  // STAT CARD (Increased Height & Padding)
+  // STAT CARD
   // =========================================================
   Widget _statCard(
     BuildContext context, {
@@ -290,7 +305,10 @@ class HomeScreen extends StatelessWidget {
         );
       },
       child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 18),
+        padding: const EdgeInsets.symmetric(
+          horizontal: 14,
+          vertical: 18,
+        ),
         decoration: BoxDecoration(
           color: const Color(0xFFEFF2F5),
           borderRadius: BorderRadius.circular(16),
@@ -365,7 +383,7 @@ class HomeScreen extends StatelessWidget {
   }
 
   // =========================================================
-  // DURATION CARD (Increased Height & Padding)
+  // DURATION CARD
   // =========================================================
   Widget _durationCard(
     BuildContext context,
@@ -382,7 +400,10 @@ class HomeScreen extends StatelessWidget {
         );
       },
       child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 18),
+        padding: const EdgeInsets.symmetric(
+          horizontal: 14,
+          vertical: 18,
+        ),
         decoration: BoxDecoration(
           color: const Color(0xFFEFF2F5),
           borderRadius: BorderRadius.circular(16),
@@ -442,7 +463,7 @@ class HomeScreen extends StatelessWidget {
   }
 
   // =========================================================
-  // REPORT CARD (Increased Height & Padding)
+  // REPORT CARD
   // =========================================================
   Widget _reportCard(
     BuildContext context,
@@ -459,7 +480,10 @@ class HomeScreen extends StatelessWidget {
         );
       },
       child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 18),
+        padding: const EdgeInsets.symmetric(
+          horizontal: 14,
+          vertical: 18,
+        ),
         decoration: BoxDecoration(
           color: const Color(0xFFFFF1EA),
           borderRadius: BorderRadius.circular(16),
