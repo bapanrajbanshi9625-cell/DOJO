@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+
 import 'core/constants/app_colors.dart';
 import 'screens/splash_screen.dart';
 
@@ -21,10 +22,8 @@ class DojoApp extends StatelessWidget {
         ),
       ),
 
-      // पहले Splash Screen खुलेगा
-      home: const SplashScreen(
-        isLoggedIn: false,
-      ),
+      // SplashScreen Firebase login session check करेगा.
+      home: const SplashScreen(),
 
       debugShowCheckedModeBanner: false,
     );
