@@ -5,7 +5,7 @@ plugins {
 }
 
 android {
-    namespace "com.dojo.app"
+    namespace "com.dojo.dojo_owner_app"
     compileSdk 34
 
     compileOptions {
@@ -18,7 +18,7 @@ android {
     }
 
     defaultConfig {
-        applicationId "com.dojo.app"
+        applicationId "com.dojo.dojo_owner_app"
         minSdk 21
         targetSdk 34
         versionCode 1
