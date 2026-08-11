@@ -184,3 +184,26 @@ jobs:
           ./gradlew --version
 
           echo "======================================"
+
+      # --------------------------------------------------
+      # 14. Build Release APK
+      # --------------------------------------------------
+      - name: Build Release APK
+        run: |
+          set -e
+
+          echo "Building DOJO release APK..."
+
+          flutter build apk --release
+
+          echo "Release APK build completed."
+
+      # --------------------------------------------------
+      # 15. Upload Release APK
+      # --------------------------------------------------
+      - name: Upload Release APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: DOJO-release-apk
+          path: build/app/outputs/flutter-apk/app-release.apk
+          if-no-files-found: error
