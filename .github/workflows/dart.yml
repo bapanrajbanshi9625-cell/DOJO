@@ -22,7 +22,7 @@ jobs:
         uses: actions/checkout@v4
 
       # --------------------------------------------------
-      # 2. Java
+      # 2. Java 17
       # --------------------------------------------------
       - name: Set up Java 17
         uses: actions/setup-java@v5
@@ -79,16 +79,18 @@ jobs:
           mkdir -p /tmp/dojo_backup
 
           if [ -f android/app/google-services.json ]; then
-            cp android/app/google-services.json /tmp/dojo_backup/google-services.json
+            cp android/app/google-services.json \
+              /tmp/dojo_backup/google-services.json
+
             echo "Firebase google-services.json backed up."
           else
             echo "google-services.json not found."
           fi
 
       # --------------------------------------------------
-      # 9. Backup Android custom application files
+      # 9. Backup Android custom source
       # --------------------------------------------------
-      - name: Backup Android app configuration
+      - name: Backup Android app source
         shell: bash
         run: |
           set -e
@@ -99,26 +101,29 @@ jobs:
           fi
 
           if [ -f android/app/build.gradle ]; then
-            cp android/app/build.gradle /tmp/dojo_backup/app_build.gradle
+            cp android/app/build.gradle \
+              /tmp/dojo_backup/app_build.gradle
           fi
 
           if [ -f android/app/build.gradle.kts ]; then
-            cp android/app/build.gradle.kts /tmp/dojo_backup/app_build.gradle.kts
+            cp android/app/build.gradle.kts \
+              /tmp/dojo_backup/app_build.gradle.kts
           fi
 
           if [ -f android/gradle.properties ]; then
-            cp android/gradle.properties /tmp/dojo_backup/gradle.properties
+            cp android/gradle.properties \
+              /tmp/dojo_backup/gradle.properties
           fi
 
       # --------------------------------------------------
-      # 10. Regenerate Flutter Android project
+      # 10. Regenerate Android project
       # --------------------------------------------------
       - name: Regenerate Android Gradle project
         shell: bash
         run: |
           set -e
 
-          echo "Generating a fresh Flutter Android project..."
+          echo "Generating fresh Flutter Android project..."
 
           mv android android_old
 
@@ -139,6 +144,7 @@ jobs:
 
           if [ -f /tmp/dojo_backup/google-services.json ]; then
             mkdir -p android/app
+
             cp /tmp/dojo_backup/google-services.json \
               android/app/google-services.json
 
@@ -146,7 +152,7 @@ jobs:
           fi
 
       # --------------------------------------------------
-      # 12. Restore Android app source
+      # 12. Restore Android source
       # --------------------------------------------------
       - name: Restore Android app source
         shell: bash
@@ -155,18 +161,59 @@ jobs:
 
           if [ -d /tmp/dojo_backup/app_src ]; then
             rm -rf android/app/src
-            cp -a /tmp/dojo_backup/app_src android/app/src
+
+            cp -a /tmp/dojo_backup/app_src \
+              android/app/src
 
             echo "Android app source restored."
           fi
 
       # --------------------------------------------------
-      # 13. Show generated Gradle configuration
+      # 13. Generate DOJO launcher icon
+      # --------------------------------------------------
+      - name: Generate DOJO launcher icon
+        shell: bash
+        run: |
+          set -e
+
+          echo "Generating DOJO launcher icon..."
+
+          dart run flutter_launcher_icons
+
+          echo "DOJO launcher icon generated."
+
+      # --------------------------------------------------
+      # 14. Verify launcher icon
+      # --------------------------------------------------
+      - name: Verify launcher icon
+        shell: bash
+        run: |
+          set -e
+
+          echo "Checking launcher resources..."
+
+          if find android/app/src/main/res -type f \
+            \( -name "ic_launcher.png" \
+            -o -name "ic_launcher_foreground.xml" \
+            -o -name "ic_launcher.xml" \) \
+            | grep -q .; then
+
+            echo "Launcher icon resources found."
+          else
+            echo "ERROR: Launcher icon resources not found!"
+            find android/app/src/main/res -maxdepth 3 -type f | sort
+            exit 1
+          fi
+
+      # --------------------------------------------------
+      # 15. Check Gradle configuration
       # --------------------------------------------------
       - name: Check Android Gradle configuration
         working-directory: android
         shell: bash
         run: |
+          set -e
+
           echo "======================================"
           echo "Gradle wrapper"
           echo "======================================"
@@ -186,9 +233,10 @@ jobs:
           echo "======================================"
 
       # --------------------------------------------------
-      # 14. Build Release APK
+      # 16. Build Release APK
       # --------------------------------------------------
       - name: Build Release APK
+        shell: bash
         run: |
           set -e
 
@@ -199,7 +247,7 @@ jobs:
           echo "Release APK build completed."
 
       # --------------------------------------------------
-      # 15. Upload Release APK
+      # 17. Upload Release APK
       # --------------------------------------------------
       - name: Upload Release APK
         uses: actions/upload-artifact@v4
