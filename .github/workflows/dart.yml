@@ -36,6 +36,16 @@ jobs:
       - name: flutter doctor
         run: flutter doctor -v
 
+      - name: check android project
+        run: |
+          echo "=== Android directory ==="
+          ls -la android || true
+
+          echo "=== Gradle files ==="
+          find android -maxdepth 3 -type f \
+            \( -name "gradlew" -o -name "gradlew.bat" -o -name "settings.gradle" -o -name "build.gradle" \) \
+            -print || true
+
       - name: install dependencies
         run: flutter pub get
 
@@ -44,24 +54,6 @@ jobs:
 
       - name: run tests
         run: flutter test
-
-      - name: check android gradle configuration
-        working-directory: android
-        run: |
-          echo "=== Gradle version ==="
-          ./gradlew --version
-
-          echo "=== Gradle wrapper ==="
-          cat gradle/wrapper/gradle-wrapper.properties
-
-          echo "=== settings.gradle ==="
-          cat settings.gradle
-
-          echo "=== build.gradle ==="
-          cat build.gradle
-
-          echo "=== app/build.gradle ==="
-          cat app/build.gradle
 
       - name: clean flutter build
         run: flutter clean
