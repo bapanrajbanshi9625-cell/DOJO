@@ -1,7 +1,9 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 
 import 'main_navigation_screen.dart';
+import 'profile_screen.dart';
 
 class OtpVerificationScreen extends StatefulWidget {
   final String phoneNumber;
@@ -23,13 +25,12 @@ class _OtpVerificationScreenState extends State<OtpVerificationScreen> {
 
   bool _isVerifying = false;
 
-  // Dojo Walker App Icon Orange
+  // Dojo App Icon Orange
   static const Color dojoOrange = Color(0xFFFF5A1F);
 
   Future<void> _verifyOtp() async {
     final otp = _otpController.text.trim();
 
-    // Firebase OTP = 6 digits
     if (otp.length != 6) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
@@ -44,22 +45,91 @@ class _OtpVerificationScreenState extends State<OtpVerificationScreen> {
     });
 
     try {
-      // Create Firebase phone credential
+      // --------------------------------------------------
+      // 1. Create Firebase phone credential
+      // --------------------------------------------------
+
       final credential = PhoneAuthProvider.credential(
         verificationId: widget.verificationId,
         smsCode: otp,
       );
 
-      // REAL Firebase OTP verification
-      await FirebaseAuth.instance.signInWithCredential(credential);
+      // --------------------------------------------------
+      // 2. Sign in with Firebase
+      // --------------------------------------------------
+
+      final userCredential =
+          await FirebaseAuth.instance.signInWithCredential(credential);
+
+      final user = userCredential.user;
+
+      if (user == null) {
+        throw Exception('Firebase user not found');
+      }
+
+      final uid = user.uid;
+
+      // --------------------------------------------------
+      // 3. Check users/{UID}
+      // --------------------------------------------------
+
+      final userDoc = await FirebaseFirestore.instance
+          .collection('users')
+          .doc(uid)
+          .get();
+
+      bool profileExists = userDoc.exists;
+
+      // --------------------------------------------------
+      // 4. Also check old users collection by phone
+      //
+      // This helps existing users whose old document ID
+      // was not Firebase UID.
+      // --------------------------------------------------
+
+      if (!profileExists) {
+        final fullPhoneNumber = '+91${widget.phoneNumber}';
+
+        final oldUserQuery = await FirebaseFirestore.instance
+            .collection('users')
+            .where(
+              'phone',
+              isEqualTo: fullPhoneNumber,
+            )
+            .limit(1)
+            .get();
+
+        if (oldUserQuery.docs.isNotEmpty) {
+          profileExists = true;
+        }
+      }
 
       if (!mounted) return;
 
-      // Correct OTP
+      // --------------------------------------------------
+      // 5. Existing user -> Home
+      // --------------------------------------------------
+
+      if (profileExists) {
+        Navigator.pushAndRemoveUntil(
+          context,
+          MaterialPageRoute(
+            builder: (context) => const MainNavigationScreen(),
+          ),
+          (route) => false,
+        );
+
+        return;
+      }
+
+      // --------------------------------------------------
+      // 6. New user -> Profile
+      // --------------------------------------------------
+
       Navigator.pushAndRemoveUntil(
         context,
         MaterialPageRoute(
-          builder: (context) => const MainNavigationScreen(),
+          builder: (context) => const ProfileScreen(),
         ),
         (route) => false,
       );
@@ -93,12 +163,24 @@ class _OtpVerificationScreenState extends State<OtpVerificationScreen> {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text(message)),
       );
+    } on FirebaseException catch (e) {
+      if (!mounted) return;
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            e.message ?? 'Database error. Please try again.',
+          ),
+        ),
+      );
     } catch (e) {
       if (!mounted) return;
 
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text('Something went wrong. Please try again.'),
+          content: Text(
+            'Something went wrong. Please try again.',
+          ),
         ),
       );
     } finally {
@@ -138,7 +220,6 @@ class _OtpVerificationScreenState extends State<OtpVerificationScreen> {
             crossAxisAlignment: CrossAxisAlignment.start,
 
             children: [
-              // OTP Icon
               const Center(
                 child: CircleAvatar(
                   radius: 40,
@@ -221,7 +302,6 @@ class _OtpVerificationScreenState extends State<OtpVerificationScreen> {
                     ),
                   ),
 
-                  // App Icon Orange
                   focusedBorder: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(12),
                     borderSide: const BorderSide(
@@ -240,7 +320,6 @@ class _OtpVerificationScreenState extends State<OtpVerificationScreen> {
 
                 child: ElevatedButton(
                   style: ElevatedButton.styleFrom(
-                    // App Icon Orange
                     backgroundColor: dojoOrange,
 
                     shape: RoundedRectangleBorder(
