@@ -149,6 +149,7 @@ jobs:
       # 12. Restore Android app source
       # --------------------------------------------------
       - name: Restore Android app source
+      - name: Restore Android app source
         shell: bash
         run: |
           set -e
@@ -183,69 +184,4 @@ jobs:
           echo "Gradle version:"
           ./gradlew --version
 
-          echo "======================================"
-          echo "settings.gradle"
-          echo "======================================"
-
-          cat settings.gradle
-
-          echo "======================================"
-          echo "app/build.gradle"
-          echo "======================================"
-
-          cat app/build.gradle
-
-      # --------------------------------------------------
-      # 14. Flutter clean
-      # --------------------------------------------------
-      - name: Flutter clean
-        run: flutter clean
-
-      # --------------------------------------------------
-      # 15. Dependencies again
-      # --------------------------------------------------
-      - name: Get dependencies again
-        run: flutter pub get
-
-      # --------------------------------------------------
-      # 16. Build APK
-      # --------------------------------------------------
-      - name: Build Android APK
-        run: |
-          flutter build apk \
-            --release \
-            --no-pub \
-            --android-skip-build-dependency-validation
-
-      # --------------------------------------------------
-      # 17. Verify APK
-      # --------------------------------------------------
-      - name: Check APK
-        shell: bash
-        run: |
-          set -e
-
-          echo "======================================"
-          echo "APK output"
-          echo "======================================"
-
-          ls -lh build/app/outputs/flutter-apk/
-
-          if [ ! -f build/app/outputs/flutter-apk/app-release.apk ]; then
-            echo "ERROR: APK was not generated!"
-            exit 1
-          fi
-
-          echo "======================================"
-          echo "APK successfully generated"
-          echo "======================================"
-
-      # --------------------------------------------------
-      # 18. Upload APK
-      # --------------------------------------------------
-      - name: Upload APK artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: dojo-app-apk
-          path: build/app/outputs/flutter-apk/app-release.apk
-          if-no-files-found: error
+          echo "======================================
