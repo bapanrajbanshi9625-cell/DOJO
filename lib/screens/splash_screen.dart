@@ -2,7 +2,7 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'main_navigation_screen.dart';
-import 'mobile_login_screen.dart';
+import 'login_screen.dart';
 
 class SplashScreen extends StatefulWidget {
   final bool isLoggedIn;
@@ -30,7 +30,10 @@ class _SplashScreenState extends State<SplashScreen> {
     _timer = Timer.periodic(
       const Duration(milliseconds: 80),
       (timer) {
-        if (!mounted) return;
+        if (!mounted) {
+          timer.cancel();
+          return;
+        }
 
         setState(() {
           progress += 0.01;
@@ -47,9 +50,13 @@ class _SplashScreenState extends State<SplashScreen> {
                 Navigator.pushReplacement(
                   context,
                   MaterialPageRoute(
-                    builder: (context) => widget.isLoggedIn
-                        ? const MainNavigationScreen()
-                        : const MobileLoginScreen(),
+                    builder: (context) {
+                      if (widget.isLoggedIn) {
+                        return const MainNavigationScreen();
+                      }
+
+                      return const LoginScreen();
+                    },
                   ),
                 );
               },
@@ -73,17 +80,17 @@ class _SplashScreenState extends State<SplashScreen> {
         fit: StackFit.expand,
         children: [
 
-          // ==============================
-          // YOUR SPLASH IMAGE
-          // ==============================
+          // =====================================
+          // DOJO SPLASH PNG
+          // =====================================
           Image.asset(
             'assets/dojo_splash.png',
             fit: BoxFit.cover,
           ),
 
-          // ==============================
-          // REAL LOADING
-          // ==============================
+          // =====================================
+          // REAL LIVE LOADING
+          // =====================================
           Positioned(
             left: 60,
             right: 60,
