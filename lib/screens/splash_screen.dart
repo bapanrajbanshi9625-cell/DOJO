@@ -1,16 +1,15 @@
 import 'dart:async';
 
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
+
 import 'main_navigation_screen.dart';
 import 'login_screen.dart';
+import 'profile_screen.dart';
 
 class SplashScreen extends StatefulWidget {
-  final bool isLoggedIn;
-
-  const SplashScreen({
-    super.key,
-    required this.isLoggedIn,
-  });
+  const SplashScreen({super.key});
 
   @override
   State<SplashScreen> createState() => _SplashScreenState();
@@ -24,6 +23,61 @@ class _SplashScreenState extends State<SplashScreen> {
   void initState() {
     super.initState();
     _startLoading();
+  }
+
+  Future<void> _checkLoginAndNavigate() async {
+    final user = FirebaseAuth.instance.currentUser;
+
+    // User logged out / no Firebase session
+    if (user == null) {
+      _goTo(const LoginScreen());
+      return;
+    }
+
+    try {
+      // Firebase UID वाला Owner profile check
+      final doc = await FirebaseFirestore.instance
+          .collection('users')
+          .doc(user.uid)
+          .get();
+
+      if (!mounted) return;
+
+      if (doc.exists) {
+        final data = doc.data();
+
+        // Owner profile exists
+        if (data != null && data['role'] == 'owner') {
+          _goTo(const MainNavigationScreen());
+          return;
+        }
+      }
+
+      // Firebase login है लेकिन Owner profile अभी नहीं है
+      _goTo(const ProfileScreen());
+    } on FirebaseException {
+      if (!mounted) return;
+
+      // Firebase/Firestore temporary error होने पर
+      // login session मौजूद है, इसलिए LoginScreen पर
+      // वापस नहीं भेजेंगे।
+      _goTo(const MainNavigationScreen());
+    } catch (_) {
+      if (!mounted) return;
+
+      _goTo(const MainNavigationScreen());
+    }
+  }
+
+  void _goTo(Widget screen) {
+    if (!mounted) return;
+
+    Navigator.pushReplacement(
+      context,
+      MaterialPageRoute(
+        builder: (_) => screen,
+      ),
+    );
   }
 
   void _startLoading() {
@@ -47,18 +101,7 @@ class _SplashScreenState extends State<SplashScreen> {
               () {
                 if (!mounted) return;
 
-                Navigator.pushReplacement(
-                  context,
-                  MaterialPageRoute(
-                    builder: (context) {
-                      if (widget.isLoggedIn) {
-                        return const MainNavigationScreen();
-                      }
-
-                      return const LoginScreen();
-                    },
-                  ),
-                );
+                _checkLoginAndNavigate();
               },
             );
           }
@@ -79,18 +122,11 @@ class _SplashScreenState extends State<SplashScreen> {
       body: Stack(
         fit: StackFit.expand,
         children: [
-
-          // =====================================
-          // DOJO SPLASH PNG
-          // =====================================
           Image.asset(
             'assets/dojo_splash.png',
             fit: BoxFit.cover,
           ),
 
-          // =====================================
-          // REAL LIVE LOADING
-          // =====================================
           Positioned(
             left: 60,
             right: 60,
@@ -98,7 +134,6 @@ class _SplashScreenState extends State<SplashScreen> {
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-
                 const Text(
                   'Getting things ready...',
                   textAlign: TextAlign.center,
