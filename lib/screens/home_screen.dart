@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'custom_app_bar.dart'; // Import Custom App Bar
-import 'generate_qr_code_screen.dart'; // Generate QR Screen
+import 'generate_qr_screen.dart'; // Generate QR Screen
 
 class HomeScreen extends StatelessWidget {
   const HomeScreen({super.key});
