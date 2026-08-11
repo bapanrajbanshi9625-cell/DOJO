@@ -149,7 +149,6 @@ jobs:
       # 12. Restore Android app source
       # --------------------------------------------------
       - name: Restore Android app source
-      - name: Restore Android app source
         shell: bash
         run: |
           set -e
@@ -184,4 +183,4 @@ jobs:
           echo "Gradle version:"
           ./gradlew --version
 
-          echo "======================================
+          echo "======================================"
