@@ -27,12 +27,14 @@ jobs:
       - name: set up flutter sdk
         uses: subosito/flutter-action@v2
         with:
-          flutter-version: "3.22.0"
           channel: "stable"
           cache: true
 
       - name: check flutter version
         run: flutter --version
+
+      - name: flutter doctor
+        run: flutter doctor -v
 
       - name: install dependencies
         run: flutter pub get
@@ -43,22 +45,52 @@ jobs:
       - name: run tests
         run: flutter test
 
-      - name: Create Gradle Wrapper Files
+      - name: check android gradle configuration
+        working-directory: android
         run: |
-          mkdir -p android/gradle/wrapper
-          echo "distributionBase=GRADLE_USER_HOME" > android/gradle/wrapper/gradle-wrapper.properties
-          echo "distributionPath=wrapper/dists" >> android/gradle/wrapper/gradle-wrapper.properties
-          echo "distributionUrl=https\://services.gradle.org/distributions/gradle-7.6.3-bin.zip" >> android/gradle/wrapper/gradle-wrapper.properties
-          echo "networkTimeout=10000" >> android/gradle/wrapper/gradle-wrapper.properties
-          echo "validateDistributionUrl=true" >> android/gradle/wrapper/gradle-wrapper.properties
-          echo "zipStoreBase=GRADLE_USER_HOME" >> android/gradle/wrapper/gradle-wrapper.properties
-          echo "zipStorePath=wrapper/dists" >> android/gradle/wrapper/gradle-wrapper.properties
+          echo "=== Gradle version ==="
+          ./gradlew --version
+
+          echo "=== Gradle wrapper ==="
+          cat gradle/wrapper/gradle-wrapper.properties
+
+          echo "=== settings.gradle ==="
+          cat settings.gradle
+
+          echo "=== build.gradle ==="
+          cat build.gradle
+
+          echo "=== app/build.gradle ==="
+          cat app/build.gradle
+
+      - name: clean flutter build
+        run: flutter clean
+
+      - name: get dependencies again
+        run: flutter pub get
 
       - name: build android apk
-        run: flutter build apk --release --no-pub
+        run: |
+          flutter build apk \
+            --release \
+            --no-pub \
+            --android-skip-build-dependency-validation
+
+      - name: check apk
+        run: |
+          echo "=== APK output ==="
+          ls -lh build/app/outputs/flutter-apk/
+
+          if [ ! -f build/app/outputs/flutter-apk/app-release.apk ]; then
+            echo "ERROR: APK was not generated!"
+            exit 1
+          fi
+
+          echo "APK successfully generated."
 
       - name: upload apk artifact
         uses: actions/upload-artifact@v4
         with:
           name: dojo-app-apk
           path: build/app/outputs/flutter-apk/app-release.apk
+          if-no-files-found: error
