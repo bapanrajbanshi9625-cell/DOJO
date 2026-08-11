@@ -27,23 +27,10 @@
 
         </activity>
 
-        <!-- Flutter V2 Embedding -->
         <meta-data
             android:name="flutterEmbedding"
             android:value="2" />
 
-        <meta-data
-            android:name="flutterExternalViewRegistration"
-            android:value="true" />
-
     </application>
 
 </manifest>
-
-इसे यहाँ लगाना है:
-
-android/app/src/main/AndroidManifest.xml
-
-इसके बाद GitHub Actions में फिर build करो।
-
-अगर तुम्हें Dojo का अपना app logo/icon लगाना है, तो बाद में "ic_launcher" resources सही तरीके से बनाकर वापस "android:icon="@mipmap/ic_launcher"" लगा देंगे। अभी पहले APK build पास कराना बेहतर है।
