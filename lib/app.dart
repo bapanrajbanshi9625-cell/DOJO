@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'core/constants/app_colors.dart';
-import 'screens/login_screen.dart';
+import 'screens/splash_screen.dart';
 
 class DojoApp extends StatelessWidget {
   const DojoApp({super.key});
@@ -9,16 +9,23 @@ class DojoApp extends StatelessWidget {
   Widget build(BuildContext context) {
     return MaterialApp(
       title: 'Dojo App',
+
       theme: ThemeData(
         primarySwatch: Colors.orange,
         scaffoldBackgroundColor: const Color(0xFFF8FAFC),
+
         colorScheme: ColorScheme.fromSeed(
           seedColor: AppColors.primary,
           primary: AppColors.primary,
           secondary: AppColors.secondary,
         ),
       ),
-      home: const LoginScreen(),
+
+      // पहले Splash Screen खुलेगा
+      home: const SplashScreen(
+        isLoggedIn: false,
+      ),
+
       debugShowCheckedModeBanner: false,
     );
   }
