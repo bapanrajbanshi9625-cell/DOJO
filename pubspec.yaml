@@ -30,6 +30,7 @@ dev_dependencies:
   # App Icon
   flutter_launcher_icons: ^0.13.1
 
+# App Icon Configuration
 flutter_launcher_icons:
   image_path: "assets/dojo_logo.png"
   android: true
