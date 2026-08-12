@@ -57,10 +57,6 @@ class _HomeScreenState extends State<HomeScreen> {
 
       final String ownerUid = user.uid;
 
-      // -------------------------------------------------
-      // FIND ACTIVE WALK FOR THIS OWNER
-      // -------------------------------------------------
-
       final QuerySnapshot<Map<String, dynamic>> result =
           await FirebaseFirestore.instance
               .collection('active_walks')
@@ -151,9 +147,8 @@ class _HomeScreenState extends State<HomeScreen> {
       MaterialPageRoute(
         builder: (context) => LiveWalkScreen(
           walkId: _walkId!,
-          ownerUid: user.uid,
-          walkerName: _walkerName ?? 'Walker',
           walkerUid: _walkerUid!,
+          walkerName: _walkerName ?? 'Walker',
         ),
       ),
     );
@@ -168,10 +163,26 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   // =====================================================
-  // OPEN MY QR
+  // OPEN MY QR CODE
   // =====================================================
 
   void _openMyQRCode() {
+    final User? user =
+        FirebaseAuth.instance.currentUser;
+
+    if (user == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text(
+            'Please login first.',
+          ),
+        ),
+      );
+      return;
+    }
+
+    final String ownerUid = user.uid;
+
     showModalBottomSheet(
       context: context,
       backgroundColor: Colors.transparent,
@@ -179,7 +190,9 @@ class _HomeScreenState extends State<HomeScreen> {
       isDismissible: true,
       enableDrag: true,
       builder: (context) {
-        return const MyQRCodeSheet();
+        return MyQRCodeSheet(
+          ownerUid: ownerUid,
+        );
       },
     );
   }
