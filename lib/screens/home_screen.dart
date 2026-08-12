@@ -24,10 +24,6 @@ class HomeScreen extends StatefulWidget {
 class _HomeScreenState extends State<HomeScreen> {
   bool _isLoadingWalk = true;
 
-  String? _ownerUid;
-  String? _ownerName;
-  String? _ownerPhone;
-
   String? _walkId;
   String? _walkerUid;
   String? _walkerName;
@@ -44,8 +40,7 @@ class _HomeScreenState extends State<HomeScreen> {
 
   Future<void> _checkActiveWalk() async {
     try {
-      final User? user =
-          FirebaseAuth.instance.currentUser;
+      final User? user = FirebaseAuth.instance.currentUser;
 
       if (user == null) {
         if (!mounted) return;
@@ -89,18 +84,6 @@ class _HomeScreenState extends State<HomeScreen> {
 
         setState(() {
           _isLoadingWalk = false;
-
-          _ownerUid = ownerUid;
-          _ownerName =
-              user.displayName?.trim().isNotEmpty == true
-                  ? user.displayName!.trim()
-                  : 'Owner';
-
-          _ownerPhone =
-              user.phoneNumber?.trim().isNotEmpty == true
-                  ? user.phoneNumber!.trim()
-                  : null;
-
           _walkId = null;
           _walkerUid = null;
           _walkerName = null;
@@ -113,8 +96,8 @@ class _HomeScreenState extends State<HomeScreen> {
       // ACTIVE WALK FOUND
       // -------------------------------------------------
 
-      final DocumentSnapshot<Map<String, dynamic>>
-          walkDoc = result.docs.first;
+      final DocumentSnapshot<Map<String, dynamic>> walkDoc =
+          result.docs.first;
 
       final Map<String, dynamic> data =
           walkDoc.data() ?? <String, dynamic>{};
@@ -125,31 +108,13 @@ class _HomeScreenState extends State<HomeScreen> {
         _isLoadingWalk = false;
 
         _walkId =
-            data['walkId']?.toString() ??
-                walkDoc.id;
-
-        _ownerUid =
-            data['ownerUid']?.toString() ??
-                ownerUid;
-
-        _ownerName =
-            data['ownerName']?.toString() ??
-                (user.displayName?.trim().isNotEmpty == true
-                    ? user.displayName!.trim()
-                    : 'Owner');
-
-        _ownerPhone =
-            data['ownerPhone']?.toString() ??
-                (user.phoneNumber?.trim().isNotEmpty == true
-                    ? user.phoneNumber!.trim()
-                    : null);
+            data['walkId']?.toString() ?? walkDoc.id;
 
         _walkerUid =
             data['walkerUid']?.toString();
 
         _walkerName =
-            data['walkerName']?.toString() ??
-                'Walker';
+            data['walkerName']?.toString() ?? 'Walker';
       });
     } catch (e) {
       if (!mounted) return;
@@ -172,7 +137,11 @@ class _HomeScreenState extends State<HomeScreen> {
   // =====================================================
 
   Future<void> _openLiveWalk() async {
-    if (_walkId == null ||
+    final User? user =
+        FirebaseAuth.instance.currentUser;
+
+    if (user == null ||
+        _walkId == null ||
         _walkerUid == null) {
       return;
     }
@@ -182,8 +151,8 @@ class _HomeScreenState extends State<HomeScreen> {
       MaterialPageRoute(
         builder: (context) => LiveWalkScreen(
           walkId: _walkId!,
-          walkerName:
-              _walkerName ?? 'Walker',
+          ownerUid: user.uid,
+          walkerName: _walkerName ?? 'Walker',
           walkerUid: _walkerUid!,
         ),
       ),
@@ -218,8 +187,7 @@ class _HomeScreenState extends State<HomeScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor:
-          HomeScreen.background,
+      backgroundColor: HomeScreen.background,
 
       appBar: const CustomAppBar(),
 
@@ -249,6 +217,7 @@ class _HomeScreenState extends State<HomeScreen> {
 
               Container(
                 width: double.infinity,
+
                 padding:
                     const EdgeInsets.all(17),
 
@@ -295,10 +264,12 @@ class _HomeScreenState extends State<HomeScreen> {
                                 .withOpacity(
                           0.18,
                         ),
+
                         borderRadius:
                             BorderRadius.circular(
                           15,
                         ),
+
                         border: Border.all(
                           color:
                               HomeScreen.orange
@@ -325,6 +296,7 @@ class _HomeScreenState extends State<HomeScreen> {
                         crossAxisAlignment:
                             CrossAxisAlignment
                                 .start,
+
                         children: [
                           Text(
                             'Welcome back 👋',
@@ -374,6 +346,7 @@ class _HomeScreenState extends State<HomeScreen> {
 
                   child: Container(
                     width: double.infinity,
+
                     padding:
                         const EdgeInsets.all(17),
 
@@ -444,6 +417,7 @@ class _HomeScreenState extends State<HomeScreen> {
                             crossAxisAlignment:
                                 CrossAxisAlignment
                                     .start,
+
                             children: [
                               const Text(
                                 'Live Walk Active',
@@ -466,6 +440,7 @@ class _HomeScreenState extends State<HomeScreen> {
                                         null
                                     ? 'Your walker is connected'
                                     : 'Walker is currently walking',
+
                                 style:
                                     const TextStyle(
                                   color:
@@ -562,15 +537,20 @@ class _HomeScreenState extends State<HomeScreen> {
                         Expanded(
                           child: _statCard(
                             context,
+
                             title:
                                 'Total Walks',
+
                             value:
                                 '12',
+
                             icon:
                                 Icons.pets,
+
                             iconColor:
                                 HomeScreen
                                     .orange,
+
                             details:
                                 'Completed Walks: 12\n'
                                 'Average Walks/Day: 1.5\n'
@@ -585,18 +565,24 @@ class _HomeScreenState extends State<HomeScreen> {
                         Expanded(
                           child: _statCard(
                             context,
+
                             title:
                                 'Distance',
+
                             value:
                                 '24.5',
+
                             suffix:
                                 ' km',
+
                             icon:
                                 Icons.route,
+
                             iconColor:
                                 const Color(
                               0xFF2196F3,
                             ),
+
                             details:
                                 'Total Distance: 24.5 km\n'
                                 'Average per Walk: 2.04 km\n'
@@ -653,11 +639,21 @@ class _HomeScreenState extends State<HomeScreen> {
 
               _walkCard(
                 context,
-                id: '#WID-9842',
-                time: '08:30 AM',
-                date: '04 Aug 2026',
-                distance: '2.1 km',
-                duration: '30 mins',
+
+                id:
+                    '#WID-9842',
+
+                time:
+                    '08:30 AM',
+
+                date:
+                    '04 Aug 2026',
+
+                distance:
+                    '2.1 km',
+
+                duration:
+                    '30 mins',
               ),
 
               const SizedBox(
@@ -666,11 +662,21 @@ class _HomeScreenState extends State<HomeScreen> {
 
               _walkCard(
                 context,
-                id: '#WID-9817',
-                time: '07:15 AM',
-                date: '03 Aug 2026',
-                distance: '1.8 km',
-                duration: '27 mins',
+
+                id:
+                    '#WID-9817',
+
+                time:
+                    '07:15 AM',
+
+                date:
+                    '03 Aug 2026',
+
+                distance:
+                    '1.8 km',
+
+                duration:
+                    '27 mins',
               ),
             ],
           ),
@@ -678,7 +684,7 @@ class _HomeScreenState extends State<HomeScreen> {
       ),
 
       // ===============================================
-      // MY QR BUTTON
+      // GENERATE QR CODE
       // ===============================================
 
       floatingActionButtonLocation:
@@ -704,6 +710,7 @@ class _HomeScreenState extends State<HomeScreen> {
 
         label: const Text(
           'Generate QR Code',
+
           style: TextStyle(
             fontWeight:
                 FontWeight.w900,
@@ -730,6 +737,7 @@ class _HomeScreenState extends State<HomeScreen> {
               BoxDecoration(
             color:
                 HomeScreen.orange,
+
             borderRadius:
                 BorderRadius.circular(5),
           ),
@@ -741,11 +749,14 @@ class _HomeScreenState extends State<HomeScreen> {
 
         Text(
           title,
+
           style:
               const TextStyle(
             color:
                 HomeScreen.navy,
+
             fontSize: 17,
+
             fontWeight:
                 FontWeight.w900,
           ),
@@ -812,6 +823,7 @@ class _HomeScreenState extends State<HomeScreen> {
                     iconColor.withOpacity(
                   0.12,
                 ),
+
                 borderRadius:
                     BorderRadius.circular(
                   14,
@@ -820,7 +832,8 @@ class _HomeScreenState extends State<HomeScreen> {
 
               child: Icon(
                 icon,
-                color: iconColor,
+                color:
+                    iconColor,
                 size: 25,
               ),
             ),
@@ -838,11 +851,14 @@ class _HomeScreenState extends State<HomeScreen> {
                 children: [
                   Text(
                     title,
+
                     style:
                         const TextStyle(
                       color:
                           HomeScreen.slate,
+
                       fontSize: 12,
+
                       fontWeight:
                           FontWeight.w600,
                     ),
@@ -867,11 +883,14 @@ class _HomeScreenState extends State<HomeScreen> {
                           TextSpan(
                             text:
                                 value,
+
                             style:
                                 const TextStyle(
                               color:
                                   HomeScreen.navy,
+
                               fontSize: 22,
+
                               fontWeight:
                                   FontWeight.w900,
                             ),
@@ -882,12 +901,15 @@ class _HomeScreenState extends State<HomeScreen> {
                             TextSpan(
                               text:
                                   suffix,
+
                               style:
                                   TextStyle(
                                 color:
                                     iconColor,
+
                                 fontSize:
                                     11,
+
                                 fontWeight:
                                     FontWeight
                                         .w900,
@@ -961,6 +983,7 @@ class _HomeScreenState extends State<HomeScreen> {
                         .withOpacity(
                   0.12,
                 ),
+
                 borderRadius:
                     BorderRadius.circular(
                   14,
@@ -988,11 +1011,14 @@ class _HomeScreenState extends State<HomeScreen> {
                 children: [
                   Text(
                     'Active Duration',
+
                     style:
                         TextStyle(
                       color:
                           HomeScreen.slate,
+
                       fontSize: 12,
+
                       fontWeight:
                           FontWeight.w600,
                     ),
@@ -1012,11 +1038,14 @@ class _HomeScreenState extends State<HomeScreen> {
 
                     child: Text(
                       '6 hrs',
+
                       style:
                           TextStyle(
                         color:
                             HomeScreen.navy,
+
                         fontSize: 22,
+
                         fontWeight:
                             FontWeight.w900,
                       ),
@@ -1086,6 +1115,7 @@ class _HomeScreenState extends State<HomeScreen> {
                   BoxDecoration(
                 color:
                     HomeScreen.orange,
+
                 borderRadius:
                     BorderRadius.circular(
                   14,
@@ -1113,11 +1143,14 @@ class _HomeScreenState extends State<HomeScreen> {
                 children: [
                   Text(
                     'Report Card',
+
                     style:
                         TextStyle(
                       color:
                           HomeScreen.slate,
+
                       fontSize: 12,
+
                       fontWeight:
                           FontWeight.w600,
                     ),
@@ -1137,11 +1170,14 @@ class _HomeScreenState extends State<HomeScreen> {
 
                     child: Text(
                       'Performance',
+
                       style:
                           TextStyle(
                         color:
                             HomeScreen.navy,
+
                         fontSize: 18,
+
                         fontWeight:
                             FontWeight.w900,
                       ),
@@ -1210,7 +1246,9 @@ class _HomeScreenState extends State<HomeScreen> {
                       .withOpacity(
                 0.05,
               ),
+
               blurRadius: 10,
+
               offset:
                   const Offset(0, 4),
             ),
@@ -1230,6 +1268,7 @@ class _HomeScreenState extends State<HomeScreen> {
                         .withOpacity(
                   0.12,
                 ),
+
                 borderRadius:
                     BorderRadius.circular(
                   13,
@@ -1256,12 +1295,15 @@ class _HomeScreenState extends State<HomeScreen> {
                 children: [
                   Text(
                     '$id • $time',
+
                     style:
                         const TextStyle(
                       color:
                           HomeScreen.navy,
+
                       fontWeight:
                           FontWeight.w900,
+
                       fontSize: 13,
                     ),
                   ),
@@ -1272,10 +1314,12 @@ class _HomeScreenState extends State<HomeScreen> {
 
                   Text(
                     '$distance • $duration • $date',
+
                     style:
                         const TextStyle(
                       color:
                           HomeScreen.slate,
+
                       fontSize: 11,
                     ),
                   ),
@@ -1298,6 +1342,7 @@ class _HomeScreenState extends State<HomeScreen> {
                         .withOpacity(
                   0.10,
                 ),
+
                 borderRadius:
                     BorderRadius.circular(
                   8,
@@ -1306,11 +1351,14 @@ class _HomeScreenState extends State<HomeScreen> {
 
               child: const Text(
                 'DONE',
+
                 style:
                     TextStyle(
                   color:
                       Colors.green,
+
                   fontSize: 9,
+
                   fontWeight:
                       FontWeight.w900,
                 ),
@@ -1344,6 +1392,7 @@ class _HomeScreenState extends State<HomeScreen> {
   ) {
     showDialog(
       context: context,
+
       builder: (ctx) {
         return AlertDialog(
           backgroundColor:
@@ -1359,10 +1408,12 @@ class _HomeScreenState extends State<HomeScreen> {
 
           title: Text(
             title,
+
             style:
                 const TextStyle(
               color:
                   HomeScreen.navy,
+
               fontWeight:
                   FontWeight.w900,
             ),
@@ -1370,10 +1421,12 @@ class _HomeScreenState extends State<HomeScreen> {
 
           content: Text(
             content,
+
             style:
                 const TextStyle(
               color:
                   HomeScreen.slate,
+
               height: 1.5,
             ),
           ),
@@ -1385,10 +1438,12 @@ class _HomeScreenState extends State<HomeScreen> {
 
               child: const Text(
                 'CLOSE',
+
                 style:
                     TextStyle(
                   color:
                       HomeScreen.orange,
+
                   fontWeight:
                       FontWeight.bold,
                 ),
