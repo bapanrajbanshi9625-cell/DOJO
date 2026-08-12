@@ -65,6 +65,8 @@ class GenerateQRButton extends StatelessWidget {
     // --------------------------------------------------
 
     if (user == null) {
+      if (!context.mounted) return;
+
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text(
@@ -72,6 +74,7 @@ class GenerateQRButton extends StatelessWidget {
           ),
         ),
       );
+
       return;
     }
 
@@ -80,8 +83,6 @@ class GenerateQRButton extends StatelessWidget {
     // --------------------------------------------------
     // OWNER INFORMATION
     // --------------------------------------------------
-
-    final String userId = uid;
 
     final String ownerName =
         user.displayName?.trim().isNotEmpty == true
@@ -100,7 +101,7 @@ class GenerateQRButton extends StatelessWidget {
     final Map<String, dynamic> qrData = {
       'type': 'owner',
       'uid': uid,
-      'userId': userId,
+      'userId': uid,
       'name': ownerName,
       'phoneNumber': phoneNumber,
     };
@@ -110,17 +111,24 @@ class GenerateQRButton extends StatelessWidget {
 
     // --------------------------------------------------
     // FIREBASE
+    //
+    // IMPORTANT:
+    // Each owner gets their own document.
+    //
+    // qr_codes/
+    //    OWNER_UID/
+    //
     // --------------------------------------------------
 
     try {
       await FirebaseFirestore.instance
           .collection('qr_codes')
-          .doc('owner_qr')
+          .doc(uid)
           .set(
         {
           'type': 'owner',
           'uid': uid,
-          'userId': userId,
+          'userId': uid,
           'name': ownerName,
           'phoneNumber': phoneNumber,
 
@@ -141,17 +149,22 @@ class GenerateQRButton extends StatelessWidget {
       if (!context.mounted) return;
 
       // ------------------------------------------------
-      // OPEN MY QR CODE
+      // DIRECTLY OPEN MY QR CODE
+      //
+      // NO QR CODE STUDIO
       // ------------------------------------------------
 
       showModalBottomSheet(
         context: context,
-        backgroundColor: Colors.transparent,
+        backgroundColor:
+            Colors.transparent,
         isScrollControlled: true,
         isDismissible: true,
         enableDrag: true,
         builder: (context) {
-          return const MyQRCodeSheet();
+          return MyQRCodeSheet(
+            ownerUid: uid,
+          );
         },
       );
     } catch (e) {
@@ -172,11 +185,15 @@ class GenerateQRButton extends StatelessWidget {
     return FloatingActionButton.extended(
       backgroundColor:
           const Color(0xFFF4511E),
-      foregroundColor: Colors.white,
+
+      foregroundColor:
+          Colors.white,
+
       elevation: 8,
 
       // ================================================
       // DIRECTLY OPEN OWNER MY QR
+      //
       // NO QR CODE STUDIO
       // ================================================
 
@@ -191,7 +208,8 @@ class GenerateQRButton extends StatelessWidget {
       label: const Text(
         'Generate QR Code',
         style: TextStyle(
-          fontWeight: FontWeight.w900,
+          fontWeight:
+              FontWeight.w900,
         ),
       ),
     );
@@ -203,8 +221,11 @@ class GenerateQRButton extends StatelessWidget {
 // ======================================================
 
 class MyQRCodeSheet extends StatelessWidget {
+  final String ownerUid;
+
   const MyQRCodeSheet({
     super.key,
+    required this.ownerUid,
   });
 
   @override
@@ -213,7 +234,7 @@ class MyQRCodeSheet extends StatelessWidget {
         DocumentSnapshot<Map<String, dynamic>>>(
       stream: FirebaseFirestore.instance
           .collection('qr_codes')
-          .doc('owner_qr')
+          .doc(ownerUid)
           .snapshots(),
 
       builder: (
@@ -254,8 +275,16 @@ class MyQRCodeSheet extends StatelessWidget {
             snapshot.data!.data() ??
                 <String, dynamic>{};
 
+        // ------------------------------------------------
+        // QR DATA
+        // ------------------------------------------------
+
         final String qrData =
             data['qrData']?.toString() ?? '';
+
+        // ------------------------------------------------
+        // OWNER DATA
+        // ------------------------------------------------
 
         final String ownerName =
             data['name']?.toString() ??
@@ -265,20 +294,27 @@ class MyQRCodeSheet extends StatelessWidget {
             data['phoneNumber']?.toString() ??
                 '';
 
+        // ------------------------------------------------
+        // SCAN STATUS
+        // ------------------------------------------------
+
         final bool scanned =
             data['scanned'] == true;
 
         // ------------------------------------------------
         // WALKER SCANNED OWNER QR
         //
-        // Firebase changes scanned → true
+        // Firebase:
+        // scanned = true
+        //
         // Bottom sheet automatically closes.
         // ------------------------------------------------
 
         if (scanned) {
           WidgetsBinding.instance
               .addPostFrameCallback((_) {
-            if (context.mounted) {
+            if (context.mounted &&
+                Navigator.of(context).canPop()) {
               Navigator.of(context).pop();
             }
           });
@@ -327,7 +363,6 @@ class MyQRCodeSheet extends StatelessWidget {
                 MainAxisSize.min,
 
             children: [
-
               // ==========================================
               // HEADER
               // ==========================================
@@ -338,7 +373,6 @@ class MyQRCodeSheet extends StatelessWidget {
                         .spaceBetween,
 
                 children: [
-
                   const SizedBox(
                     width: 40,
                   ),
@@ -381,6 +415,9 @@ class MyQRCodeSheet extends StatelessWidget {
 
               Text(
                 ownerName,
+                textAlign:
+                    TextAlign.center,
+
                 style: const TextStyle(
                   fontSize: 16,
                   fontWeight:
@@ -398,6 +435,9 @@ class MyQRCodeSheet extends StatelessWidget {
 
                 Text(
                   phoneNumber,
+                  textAlign:
+                      TextAlign.center,
+
                   style:
                       const TextStyle(
                     fontSize: 13,
@@ -426,7 +466,8 @@ class MyQRCodeSheet extends StatelessWidget {
 
                 decoration:
                     BoxDecoration(
-                  color: Colors.white,
+                  color:
+                      Colors.white,
 
                   borderRadius:
                       BorderRadius.circular(
@@ -445,7 +486,8 @@ class MyQRCodeSheet extends StatelessWidget {
                     ? const Center(
                         child: Text(
                           'QR unavailable',
-                          style: TextStyle(
+                          style:
+                              TextStyle(
                             color:
                                 Colors.grey,
                           ),
@@ -467,10 +509,15 @@ class MyQRCodeSheet extends StatelessWidget {
                 height: 18,
               ),
 
+              // ==========================================
+              // INSTRUCTION
+              // ==========================================
+
               const Text(
                 'Scan this QR code to connect with the Owner.',
                 textAlign:
                     TextAlign.center,
+
                 style: TextStyle(
                   fontSize: 13,
                   color:
@@ -487,15 +534,16 @@ class MyQRCodeSheet extends StatelessWidget {
               // WAITING STATUS
               // ==========================================
 
-              Row(
+              const Row(
                 mainAxisAlignment:
                     MainAxisAlignment
                         .center,
 
-                children: const [
+                children: [
                   SizedBox(
                     width: 8,
                     height: 8,
+
                     child:
                         DecoratedBox(
                       decoration:
@@ -543,22 +591,31 @@ class MyQRCodeSheet extends StatelessWidget {
   Widget _loadingSheet() {
     return Container(
       width: double.infinity,
+
       padding:
           const EdgeInsets.all(32),
+
       decoration:
           const BoxDecoration(
         color: Colors.white,
+
         borderRadius:
             BorderRadius.vertical(
           top: Radius.circular(28),
         ),
       ),
+
       child: const Column(
         mainAxisSize:
             MainAxisSize.min,
+
         children: [
           CircularProgressIndicator(),
-          SizedBox(height: 16),
+
+          SizedBox(
+            height: 16,
+          ),
+
           Text(
             'Loading My QR Code...',
           ),
@@ -576,24 +633,30 @@ class MyQRCodeSheet extends StatelessWidget {
   ) {
     return Container(
       width: double.infinity,
+
       padding:
           const EdgeInsets.all(32),
+
       decoration:
           const BoxDecoration(
         color: Colors.white,
+
         borderRadius:
             BorderRadius.vertical(
           top: Radius.circular(28),
         ),
       ),
+
       child: Column(
         mainAxisSize:
             MainAxisSize.min,
+
         children: [
           const Icon(
             Icons.error_outline,
             size: 50,
-            color: Colors.redAccent,
+            color:
+                Colors.redAccent,
           ),
 
           const SizedBox(
@@ -604,6 +667,7 @@ class MyQRCodeSheet extends StatelessWidget {
             message,
             textAlign:
                 TextAlign.center,
+
             style: const TextStyle(
               fontSize: 14,
               color:
