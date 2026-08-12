@@ -30,6 +30,7 @@ class _HomeScreenState extends State<HomeScreen> {
 
   String? _walkId;
   String? _walkerUid;
+  String? _walkerName;
 
   @override
   void initState() {
@@ -47,15 +48,23 @@ class _HomeScreenState extends State<HomeScreen> {
           FirebaseAuth.instance.currentUser;
 
       if (user == null) {
-        if (mounted) {
-          setState(() {
-            _isLoadingWalk = false;
-          });
-        }
+        if (!mounted) return;
+
+        setState(() {
+          _isLoadingWalk = false;
+          _walkId = null;
+          _walkerUid = null;
+          _walkerName = null;
+        });
+
         return;
       }
 
       final String ownerUid = user.uid;
+
+      // -------------------------------------------------
+      // FIND ACTIVE WALK FOR THIS OWNER
+      // -------------------------------------------------
 
       final QuerySnapshot<Map<String, dynamic>> result =
           await FirebaseFirestore.instance
@@ -71,16 +80,38 @@ class _HomeScreenState extends State<HomeScreen> {
               .limit(1)
               .get();
 
+      // -------------------------------------------------
+      // NO ACTIVE WALK
+      // -------------------------------------------------
+
       if (result.docs.isEmpty) {
-        if (mounted) {
-          setState(() {
-            _isLoadingWalk = false;
-            _walkId = null;
-            _walkerUid = null;
-          });
-        }
+        if (!mounted) return;
+
+        setState(() {
+          _isLoadingWalk = false;
+
+          _ownerUid = ownerUid;
+          _ownerName =
+              user.displayName?.trim().isNotEmpty == true
+                  ? user.displayName!.trim()
+                  : 'Owner';
+
+          _ownerPhone =
+              user.phoneNumber?.trim().isNotEmpty == true
+                  ? user.phoneNumber!.trim()
+                  : null;
+
+          _walkId = null;
+          _walkerUid = null;
+          _walkerName = null;
+        });
+
         return;
       }
+
+      // -------------------------------------------------
+      // ACTIVE WALK FOUND
+      // -------------------------------------------------
 
       final DocumentSnapshot<Map<String, dynamic>>
           walkDoc = result.docs.first;
@@ -103,19 +134,31 @@ class _HomeScreenState extends State<HomeScreen> {
 
         _ownerName =
             data['ownerName']?.toString() ??
-                'Owner';
+                (user.displayName?.trim().isNotEmpty == true
+                    ? user.displayName!.trim()
+                    : 'Owner');
+
+        _ownerPhone =
+            data['ownerPhone']?.toString() ??
+                (user.phoneNumber?.trim().isNotEmpty == true
+                    ? user.phoneNumber!.trim()
+                    : null);
 
         _walkerUid =
             data['walkerUid']?.toString();
 
-        _ownerPhone =
-            data['ownerPhone']?.toString();
+        _walkerName =
+            data['walkerName']?.toString() ??
+                'Walker';
       });
     } catch (e) {
       if (!mounted) return;
 
       setState(() {
         _isLoadingWalk = false;
+        _walkId = null;
+        _walkerUid = null;
+        _walkerName = null;
       });
 
       debugPrint(
@@ -130,7 +173,7 @@ class _HomeScreenState extends State<HomeScreen> {
 
   Future<void> _openLiveWalk() async {
     if (_walkId == null ||
-        _ownerUid == null) {
+        _walkerUid == null) {
       return;
     }
 
@@ -138,17 +181,20 @@ class _HomeScreenState extends State<HomeScreen> {
       context,
       MaterialPageRoute(
         builder: (context) => LiveWalkScreen(
-          ownerUid: _ownerUid!,
-          ownerName:
-              _ownerName ?? 'Owner',
-          ownerPhone:
-              _ownerPhone,
+          walkId: _walkId!,
+          walkerName:
+              _walkerName ?? 'Walker',
+          walkerUid: _walkerUid!,
         ),
       ),
     );
 
+    // ---------------------------------------------------
+    // CHECK AGAIN AFTER RETURN
+    // ---------------------------------------------------
+
     if (mounted) {
-      _checkActiveWalk();
+      await _checkActiveWalk();
     }
   }
 
@@ -161,6 +207,8 @@ class _HomeScreenState extends State<HomeScreen> {
       context: context,
       backgroundColor: Colors.transparent,
       isScrollControlled: true,
+      isDismissible: true,
+      enableDrag: true,
       builder: (context) {
         return const MyQRCodeSheet();
       },
