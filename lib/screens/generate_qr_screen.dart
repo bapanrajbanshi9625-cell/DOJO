@@ -1,3 +1,5 @@
+// File location: lib/screens/generate_qr_screen.dart
+
 import 'dart:convert';
 
 import 'package:flutter/material.dart';
@@ -39,8 +41,8 @@ class GenerateQRButtonScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: const Color(0xfff0f2f5),
+    return const Scaffold(
+      backgroundColor: Color(0xfff0f2f5),
       body: Center(
         child: GenerateQRButton(),
       ),
@@ -56,7 +58,13 @@ class GenerateQRButtonScreen extends StatelessWidget {
 class GenerateQRButton extends StatelessWidget {
   const GenerateQRButton({super.key});
 
-  Future<void> _openOwnerQR(BuildContext context) async {
+  // ====================================================
+  // OPEN OWNER QR
+  // ====================================================
+
+  Future<void> _openOwnerQR(
+    BuildContext context,
+  ) async {
     final User? user =
         FirebaseAuth.instance.currentUser;
 
@@ -78,7 +86,25 @@ class GenerateQRButton extends StatelessWidget {
       return;
     }
 
-    final String uid = user.uid;
+    // --------------------------------------------------
+    // OWNER UID
+    // --------------------------------------------------
+
+    final String ownerUid = user.uid;
+
+    if (ownerUid.isEmpty) {
+      if (!context.mounted) return;
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text(
+            'Owner UID is missing.',
+          ),
+        ),
+      );
+
+      return;
+    }
 
     // --------------------------------------------------
     // OWNER INFORMATION
@@ -89,48 +115,80 @@ class GenerateQRButton extends StatelessWidget {
             ? user.displayName!.trim()
             : 'Owner';
 
-    final String phoneNumber =
+    final String ownerPhone =
         user.phoneNumber?.trim().isNotEmpty == true
             ? user.phoneNumber!.trim()
             : '';
 
     // --------------------------------------------------
-    // QR DATA
+    // CREATE UNIQUE WALK ID
+    //
+    // Every generated QR gets a walk ID.
     // --------------------------------------------------
 
+    final String walkId =
+        'WALK_${DateTime.now().millisecondsSinceEpoch}';
+
+    // ==================================================
+    // QR DATA
+    //
+    // IMPORTANT:
+    // These names MUST match Walker scanner.
+    // ==================================================
+
     final Map<String, dynamic> qrData = {
+      // QR type
       'type': 'owner',
-      'uid': uid,
-      'userId': uid,
+
+      // Owner UID
+      'ownerUid': ownerUid,
+
+      // Owner information
+      'ownerName': ownerName,
+      'ownerPhone': ownerPhone,
+
+      // Walk ID
+      'walkId': walkId,
+
+      // Compatibility fields
+      'uid': ownerUid,
+      'userId': ownerUid,
       'name': ownerName,
-      'phoneNumber': phoneNumber,
+      'phoneNumber': ownerPhone,
     };
 
     final String qrPayload =
         jsonEncode(qrData);
 
-    // --------------------------------------------------
-    // FIREBASE
-    //
-    // IMPORTANT:
-    // Each owner gets their own document.
+    // ==================================================
+    // SAVE QR TO FIRESTORE
     //
     // qr_codes/
     //    OWNER_UID/
-    //
-    // --------------------------------------------------
+    // ==================================================
 
     try {
       await FirebaseFirestore.instance
           .collection('qr_codes')
-          .doc(uid)
+          .doc(ownerUid)
           .set(
         {
+          // QR type
           'type': 'owner',
-          'uid': uid,
-          'userId': uid,
+
+          // Owner information
+          'ownerUid': ownerUid,
+          'ownerName': ownerName,
+          'ownerPhone': ownerPhone,
+
+          // Compatibility fields
+          'uid': ownerUid,
+          'userId': ownerUid,
           'name': ownerName,
-          'phoneNumber': phoneNumber,
+          'phoneNumber': ownerPhone,
+
+          // Walk ID
+          'walkId': walkId,
 
           // Actual QR content
           'qrData': qrPayload,
@@ -140,19 +198,22 @@ class GenerateQRButton extends StatelessWidget {
           'scannedBy': null,
           'scannedAt': null,
 
+          // Timestamp
           'updatedAt':
               FieldValue.serverTimestamp(),
         },
-        SetOptions(merge: true),
+        SetOptions(
+          merge: true,
+        ),
       );
 
       if (!context.mounted) return;
 
-      // ------------------------------------------------
+      // ==================================================
       // DIRECTLY OPEN MY QR CODE
       //
       // NO QR CODE STUDIO
-      // ------------------------------------------------
+      // ==================================================
 
       showModalBottomSheet(
         context: context,
@@ -163,7 +224,7 @@ class GenerateQRButton extends StatelessWidget {
         enableDrag: true,
         builder: (context) {
           return MyQRCodeSheet(
-            ownerUid: uid,
+            ownerUid: ownerUid,
           );
         },
       );
@@ -180,6 +241,10 @@ class GenerateQRButton extends StatelessWidget {
     }
   }
 
+  // ====================================================
+  // BUILD
+  // ====================================================
+
   @override
   Widget build(BuildContext context) {
     return FloatingActionButton.extended(
@@ -190,12 +255,6 @@ class GenerateQRButton extends StatelessWidget {
           Colors.white,
 
       elevation: 8,
-
-      // ================================================
-      // DIRECTLY OPEN OWNER MY QR
-      //
-      // NO QR CODE STUDIO
-      // ================================================
 
       onPressed: () {
         _openOwnerQR(context);
@@ -256,20 +315,34 @@ class MyQRCodeSheet extends StatelessWidget {
 
         if (snapshot.hasError) {
           return _errorSheet(
-            'Firebase connection failed.',
+            'Firebase connection failed.\n'
+            '${snapshot.error}',
           );
         }
 
         // ------------------------------------------------
-        // NO DOCUMENT
+        // NO DATA
         // ------------------------------------------------
 
-        if (!snapshot.hasData ||
-            !snapshot.data!.exists) {
+        if (!snapshot.hasData) {
+          return _errorSheet(
+            'QR data is not available.',
+          );
+        }
+
+        // ------------------------------------------------
+        // DOCUMENT DOES NOT EXIST
+        // ------------------------------------------------
+
+        if (!snapshot.data!.exists) {
           return _errorSheet(
             'Owner QR not found.',
           );
         }
+
+        // ------------------------------------------------
+        // FIRESTORE DATA
+        // ------------------------------------------------
 
         final Map<String, dynamic> data =
             snapshot.data!.data() ??
@@ -287,12 +360,21 @@ class MyQRCodeSheet extends StatelessWidget {
         // ------------------------------------------------
 
         final String ownerName =
-            data['name']?.toString() ??
+            data['ownerName']?.toString() ??
+                data['name']?.toString() ??
                 'Owner';
 
         final String phoneNumber =
-            data['phoneNumber']?.toString() ??
+            data['ownerPhone']?.toString() ??
+                data['phoneNumber']?.toString() ??
                 '';
+
+        // ------------------------------------------------
+        // WALK ID
+        // ------------------------------------------------
+
+        final String walkId =
+            data['walkId']?.toString() ?? '';
 
         // ------------------------------------------------
         // SCAN STATUS
@@ -303,23 +385,39 @@ class MyQRCodeSheet extends StatelessWidget {
 
         // ------------------------------------------------
         // WALKER SCANNED OWNER QR
-        //
-        // Firebase:
-        // scanned = true
-        //
-        // Bottom sheet automatically closes.
         // ------------------------------------------------
 
         if (scanned) {
           WidgetsBinding.instance
               .addPostFrameCallback((_) {
             if (context.mounted &&
-                Navigator.of(context).canPop()) {
+                Navigator.of(context)
+                    .canPop()) {
               Navigator.of(context).pop();
             }
           });
 
           return const SizedBox.shrink();
+        }
+
+        // ------------------------------------------------
+        // QR DATA MISSING
+        // ------------------------------------------------
+
+        if (qrData.isEmpty) {
+          return _errorSheet(
+            'QR data is empty.',
+          );
+        }
+
+        // ------------------------------------------------
+        // WALK ID MISSING
+        // ------------------------------------------------
+
+        if (walkId.isEmpty) {
+          return _errorSheet(
+            'Walk ID is missing.',
+          );
         }
 
         // ------------------------------------------------
@@ -415,6 +513,7 @@ class MyQRCodeSheet extends StatelessWidget {
 
               Text(
                 ownerName,
+
                 textAlign:
                     TextAlign.center,
 
@@ -435,6 +534,7 @@ class MyQRCodeSheet extends StatelessWidget {
 
                 Text(
                   phoneNumber,
+
                   textAlign:
                       TextAlign.center,
 
@@ -482,31 +582,47 @@ class MyQRCodeSheet extends StatelessWidget {
                   ),
                 ),
 
-                child: qrData.isEmpty
-                    ? const Center(
-                        child: Text(
-                          'QR unavailable',
-                          style:
-                              TextStyle(
-                            color:
-                                Colors.grey,
-                          ),
-                        ),
-                      )
-                    : QrImageView(
-                        data: qrData,
-                        version:
-                            QrVersions.auto,
-                        size: 166,
-                        backgroundColor:
-                            Colors.white,
-                        errorCorrectionLevel:
-                            QrErrorCorrectLevel.M,
-                      ),
+                child: QrImageView(
+                  data: qrData,
+
+                  version:
+                      QrVersions.auto,
+
+                  size: 166,
+
+                  backgroundColor:
+                      Colors.white,
+
+                  errorCorrectionLevel:
+                      QrErrorCorrectLevel.M,
+                ),
               ),
 
               const SizedBox(
                 height: 18,
+              ),
+
+              // ==========================================
+              // WALK ID
+              // ==========================================
+
+              Text(
+                'Walk ID: $walkId',
+
+                maxLines: 1,
+
+                overflow:
+                    TextOverflow.ellipsis,
+
+                style: const TextStyle(
+                  fontSize: 11,
+                  color:
+                      Color(0xff9ca3af),
+                ),
+              ),
+
+              const SizedBox(
+                height: 12,
               ),
 
               // ==========================================
@@ -527,7 +643,7 @@ class MyQRCodeSheet extends StatelessWidget {
               ),
 
               const SizedBox(
-                height: 8,
+                height: 10,
               ),
 
               // ==========================================
@@ -665,6 +781,7 @@ class MyQRCodeSheet extends StatelessWidget {
 
           Text(
             message,
+
             textAlign:
                 TextAlign.center,
 
