@@ -57,10 +57,6 @@ class _HomeScreenState extends State<HomeScreen> {
 
       final String ownerUid = user.uid;
 
-      // -------------------------------------------------
-      // FIND ACTIVE WALK FOR THIS OWNER
-      // -------------------------------------------------
-
       final QuerySnapshot<Map<String, dynamic>> result =
           await FirebaseFirestore.instance
               .collection('active_walks')
@@ -151,13 +147,24 @@ class _HomeScreenState extends State<HomeScreen> {
       ),
     );
 
-    // ---------------------------------------------------
-    // CHECK AGAIN AFTER RETURN
-    // ---------------------------------------------------
-
     if (mounted) {
       _checkActiveWalk();
     }
+  }
+
+  // =====================================================
+  // OPEN MY QR
+  // =====================================================
+
+  void _openMyQRCode() {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.transparent,
+      isScrollControlled: true,
+      builder: (context) {
+        return const MyQRCodeSheet();
+      },
+    );
   }
 
   @override
@@ -170,6 +177,7 @@ class _HomeScreenState extends State<HomeScreen> {
 
       body: RefreshIndicator(
         onRefresh: _checkActiveWalk,
+
         child: SingleChildScrollView(
           physics:
               const AlwaysScrollableScrollPhysics(),
@@ -508,7 +516,8 @@ class _HomeScreenState extends State<HomeScreen> {
                             context,
                             title:
                                 'Total Walks',
-                            value: '12',
+                            value:
+                                '12',
                             icon:
                                 Icons.pets,
                             iconColor:
@@ -621,7 +630,7 @@ class _HomeScreenState extends State<HomeScreen> {
       ),
 
       // ===============================================
-      // QR BUTTON
+      // MY QR BUTTON
       // ===============================================
 
       floatingActionButtonLocation:
@@ -629,7 +638,30 @@ class _HomeScreenState extends State<HomeScreen> {
               .centerFloat,
 
       floatingActionButton:
-          const GenerateQRButton(),
+          FloatingActionButton.extended(
+        backgroundColor:
+            HomeScreen.orange,
+
+        foregroundColor:
+            Colors.white,
+
+        elevation: 8,
+
+        onPressed:
+            _openMyQRCode,
+
+        icon: const Icon(
+          Icons.qr_code_2,
+        ),
+
+        label: const Text(
+          'Generate QR Code',
+          style: TextStyle(
+            fontWeight:
+                FontWeight.w900,
+          ),
+        ),
+      ),
     );
   }
 
@@ -754,6 +786,7 @@ class _HomeScreenState extends State<HomeScreen> {
                 crossAxisAlignment:
                     CrossAxisAlignment
                         .start,
+
                 children: [
                   Text(
                     title,
@@ -774,6 +807,7 @@ class _HomeScreenState extends State<HomeScreen> {
                   FittedBox(
                     fit:
                         BoxFit.scaleDown,
+
                     alignment:
                         Alignment
                             .centerLeft,
@@ -783,7 +817,8 @@ class _HomeScreenState extends State<HomeScreen> {
                           TextSpan(
                         children: [
                           TextSpan(
-                            text: value,
+                            text:
+                                value,
                             style:
                                 const TextStyle(
                               color:
@@ -855,8 +890,10 @@ class _HomeScreenState extends State<HomeScreen> {
             BoxDecoration(
           color:
               const Color(0xFFEFF2F5),
+
           borderRadius:
               BorderRadius.circular(16),
+
           border: Border.all(
             color:
                 const Color(0xFFD4D9DF),
@@ -899,6 +936,7 @@ class _HomeScreenState extends State<HomeScreen> {
                 crossAxisAlignment:
                     CrossAxisAlignment
                         .start,
+
                 children: [
                   Text(
                     'Active Duration',
@@ -919,9 +957,11 @@ class _HomeScreenState extends State<HomeScreen> {
                   FittedBox(
                     fit:
                         BoxFit.scaleDown,
+
                     alignment:
                         Alignment
                             .centerLeft,
+
                     child: Text(
                       '6 hrs',
                       style:
@@ -1021,6 +1061,7 @@ class _HomeScreenState extends State<HomeScreen> {
                 crossAxisAlignment:
                     CrossAxisAlignment
                         .start,
+
                 children: [
                   Text(
                     'Report Card',
@@ -1041,9 +1082,11 @@ class _HomeScreenState extends State<HomeScreen> {
                   FittedBox(
                     fit:
                         BoxFit.scaleDown,
+
                     alignment:
                         Alignment
                             .centerLeft,
+
                     child: Text(
                       'Performance',
                       style:
@@ -1161,6 +1204,7 @@ class _HomeScreenState extends State<HomeScreen> {
                 crossAxisAlignment:
                     CrossAxisAlignment
                         .start,
+
                 children: [
                   Text(
                     '$id • $time',
