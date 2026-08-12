@@ -1,11 +1,14 @@
-import 'package:firebase_core/firebase_core.dart' show FirebaseOptions;
+import 'package:firebase_core/firebase_core.dart'
+    show FirebaseOptions;
 import 'package:flutter/foundation.dart'
     show TargetPlatform, defaultTargetPlatform, kIsWeb;
 
 class DefaultFirebaseOptions {
   static FirebaseOptions get currentPlatform {
     if (kIsWeb) {
-      throw UnsupportedError('Web platforms are not configured.');
+      throw UnsupportedError(
+        'Web platforms are not configured.',
+      );
     }
 
     switch (defaultTargetPlatform) {
@@ -24,11 +27,16 @@ class DefaultFirebaseOptions {
     }
   }
 
-  static const FirebaseOptions android = FirebaseOptions(
-    apiKey: 'AIzaSyAUUiXYiPevzQyg_wLuhwzCk-N9UEx8GFs',
-    appId: '1:719463503810:android:b4a6686354d244c300a85b',
-    messagingSenderId: '719463503810',
-    projectId: 'dojo-platform-a5dc8',
+  static const FirebaseOptions android =
+      FirebaseOptions(
+    apiKey:
+        'AIzaSyAUUiXYiPevzQyg_wLuhwzCk-N9UEx8GFs',
+    appId:
+        '1:719463503810:android:b4a6686354d244c300a85b',
+    messagingSenderId:
+        '719463503810',
+    projectId:
+        'dojo-platform-a5dc8',
     databaseURL:
         'https://dojo-platform-a5dc8-default-rtdb.asia-southeast1.firebasedatabase.app',
     storageBucket:
