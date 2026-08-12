@@ -4,9 +4,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
-
   await Firebase.initializeApp();
-
   runApp(const MyApp());
 }
 
@@ -54,10 +52,6 @@ class _GenerateQRCodeScreenState
     textController.dispose();
     super.dispose();
   }
-
-  // ======================================================
-  // SAVE QR DATA TO FIRESTORE
-  // ======================================================
 
   Future<void> saveAndOpenQR() async {
     final String qrData = textController.text.trim();
@@ -110,10 +104,6 @@ class _GenerateQRCodeScreenState
     }
   }
 
-  // ======================================================
-  // OPEN MY QR CODE
-  // ======================================================
-
   void openMyQRCode() {
     showModalBottomSheet(
       context: context,
@@ -129,12 +119,10 @@ class _GenerateQRCodeScreenState
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: const Color(0xfff0f2f5),
-
       body: Center(
         child: Container(
           width: 360,
           height: 720,
-
           decoration: BoxDecoration(
             gradient: const LinearGradient(
               begin: Alignment.topLeft,
@@ -146,33 +134,22 @@ class _GenerateQRCodeScreenState
             ),
             borderRadius: BorderRadius.circular(40),
           ),
-
           clipBehavior: Clip.antiAlias,
-
           child: Stack(
             children: [
-
-              // ==================================================
-              // HEADER
-              // ==================================================
-
               Positioned(
                 top: 0,
                 left: 0,
                 right: 0,
-
                 child: Padding(
                   padding: const EdgeInsets.symmetric(
                     horizontal: 20,
                     vertical: 15,
                   ),
-
                   child: Row(
                     mainAxisAlignment:
                         MainAxisAlignment.spaceBetween,
-
                     children: [
-
                       GestureDetector(
                         onTap: () {
                           Navigator.pop(context);
@@ -183,7 +160,6 @@ class _GenerateQRCodeScreenState
                           size: 28,
                         ),
                       ),
-
                       const Text(
                         'QR Code Studio',
                         style: TextStyle(
@@ -192,7 +168,6 @@ class _GenerateQRCodeScreenState
                           fontWeight: FontWeight.w600,
                         ),
                       ),
-
                       const Icon(
                         Icons.more_vert,
                         color: Colors.white,
@@ -202,17 +177,11 @@ class _GenerateQRCodeScreenState
                   ),
                 ),
               ),
-
-              // ==================================================
-              // WHITE PANEL
-              // ==================================================
-
               Positioned(
                 left: 0,
                 right: 0,
                 bottom: 0,
                 top: 75,
-
                 child: Container(
                   padding: const EdgeInsets.fromLTRB(
                     24,
@@ -220,22 +189,17 @@ class _GenerateQRCodeScreenState
                     24,
                     30,
                   ),
-
                   decoration: const BoxDecoration(
                     color: Colors.white,
-
                     borderRadius: BorderRadius.vertical(
                       top: Radius.circular(32),
                     ),
                   ),
-
                   child: SingleChildScrollView(
                     child: Column(
                       crossAxisAlignment:
                           CrossAxisAlignment.start,
-
                       children: [
-
                         const Text(
                           'Generate New QR',
                           style: TextStyle(
@@ -244,9 +208,7 @@ class _GenerateQRCodeScreenState
                             color: Color(0xff111827),
                           ),
                         ),
-
                         const SizedBox(height: 24),
-
                         const Text(
                           'Enter Website URL or Text',
                           style: TextStyle(
@@ -255,22 +217,17 @@ class _GenerateQRCodeScreenState
                             color: Color(0xff4b5563),
                           ),
                         ),
-
                         const SizedBox(height: 8),
-
                         TextField(
                           controller: textController,
-
                           decoration: InputDecoration(
                             hintText:
                                 'e.g., www.mywebsite.com/menu',
-
                             contentPadding:
                                 const EdgeInsets.symmetric(
                               horizontal: 16,
                               vertical: 12,
                             ),
-
                             enabledBorder:
                                 OutlineInputBorder(
                               borderRadius:
@@ -280,7 +237,6 @@ class _GenerateQRCodeScreenState
                                 color: Color(0xffd1d5db),
                               ),
                             ),
-
                             focusedBorder:
                                 OutlineInputBorder(
                               borderRadius:
@@ -293,15 +249,11 @@ class _GenerateQRCodeScreenState
                             ),
                           ),
                         ),
-
                         const SizedBox(height: 20),
-
-                        // QR PREVIEW
                         Center(
                           child: Container(
                             width: 120,
                             height: 120,
-
                             decoration: BoxDecoration(
                               color:
                                   const Color(0xfff8fafc),
@@ -313,7 +265,6 @@ class _GenerateQRCodeScreenState
                                 width: 2,
                               ),
                             ),
-
                             child: const Center(
                               child: Text(
                                 'Live QR Preview\nWill Appear Here',
@@ -327,9 +278,7 @@ class _GenerateQRCodeScreenState
                             ),
                           ),
                         ),
-
                         const SizedBox(height: 20),
-
                         const Text(
                           'Customize',
                           style: TextStyle(
@@ -338,7 +287,6 @@ class _GenerateQRCodeScreenState
                             color: Color(0xff4b5563),
                           ),
                         ),
-
                         CheckboxListTile(
                           value: addLogo,
                           onChanged: (value) {
@@ -360,7 +308,6 @@ class _GenerateQRCodeScreenState
                             ),
                           ),
                         ),
-
                         CheckboxListTile(
                           value: customColor,
                           onChanged: (value) {
@@ -383,22 +330,14 @@ class _GenerateQRCodeScreenState
                             ),
                           ),
                         ),
-
                         const SizedBox(height: 10),
-
-                        // ==================================================
-                        // GENERATE BUTTON
-                        // ==================================================
-
                         SizedBox(
                           width: double.infinity,
-
                           child: ElevatedButton(
                             onPressed:
                                 isSaving
                                     ? null
                                     : saveAndOpenQR,
-
                             style:
                                 ElevatedButton.styleFrom(
                               backgroundColor:
@@ -416,7 +355,6 @@ class _GenerateQRCodeScreenState
                                     BorderRadius.circular(12),
                               ),
                             ),
-
                             child: isSaving
                                 ? const SizedBox(
                                     width: 22,
@@ -437,9 +375,7 @@ class _GenerateQRCodeScreenState
                                   ),
                           ),
                         ),
-
                         const SizedBox(height: 25),
-
                         const Text(
                           'My Saved Codes',
                           style: TextStyle(
@@ -448,17 +384,13 @@ class _GenerateQRCodeScreenState
                             color: Color(0xff111827),
                           ),
                         ),
-
                         const SizedBox(height: 14),
-
                         _historyItem(
                           Icons.contact_page,
                           'Digital Business Card',
                           'Generated on Oct 25',
                         ),
-
                         const SizedBox(height: 10),
-
                         _historyItem(
                           Icons.shopping_cart,
                           'Product A5 Promo',
@@ -483,40 +415,31 @@ class _GenerateQRCodeScreenState
   ) {
     return Container(
       padding: const EdgeInsets.all(12),
-
       decoration: BoxDecoration(
         color: const Color(0xfff9fafb),
         borderRadius: BorderRadius.circular(10),
       ),
-
       child: Row(
         children: [
-
           Container(
             width: 40,
             height: 40,
-
             decoration: BoxDecoration(
               color: const Color(0xffe0e7ff),
               borderRadius:
                   BorderRadius.circular(8),
             ),
-
             child: Icon(
               icon,
               color: const Color(0xff6366f1),
               size: 20,
             ),
           ),
-
           const SizedBox(width: 12),
-
           Column(
             crossAxisAlignment:
                 CrossAxisAlignment.start,
-
             children: [
-
               Text(
                 title,
                 style: const TextStyle(
@@ -525,9 +448,7 @@ class _GenerateQRCodeScreenState
                   color: Color(0xff111827),
                 ),
               ),
-
               const SizedBox(height: 3),
-
               Text(
                 date,
                 style: const TextStyle(
@@ -557,40 +478,32 @@ class MyQRCodeSheet extends StatelessWidget {
           .collection('qr_codes')
           .doc('user_qr')
           .snapshots(),
-
       builder: (context, snapshot) {
-
         String qrData = 'ABC123';
 
         if (snapshot.hasData &&
             snapshot.data!.exists) {
-
           final data =
               snapshot.data!.data()
                   as Map<String, dynamic>;
-
           qrData =
               data['code'] ?? 'ABC123';
         }
 
         return Container(
           width: double.infinity,
-
           padding: const EdgeInsets.fromLTRB(
             24,
             24,
             24,
             32,
           ),
-
           decoration: const BoxDecoration(
             color: Colors.white,
-
             borderRadius:
                 BorderRadius.vertical(
               top: Radius.circular(28),
             ),
-
             boxShadow: [
               BoxShadow(
                 color: Colors.black12,
@@ -599,24 +512,14 @@ class MyQRCodeSheet extends StatelessWidget {
               ),
             ],
           ),
-
           child: Column(
             mainAxisSize: MainAxisSize.min,
-
             children: [
-
-              // ==================================================
-              // HEADER
-              // ==================================================
-
               Row(
                 mainAxisAlignment:
                     MainAxisAlignment.spaceBetween,
-
                 children: [
-
                   const SizedBox(width: 30),
-
                   const Text(
                     'My QR Code',
                     style: TextStyle(
@@ -625,12 +528,10 @@ class MyQRCodeSheet extends StatelessWidget {
                       color: Color(0xff1f2937),
                     ),
                   ),
-
                   IconButton(
                     onPressed: () {
                       Navigator.pop(context);
                     },
-
                     icon: const Icon(
                       Icons.close,
                       size: 20,
@@ -639,30 +540,20 @@ class MyQRCodeSheet extends StatelessWidget {
                   ),
                 ],
               ),
-
               const SizedBox(height: 20),
-
-              // ==================================================
-              // QR
-              // ==================================================
-
               Container(
                 width: 150,
                 height: 150,
-
                 decoration: BoxDecoration(
                   color:
                       const Color(0xfff8fafc),
-
                   borderRadius:
                       BorderRadius.circular(14),
-
                   border: Border.all(
                     color:
                         const Color(0xffcbd5e1),
                   ),
                 ),
-
                 child: const Center(
                   child: Icon(
                     Icons.qr_code_2,
@@ -671,16 +562,9 @@ class MyQRCodeSheet extends StatelessWidget {
                   ),
                 ),
               ),
-
               const SizedBox(height: 15),
-
-              // ==================================================
-              // FIRESTORE DATA
-              // ==================================================
-
               Text(
                 qrData,
-
                 style: const TextStyle(
                   fontSize: 16,
                   fontWeight: FontWeight.w700,
@@ -688,20 +572,15 @@ class MyQRCodeSheet extends StatelessWidget {
                   letterSpacing: 0.5,
                 ),
               ),
-
               const SizedBox(height: 12),
-
               const Padding(
                 padding:
                     EdgeInsets.symmetric(
                   horizontal: 8,
                 ),
-
                 child: Text(
                   "Use your smartphone's camera or a QR code reader app to scan the QR code above.",
-
                   textAlign: TextAlign.center,
-
                   style: TextStyle(
                     fontSize: 12,
                     color: Color(0xff6b7280),
@@ -709,12 +588,46 @@ class MyQRCodeSheet extends StatelessWidget {
                   ),
                 ),
               ),
-
               const SizedBox(height: 10),
             ],
           ),
         );
       },
+    );
+  }
+}
+
+// ======================================================
+// NEW: GENERATE QR BUTTON WIDGET (होम स्क्रीन के लिए)
+// ======================================================
+
+class GenerateQRButton extends StatelessWidget {
+  const GenerateQRButton({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return FloatingActionButton.extended(
+      backgroundColor: const Color(0xFFF4511E),
+      foregroundColor: Colors.white,
+      elevation: 8,
+      onPressed: () {
+        // जब यूजर होम स्क्रीन पर इस बटन पर क्लिक करेगा, 
+        // तो यह सीधे GenerateQRCodeScreen पर ले जाएगा 
+        // (या अगर आप स्टूडियो के बजाय सीधे बॉटम शीट खोलना चाहते हैं, तो यहाँ बदल सकते हैं)
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (context) => const GenerateQRCodeScreen(),
+          ),
+        );
+      },
+      icon: const Icon(Icons.qr_code_2),
+      label: const Text(
+        'Generate QR Code',
+        style: TextStyle(
+          fontWeight: FontWeight.w900,
+        ),
+      ),
     );
   }
 }
