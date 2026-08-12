@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
-import 'custom_app_bar.dart'; // Import Custom App Bar
-import 'generate_qr_screen.dart'; // Generate QR Screen
+import 'custom_app_bar.dart'; 
+import 'generate_qr_screen.dart'; // इम्पोर्ट किया गया 
 
 class HomeScreen extends StatelessWidget {
   const HomeScreen({super.key});
@@ -15,28 +15,13 @@ class HomeScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: background,
-
-      // =====================================================
-      // APP BAR (Using Custom App Bar from separate file)
-      // =====================================================
       appBar: const CustomAppBar(),
-
-      // =====================================================
-      // BODY
-      // =====================================================
       body: SingleChildScrollView(
-        padding: const EdgeInsets.fromLTRB(
-          15,
-          18,
-          15,
-          110,
-        ),
+        padding: const EdgeInsets.fromLTRB(15, 18, 15, 110),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // =================================================
             // WELCOME HEADER
-            // =================================================
             Container(
               width: double.infinity,
               padding: const EdgeInsets.all(17),
@@ -103,18 +88,9 @@ class HomeScreen extends StatelessWidget {
                 ],
               ),
             ),
-
             const SizedBox(height: 22),
-
-            // =================================================
-            // THIS WEEK PROCESSING (Increased Height & Spacing)
-            // =================================================
-            _sectionTitle(
-              'This week processing',
-            ),
-
+            _sectionTitle('This week processing'),
             const SizedBox(height: 11),
-
             Container(
               padding: const EdgeInsets.all(18),
               decoration: BoxDecoration(
@@ -133,9 +109,6 @@ class HomeScreen extends StatelessWidget {
               ),
               child: Column(
                 children: [
-                  // -------------------------------------------
-                  // ROW 1: TOTAL WALKS & DISTANCE
-                  // -------------------------------------------
                   Row(
                     children: [
                       Expanded(
@@ -166,36 +139,20 @@ class HomeScreen extends StatelessWidget {
                       ),
                     ],
                   ),
-
                   const SizedBox(height: 12),
-
-                  // -------------------------------------------
-                  // ROW 2: ACTIVE DURATION & REPORT CARD
-                  // -------------------------------------------
                   Row(
                     children: [
-                      Expanded(
-                        child: _durationCard(context),
-                      ),
+                      Expanded(child: _durationCard(context)),
                       const SizedBox(width: 12),
-                      Expanded(
-                        child: _reportCard(context),
-                      ),
+                      Expanded(child: _reportCard(context)),
                     ],
                   ),
                 ],
               ),
             ),
-
             const SizedBox(height: 23),
-
-            // =================================================
-            // PAST WALK
-            // =================================================
             _sectionTitle('Past Walk'),
-
             const SizedBox(height: 11),
-
             _walkCard(
               context,
               id: '#WID-9842',
@@ -204,9 +161,7 @@ class HomeScreen extends StatelessWidget {
               distance: '2.1 km',
               duration: '30 mins',
             ),
-
             const SizedBox(height: 9),
-
             _walkCard(
               context,
               id: '#WID-9817',
@@ -220,45 +175,13 @@ class HomeScreen extends StatelessWidget {
       ),
 
       // =====================================================
-      // QR BUTTON
+      // QR BUTTON (अब generate_qr_screen.dart से आ रहा है)
       // =====================================================
-      floatingActionButtonLocation:
-          FloatingActionButtonLocation.centerFloat,
-
-      floatingActionButton: FloatingActionButton.extended(
-        backgroundColor: orange,
-        foregroundColor: Colors.white,
-        elevation: 8,
-
-        // ===================================================
-        // ONLY UPDATED PART:
-        // Generate QR Code button now opens QR screen
-        // ===================================================
-        onPressed: () {
-          Navigator.push(
-            context,
-            MaterialPageRoute(
-              builder: (context) =>
-                  const GenerateQRCodeScreen(),
-            ),
-          );
-        },
-
-        icon: const Icon(Icons.qr_code_2),
-
-        label: const Text(
-          'Generate QR Code',
-          style: TextStyle(
-            fontWeight: FontWeight.w900,
-          ),
-        ),
-      ),
+      floatingActionButtonLocation: FloatingActionButtonLocation.centerFloat,
+      floatingActionButton: const GenerateQRButton(),
     );
   }
 
-  // =========================================================
-  // SECTION TITLE
-  // =========================================================
   Widget _sectionTitle(String title) {
     return Row(
       children: [
@@ -283,9 +206,6 @@ class HomeScreen extends StatelessWidget {
     );
   }
 
-  // =========================================================
-  // STAT CARD
-  // =========================================================
   Widget _statCard(
     BuildContext context, {
     required String title,
@@ -298,23 +218,14 @@ class HomeScreen extends StatelessWidget {
     return InkWell(
       borderRadius: BorderRadius.circular(16),
       onTap: () {
-        _showDialog(
-          context,
-          '$title Details',
-          details,
-        );
+        _showDialog(context, '$title Details', details);
       },
       child: Container(
-        padding: const EdgeInsets.symmetric(
-          horizontal: 14,
-          vertical: 18,
-        ),
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 18),
         decoration: BoxDecoration(
           color: const Color(0xFFEFF2F5),
           borderRadius: BorderRadius.circular(16),
-          border: Border.all(
-            color: const Color(0xFFD4D9DF),
-          ),
+          border: Border.all(color: const Color(0xFFD4D9DF)),
         ),
         child: Row(
           children: [
@@ -325,11 +236,7 @@ class HomeScreen extends StatelessWidget {
                 color: iconColor.withOpacity(0.12),
                 borderRadius: BorderRadius.circular(14),
               ),
-              child: Icon(
-                icon,
-                color: iconColor,
-                size: 25,
-              ),
+              child: Icon(icon, color: iconColor, size: 25),
             ),
             const SizedBox(width: 12),
             Expanded(
@@ -382,12 +289,7 @@ class HomeScreen extends StatelessWidget {
     );
   }
 
-  // =========================================================
-  // DURATION CARD
-  // =========================================================
-  Widget _durationCard(
-    BuildContext context,
-  ) {
+  Widget _durationCard(BuildContext context) {
     return InkWell(
       borderRadius: BorderRadius.circular(16),
       onTap: () {
@@ -400,16 +302,11 @@ class HomeScreen extends StatelessWidget {
         );
       },
       child: Container(
-        padding: const EdgeInsets.symmetric(
-          horizontal: 14,
-          vertical: 18,
-        ),
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 18),
         decoration: BoxDecoration(
           color: const Color(0xFFEFF2F5),
           borderRadius: BorderRadius.circular(16),
-          border: Border.all(
-            color: const Color(0xFFD4D9DF),
-          ),
+          border: Border.all(color: const Color(0xFFD4D9DF)),
         ),
         child: Row(
           children: [
@@ -420,11 +317,7 @@ class HomeScreen extends StatelessWidget {
                 color: Colors.green.withOpacity(0.12),
                 borderRadius: BorderRadius.circular(14),
               ),
-              child: const Icon(
-                Icons.timer_outlined,
-                color: Colors.green,
-                size: 25,
-              ),
+              child: const Icon(Icons.timer_outlined, color: Colors.green, size: 25),
             ),
             const SizedBox(width: 12),
             const Expanded(
@@ -462,12 +355,7 @@ class HomeScreen extends StatelessWidget {
     );
   }
 
-  // =========================================================
-  // REPORT CARD
-  // =========================================================
-  Widget _reportCard(
-    BuildContext context,
-  ) {
+  Widget _reportCard(BuildContext context) {
     return InkWell(
       borderRadius: BorderRadius.circular(16),
       onTap: () {
@@ -480,16 +368,11 @@ class HomeScreen extends StatelessWidget {
         );
       },
       child: Container(
-        padding: const EdgeInsets.symmetric(
-          horizontal: 14,
-          vertical: 18,
-        ),
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 18),
         decoration: BoxDecoration(
           color: const Color(0xFFFFF1EA),
           borderRadius: BorderRadius.circular(16),
-          border: Border.all(
-            color: orange.withOpacity(0.25),
-          ),
+          border: Border.all(color: orange.withOpacity(0.25)),
         ),
         child: Row(
           children: [
@@ -500,11 +383,7 @@ class HomeScreen extends StatelessWidget {
                 color: orange,
                 borderRadius: BorderRadius.circular(14),
               ),
-              child: const Icon(
-                Icons.assessment_outlined,
-                color: Colors.white,
-                size: 25,
-              ),
+              child: const Icon(Icons.assessment_outlined, color: Colors.white, size: 25),
             ),
             const SizedBox(width: 12),
             const Expanded(
@@ -542,9 +421,6 @@ class HomeScreen extends StatelessWidget {
     );
   }
 
-  // =========================================================
-  // WALK CARD
-  // =========================================================
   Widget _walkCard(
     BuildContext context, {
     required String id,
@@ -573,9 +449,7 @@ class HomeScreen extends StatelessWidget {
         decoration: BoxDecoration(
           color: card,
           borderRadius: BorderRadius.circular(16),
-          border: Border.all(
-            color: const Color(0xFFD4D9DF),
-          ),
+          border: Border.all(color: const Color(0xFFD4D9DF)),
           boxShadow: [
             BoxShadow(
               color: Colors.black.withOpacity(0.05),
@@ -593,10 +467,7 @@ class HomeScreen extends StatelessWidget {
                 color: Colors.green.withOpacity(0.12),
                 borderRadius: BorderRadius.circular(13),
               ),
-              child: const Icon(
-                Icons.pets,
-                color: Colors.green,
-              ),
+              child: const Icon(Icons.pets, color: Colors.green),
             ),
             const SizedBox(width: 12),
             Expanded(
@@ -614,19 +485,13 @@ class HomeScreen extends StatelessWidget {
                   const SizedBox(height: 5),
                   Text(
                     '$distance • $duration • $date',
-                    style: const TextStyle(
-                      color: slate,
-                      fontSize: 11,
-                    ),
+                    style: const TextStyle(color: slate, fontSize: 11),
                   ),
                 ],
               ),
             ),
             Container(
-              padding: const EdgeInsets.symmetric(
-                horizontal: 8,
-                vertical: 5,
-              ),
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
               decoration: BoxDecoration(
                 color: Colors.green.withOpacity(0.10),
                 borderRadius: BorderRadius.circular(8),
@@ -641,126 +506,26 @@ class HomeScreen extends StatelessWidget {
               ),
             ),
             const SizedBox(width: 7),
-            const Icon(
-              Icons.arrow_forward_ios,
-              size: 13,
-              color: Color(0xFF8A96A3),
-            ),
+            const Icon(Icons.arrow_forward_ios, size: 13, color: Color(0xFF8A96A3)),
           ],
         ),
       ),
     );
   }
 
-  // =========================================================
-  // DETAILS DIALOG
-  // =========================================================
-  void _showDialog(
-    BuildContext context,
-    String title,
-    String content,
-  ) {
+  void _showDialog(BuildContext context, String title, String content) {
     showDialog(
       context: context,
       builder: (ctx) {
         return AlertDialog(
           backgroundColor: const Color(0xFFF7F8FA),
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(20),
-          ),
-          title: Text(
-            title,
-            style: const TextStyle(
-              color: navy,
-              fontWeight: FontWeight.w900,
-            ),
-          ),
-          content: Text(
-            content,
-            style: const TextStyle(
-              color: slate,
-              height: 1.5,
-            ),
-          ),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+          title: Text(title, style: const TextStyle(color: navy, fontWeight: FontWeight.w900)),
+          content: Text(content, style: const TextStyle(color: slate, height: 1.5)),
           actions: [
             TextButton(
               onPressed: () => Navigator.pop(ctx),
-              child: const Text(
-                'CLOSE',
-                style: TextStyle(
-                  color: orange,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-            ),
-          ],
-        );
-      },
-    );
-  }
-
-  // =========================================================
-  // QR DIALOG
-  // =========================================================
-  void _showQrDialog(
-    BuildContext context,
-  ) {
-    showDialog(
-      context: context,
-      builder: (ctx) {
-        return AlertDialog(
-          backgroundColor: const Color(0xFFF7F8FA),
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(20),
-          ),
-          title: const Text(
-            'Generate QR Code',
-            style: TextStyle(
-              color: navy,
-              fontWeight: FontWeight.w900,
-            ),
-          ),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              const Text(
-                'Scan this QR code for your active walk session verification.',
-                style: TextStyle(
-                  color: slate,
-                ),
-                textAlign: TextAlign.center,
-              ),
-              const SizedBox(height: 18),
-              Container(
-                padding: const EdgeInsets.all(15),
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.circular(16),
-                  border: Border.all(
-                    color: const Color(
-                      0xFFD4D9DF,
-                    ),
-                    width: 2,
-                  ),
-                ),
-                child: const Icon(
-                  Icons.qr_code_2,
-                  size: 150,
-                  color: orange,
-                ),
-              ),
-            ],
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(ctx),
-              child: const Text(
-                'CLOSE',
-                style: TextStyle(
-                  color: orange,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
+              child: const Text('CLOSE', style: TextStyle(color: orange, fontWeight: FontWeight.bold)),
             ),
           ],
         );
