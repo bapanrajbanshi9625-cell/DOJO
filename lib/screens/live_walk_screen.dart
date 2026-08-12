@@ -26,7 +26,7 @@ class _LiveWalkScreenState extends State<LiveWalkScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xfff5f7fa),
+      backgroundColor: const Color(0xFFF5F7FA),
 
       // ==================================================
       // APP BAR
@@ -64,21 +64,29 @@ class _LiveWalkScreenState extends State<LiveWalkScreen> {
                   Container(
                     width: 11,
                     height: 11,
-                    decoration: const BoxDecoration(
-                      color: Colors.greenAccent,
+                    decoration: BoxDecoration(
+                      color: _isWalkActive
+                          ? Colors.greenAccent
+                          : Colors.redAccent,
                       shape: BoxShape.circle,
                     ),
                   ),
+
                   const SizedBox(width: 10),
-                  const Text(
-                    'Walk Active',
-                    style: TextStyle(
+
+                  Text(
+                    _isWalkActive
+                        ? 'Walk Active'
+                        : 'Walk Ended',
+                    style: const TextStyle(
                       color: Colors.white,
                       fontSize: 15,
                       fontWeight: FontWeight.w700,
                     ),
                   ),
+
                   const Spacer(),
+
                   const Icon(
                     Icons.pets,
                     color: Colors.white,
@@ -144,9 +152,11 @@ class _LiveWalkScreenState extends State<LiveWalkScreen> {
                                     color: Colors.black54,
                                   ),
                                 ),
+
                                 const SizedBox(height: 3),
+
                                 Text(
-                                  widget.walkerName.isEmpty
+                                  widget.walkerName.trim().isEmpty
                                       ? 'Walker'
                                       : widget.walkerName,
                                   style: const TextStyle(
@@ -155,7 +165,9 @@ class _LiveWalkScreenState extends State<LiveWalkScreen> {
                                     color: Colors.black87,
                                   ),
                                 ),
+
                                 const SizedBox(height: 4),
+
                                 Text(
                                   'UID: ${widget.walkerUid}',
                                   maxLines: 1,
@@ -165,8 +177,11 @@ class _LiveWalkScreenState extends State<LiveWalkScreen> {
                                     color: Colors.black45,
                                   ),
                                 ),
+
                                 if (widget.walkerPhone != null &&
-                                    widget.walkerPhone!.isNotEmpty) ...[
+                                    widget.walkerPhone!
+                                        .trim()
+                                        .isNotEmpty) ...[
                                   const SizedBox(height: 3),
                                   Text(
                                     widget.walkerPhone!,
@@ -180,19 +195,26 @@ class _LiveWalkScreenState extends State<LiveWalkScreen> {
                             ),
                           ),
 
+                          const SizedBox(width: 8),
+
                           Container(
                             padding: const EdgeInsets.symmetric(
                               horizontal: 10,
                               vertical: 6,
                             ),
                             decoration: BoxDecoration(
-                              color: Colors.green.shade50,
-                              borderRadius: BorderRadius.circular(20),
+                              color: _isWalkActive
+                                  ? Colors.green.shade50
+                                  : Colors.red.shade50,
+                              borderRadius:
+                                  BorderRadius.circular(20),
                             ),
                             child: Text(
-                              'ACTIVE',
+                              _isWalkActive ? 'ACTIVE' : 'ENDED',
                               style: TextStyle(
-                                color: Colors.green.shade700,
+                                color: _isWalkActive
+                                    ? Colors.green.shade700
+                                    : Colors.red.shade700,
                                 fontSize: 11,
                                 fontWeight: FontWeight.w800,
                               ),
@@ -229,7 +251,9 @@ class _LiveWalkScreenState extends State<LiveWalkScreen> {
                                   size: 55,
                                   color: Colors.black38,
                                 ),
+
                                 SizedBox(height: 10),
+
                                 Text(
                                   'Live Map',
                                   style: TextStyle(
@@ -238,7 +262,9 @@ class _LiveWalkScreenState extends State<LiveWalkScreen> {
                                     color: Colors.black54,
                                   ),
                                 ),
+
                                 SizedBox(height: 4),
+
                                 Text(
                                   'Walker location will appear here',
                                   style: TextStyle(
@@ -254,7 +280,8 @@ class _LiveWalkScreenState extends State<LiveWalkScreen> {
                             left: 15,
                             top: 15,
                             child: Container(
-                              padding: const EdgeInsets.symmetric(
+                              padding:
+                                  const EdgeInsets.symmetric(
                                 horizontal: 10,
                                 vertical: 7,
                               ),
@@ -271,18 +298,22 @@ class _LiveWalkScreenState extends State<LiveWalkScreen> {
                                 ],
                               ),
                               child: const Row(
+                                mainAxisSize: MainAxisSize.min,
                                 children: [
                                   Icon(
                                     Icons.location_on,
                                     size: 17,
                                     color: Color(0xFFF4511E),
                                   ),
+
                                   SizedBox(width: 6),
+
                                   Text(
                                     'Walker Live Location',
                                     style: TextStyle(
                                       fontSize: 12,
-                                      fontWeight: FontWeight.w600,
+                                      fontWeight:
+                                          FontWeight.w600,
                                     ),
                                   ),
                                 ],
@@ -307,7 +338,9 @@ class _LiveWalkScreenState extends State<LiveWalkScreen> {
                             value: '00:00:00',
                           ),
                         ),
+
                         const SizedBox(width: 12),
+
                         Expanded(
                           child: _statCard(
                             icon: Icons.route,
@@ -329,12 +362,16 @@ class _LiveWalkScreenState extends State<LiveWalkScreen> {
                             value: '0',
                           ),
                         ),
+
                         const SizedBox(width: 12),
+
                         Expanded(
                           child: _statCard(
                             icon: Icons.circle,
                             title: 'Status',
-                            value: 'Active',
+                            value: _isWalkActive
+                                ? 'Active'
+                                : 'Ended',
                           ),
                         ),
                       ],
@@ -371,8 +408,9 @@ class _LiveWalkScreenState extends State<LiveWalkScreen> {
                       width: double.infinity,
                       height: 56,
                       child: ElevatedButton.icon(
-                        onPressed:
-                            _isWalkActive ? _showEndWalkDialog : null,
+                        onPressed: _isWalkActive
+                            ? _showEndWalkDialog
+                            : null,
                         icon: const Icon(
                           Icons.stop_circle_outlined,
                         ),
@@ -386,9 +424,14 @@ class _LiveWalkScreenState extends State<LiveWalkScreen> {
                         style: ElevatedButton.styleFrom(
                           backgroundColor: Colors.redAccent,
                           foregroundColor: Colors.white,
+                          disabledBackgroundColor:
+                              Colors.grey.shade300,
+                          disabledForegroundColor:
+                              Colors.grey.shade600,
                           elevation: 0,
                           shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(14),
+                            borderRadius:
+                                BorderRadius.circular(14),
                           ),
                         ),
                       ),
@@ -434,7 +477,9 @@ class _LiveWalkScreenState extends State<LiveWalkScreen> {
             color: const Color(0xFFF4511E),
             size: 27,
           ),
+
           const SizedBox(height: 8),
+
           Text(
             title,
             style: const TextStyle(
@@ -443,7 +488,9 @@ class _LiveWalkScreenState extends State<LiveWalkScreen> {
               fontWeight: FontWeight.w600,
             ),
           ),
+
           const SizedBox(height: 4),
+
           Text(
             value,
             style: const TextStyle(
@@ -462,7 +509,7 @@ class _LiveWalkScreenState extends State<LiveWalkScreen> {
   // ==================================================
 
   void _showEndWalkDialog() {
-    showDialog(
+    showDialog<void>(
       context: context,
       builder: (dialogContext) {
         return AlertDialog(
@@ -472,9 +519,11 @@ class _LiveWalkScreenState extends State<LiveWalkScreen> {
               fontWeight: FontWeight.bold,
             ),
           ),
+
           content: const Text(
             'Are you sure you want to end this walk?',
           ),
+
           actions: [
             TextButton(
               onPressed: () {
@@ -482,9 +531,12 @@ class _LiveWalkScreenState extends State<LiveWalkScreen> {
               },
               child: const Text('Cancel'),
             ),
+
             ElevatedButton(
               onPressed: () {
                 Navigator.pop(dialogContext);
+
+                if (!mounted) return;
 
                 setState(() {
                   _isWalkActive = false;
