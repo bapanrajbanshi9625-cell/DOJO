@@ -1,0 +1,603 @@
+import 'package:flutter/material.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+
+import '../models/pet_data.dart';
+import '../services/profile_setup_service.dart';
+
+import '../features/profile_setup/profile_setup_data.dart';
+
+import '../features/profile_setup/widgets/profile_welcome_card.dart';
+import '../features/profile_setup/widgets/profile_section_card.dart';
+import '../features/profile_setup/widgets/profile_text_field.dart';
+import '../features/profile_setup/widgets/pet_card.dart';
+import '../features/profile_setup/widgets/add_pet_button.dart';
+import '../features/profile_setup/widgets/address_field.dart';
+import '../features/profile_setup/widgets/save_profile_button.dart';
+
+import '../features/profile_setup/pickers/compact_picker_sheet.dart';
+import '../features/profile_setup/pickers/breed_picker.dart';
+
+class ProfileSetupScreen extends StatefulWidget {
+  const ProfileSetupScreen({
+    super.key,
+  });
+
+  @override
+  State<ProfileSetupScreen> createState() =>
+      _ProfileSetupScreenState();
+}
+
+class _ProfileSetupScreenState
+    extends State<ProfileSetupScreen> {
+  static const Color orange =
+      Color(0xFFF4511E);
+
+  static const Color lightOrange =
+      Color(0xFFFFF1E8);
+
+  static const Color textGrey =
+      Color(0xFF707070);
+
+  final TextEditingController
+      ownerController =
+      TextEditingController();
+
+  final TextEditingController
+      addressController =
+      TextEditingController();
+
+  final List<PetData> pets = [
+    PetData(),
+  ];
+
+  bool _isSaving = false;
+
+  // ============================================================
+  // DISPOSE
+  // ============================================================
+
+  @override
+  void dispose() {
+    ownerController.dispose();
+    addressController.dispose();
+
+    for (final pet in pets) {
+      pet.dispose();
+    }
+
+    super.dispose();
+  }
+
+  // ============================================================
+  // ADD PET
+  // ============================================================
+
+  void _addPet() {
+    if (pets.length >= 3) {
+      _showError(
+        'Maximum 3 pets can be added.',
+      );
+      return;
+    }
+
+    setState(() {
+      pets.add(PetData());
+    });
+  }
+
+  // ============================================================
+  // REMOVE PET
+  // ============================================================
+
+  void _removePet(int index) {
+    if (pets.length <= 1) {
+      _showError(
+        'At least one pet is required.',
+      );
+      return;
+    }
+
+    final pet = pets.removeAt(index);
+
+    pet.dispose();
+
+    setState(() {});
+  }
+
+  // ============================================================
+  // VALIDATION
+  // ============================================================
+
+  bool _validateProfile() {
+    if (ownerController.text.trim().isEmpty) {
+      _showError(
+        'Please enter owner name.',
+      );
+      return false;
+    }
+
+    for (int i = 0; i < pets.length; i++) {
+      final pet = pets[i];
+      final number = i + 1;
+
+      if (pet.nameController.text
+          .trim()
+          .isEmpty) {
+        _showError(
+          'Please enter Pet $number name.',
+        );
+        return false;
+      }
+
+      if (pet.age == null) {
+        _showError(
+          'Please choose Pet $number age.',
+        );
+        return false;
+      }
+
+      if (pet.breed == null) {
+        _showError(
+          'Please choose Pet $number breed.',
+        );
+        return false;
+      }
+
+      if (pet.behaviour == null) {
+        _showError(
+          'Please choose Pet $number behaviour.',
+        );
+        return false;
+      }
+    }
+
+    return true;
+  }
+
+  // ============================================================
+  // SAVE PROFILE
+  // ============================================================
+
+  Future<void> _saveProfile() async {
+    if (!_validateProfile()) {
+      return;
+    }
+
+    final User? user =
+        FirebaseAuth.instance.currentUser;
+
+    if (user == null) {
+      _showError(
+        'User is not logged in. Please verify your mobile number first.',
+      );
+      return;
+    }
+
+    if (user.phoneNumber == null ||
+        user.phoneNumber!.isEmpty) {
+      _showError(
+        'Verified mobile number was not found.',
+      );
+      return;
+    }
+
+    setState(() {
+      _isSaving = true;
+    });
+
+    try {
+      await ProfileSetupService.saveProfile(
+        ownerName:
+            ownerController.text.trim(),
+        address:
+            addressController.text.trim(),
+        pets: pets,
+      );
+
+      if (!mounted) return;
+
+      ScaffoldMessenger.of(context)
+          .showSnackBar(
+        SnackBar(
+          backgroundColor: Colors.green,
+          content: Text(
+            'Profile saved successfully with '
+            '${pets.length} '
+            '${pets.length == 1 ? 'pet' : 'pets'}.',
+          ),
+        ),
+      );
+
+      // ========================================================
+      // NEXT SCREEN
+      // ========================================================
+      //
+      // Yahan baad mein aap:
+      //
+      // Navigator.pushReplacement(...)
+      //
+      // laga sakte ho.
+      //
+      // Abhi intentionally koi next screen nahi lagayi.
+      //
+    } on FirebaseException catch (e) {
+      if (!mounted) return;
+
+      _showError(
+        e.message ??
+            'Could not save profile. Please try again.',
+      );
+    } catch (e) {
+      if (!mounted) return;
+
+      _showError(
+        'Something went wrong. Please try again.',
+      );
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isSaving = false;
+        });
+      }
+    }
+  }
+
+  // ============================================================
+  // ERROR
+  // ============================================================
+
+  void _showError(String message) {
+    ScaffoldMessenger.of(context)
+        .showSnackBar(
+      SnackBar(
+        backgroundColor:
+            Colors.red.shade700,
+        content: Text(message),
+      ),
+    );
+  }
+
+  // ============================================================
+  // PICKER HELPER
+  // ============================================================
+
+  void _openPicker({
+    required String title,
+    required IconData icon,
+    required List<String> items,
+    required String? selected,
+    required ValueChanged<String> onSelected,
+  }) {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.white,
+      isScrollControlled: true,
+      shape:
+          const RoundedRectangleBorder(
+        borderRadius:
+            BorderRadius.vertical(
+          top: Radius.circular(26),
+        ),
+      ),
+      builder: (_) {
+        return CompactPickerSheet(
+          title: title,
+          icon: icon,
+          items: items,
+          selected: selected,
+          onSelected: onSelected,
+        );
+      },
+    );
+  }
+
+  // ============================================================
+  // AGE PICKER
+  // ============================================================
+
+  void _showAgePicker(PetData pet) {
+    _openPicker(
+      title: 'Choose Pet Age',
+      icon: Icons.cake_outlined,
+      items: ProfileSetupData.ages,
+      selected: pet.age,
+      onSelected: (value) {
+        setState(() {
+          pet.age = value;
+        });
+
+        Navigator.pop(context);
+      },
+    );
+  }
+
+  // ============================================================
+  // BREED PICKER
+  // ============================================================
+
+  void _showBreedPicker(PetData pet) {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.white,
+      isScrollControlled: true,
+      shape:
+          const RoundedRectangleBorder(
+        borderRadius:
+            BorderRadius.vertical(
+          top: Radius.circular(26),
+        ),
+      ),
+      builder: (_) {
+        return BreedPicker(
+          breeds: ProfileSetupData.breeds,
+          selectedBreed: pet.breed,
+          onSelected: (breed) {
+            setState(() {
+              pet.breed = breed;
+            });
+
+            Navigator.pop(context);
+          },
+        );
+      },
+    );
+  }
+
+  // ============================================================
+  // BEHAVIOUR PICKER
+  // ============================================================
+
+  void _showBehaviourPicker(
+      PetData pet) {
+    _openPicker(
+      title: 'Choose Behaviour',
+      icon:
+          Icons.favorite_border_rounded,
+      items: ProfileSetupData.behaviours,
+      selected: pet.behaviour,
+      onSelected: (value) {
+        setState(() {
+          pet.behaviour = value;
+        });
+
+        Navigator.pop(context);
+      },
+    );
+  }
+
+  // ============================================================
+  // BUILD
+  // ============================================================
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor:
+          const Color(0xFFF8F8F8),
+
+      // ========================================================
+      // APP BAR
+      // ========================================================
+
+      appBar: AppBar(
+        backgroundColor: orange,
+        foregroundColor: Colors.white,
+        elevation: 0,
+        automaticallyImplyLeading: false,
+        title: const Row(
+          children: [
+            Icon(
+              Icons.person_add_alt_1_rounded,
+              size: 26,
+            ),
+            SizedBox(width: 10),
+            Text(
+              'Profile Setup',
+              style: TextStyle(
+                fontSize: 22,
+                fontWeight:
+                    FontWeight.w700,
+              ),
+            ),
+          ],
+        ),
+      ),
+
+      // ========================================================
+      // BODY
+      // ========================================================
+
+      body: SafeArea(
+        child: SingleChildScrollView(
+          physics:
+              const BouncingScrollPhysics(),
+          padding:
+              const EdgeInsets.fromLTRB(
+            16,
+            20,
+            16,
+            35,
+          ),
+          child: Column(
+            crossAxisAlignment:
+                CrossAxisAlignment.start,
+            children: [
+              // ==================================================
+              // WELCOME
+              // ==================================================
+
+              const ProfileWelcomeCard(),
+
+              const SizedBox(height: 24),
+
+              // ==================================================
+              // OWNER
+              // ==================================================
+
+              const Text(
+                'Owner Information',
+                style: TextStyle(
+                  fontSize: 22,
+                  fontWeight:
+                      FontWeight.bold,
+                ),
+              ),
+
+              const SizedBox(height: 14),
+
+              ProfileSectionCard(
+                child: ProfileTextField(
+                  controller:
+                      ownerController,
+                  label: 'Owner Name',
+                  hint: 'Enter owner name',
+                  icon:
+                      Icons.person_outline_rounded,
+                ),
+              ),
+
+              const SizedBox(height: 24),
+
+              // ==================================================
+              // PET TITLE
+              // ==================================================
+
+              Row(
+                children: [
+                  const Expanded(
+                    child: Text(
+                      'Pet Information',
+                      style: TextStyle(
+                        fontSize: 22,
+                        fontWeight:
+                            FontWeight.bold,
+                      ),
+                    ),
+                  ),
+
+                  Container(
+                    padding:
+                        const EdgeInsets
+                            .symmetric(
+                      horizontal: 10,
+                      vertical: 5,
+                    ),
+                    decoration:
+                        BoxDecoration(
+                      color: lightOrange,
+                      borderRadius:
+                          BorderRadius.circular(
+                        20,
+                      ),
+                    ),
+                    child: Text(
+                      '${pets.length}/3 Pets',
+                      style:
+                          const TextStyle(
+                        color: orange,
+                        fontSize: 12,
+                        fontWeight:
+                            FontWeight.w700,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+
+              const SizedBox(height: 14),
+
+              // ==================================================
+              // PETS
+              // ==================================================
+
+              ...List.generate(
+                pets.length,
+                (index) {
+                  return Padding(
+                    padding:
+                        const EdgeInsets.only(
+                      bottom: 16,
+                    ),
+                    child: PetCard(
+                      pet: pets[index],
+                      index: index,
+                      totalPets: pets.length,
+                      onRemove: () =>
+                          _removePet(index),
+                      onAgeTap: () =>
+                          _showAgePicker(
+                        pets[index],
+                      ),
+                      onBreedTap: () =>
+                          _showBreedPicker(
+                        pets[index],
+                      ),
+                      onBehaviourTap: () =>
+                          _showBehaviourPicker(
+                        pets[index],
+                      ),
+                    ),
+                  );
+                },
+              ),
+
+              // ==================================================
+              // ADD PET
+              // ==================================================
+
+              if (pets.length < 3)
+                AddPetButton(
+                  onPressed: _addPet,
+                ),
+
+              const SizedBox(height: 24),
+
+              // ==================================================
+              // ADDRESS
+              // ==================================================
+
+              const Text(
+                'Address',
+                style: TextStyle(
+                  fontSize: 22,
+                  fontWeight:
+                      FontWeight.bold,
+                ),
+              ),
+
+              const SizedBox(height: 5),
+
+              const Text(
+                'Optional',
+                style: TextStyle(
+                  color: textGrey,
+                  fontSize: 13,
+                ),
+              ),
+
+              const SizedBox(height: 14),
+
+              ProfileSectionCard(
+                child: AddressField(
+                  controller:
+                      addressController,
+                ),
+              ),
+
+              const SizedBox(height: 28),
+
+              // ==================================================
+              // SAVE
+              // ==================================================
+
+              SaveProfileButton(
+                isSaving: _isSaving,
+                onPressed: _saveProfile,
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
