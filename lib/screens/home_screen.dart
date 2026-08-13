@@ -1,5 +1,7 @@
 // File location: lib/screens/home_screen.dart
 
+import 'dart:convert';
+
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
@@ -163,14 +165,20 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   // =====================================================
-  // OPEN MY QR CODE
+  // GENERATE OWNER QR
   // =====================================================
 
-  void _openMyQRCode() {
+  Future<void> _openMyQRCode() async {
     final User? user =
         FirebaseAuth.instance.currentUser;
 
+    // ---------------------------------------------------
+    // LOGIN CHECK
+    // ---------------------------------------------------
+
     if (user == null) {
+      if (!mounted) return;
+
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text(
@@ -178,20 +186,162 @@ class _HomeScreenState extends State<HomeScreen> {
           ),
         ),
       );
+
       return;
     }
 
-    final String ownerUid = user.uid;
+    // ---------------------------------------------------
+    // OWNER UID
+    // ---------------------------------------------------
 
-    showModalBottomSheet(
+    final String ownerUid =
+        user.uid.trim();
+
+    if (ownerUid.isEmpty) {
+      if (!mounted) return;
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text(
+            'Owner UID is missing.',
+          ),
+        ),
+      );
+
+      return;
+    }
+
+    // ---------------------------------------------------
+    // OWNER NAME
+    // ---------------------------------------------------
+
+    final String ownerName =
+        user.displayName?.trim().isNotEmpty == true
+            ? user.displayName!.trim()
+            : 'Owner';
+
+    // ---------------------------------------------------
+    // OWNER PHONE
+    // ---------------------------------------------------
+
+    final String ownerPhone =
+        user.phoneNumber?.trim().isNotEmpty == true
+            ? user.phoneNumber!.trim()
+            : '';
+
+    // ---------------------------------------------------
+    // UNIQUE WALK ID
+    // ---------------------------------------------------
+
+    final String walkId =
+        'WALK_${DateTime.now().millisecondsSinceEpoch}';
+
+    // ---------------------------------------------------
+    // OWNER QR DATA
+    // ---------------------------------------------------
+
+    final Map<String, dynamic> qrData = {
+      'type': 'owner',
+
+      'ownerUid': ownerUid,
+
+      'ownerName': ownerName,
+
+      'ownerPhone': ownerPhone,
+
+      'walkId': walkId,
+
+      // Compatibility fields
+      'uid': ownerUid,
+      'userId': ownerUid,
+      'name': ownerName,
+      'phoneNumber': ownerPhone,
+    };
+
+    // ---------------------------------------------------
+    // QR PAYLOAD
+    // ---------------------------------------------------
+
+    final String qrPayload =
+        jsonEncode(qrData);
+
+    // ---------------------------------------------------
+    // SAVE OWNER QR TO FIREBASE
+    // ---------------------------------------------------
+
+    try {
+      await FirebaseFirestore.instance
+          .collection('qr_codes')
+          .doc(ownerUid)
+          .set(
+        {
+          'type': 'owner',
+
+          'ownerUid': ownerUid,
+
+          'ownerName': ownerName,
+
+          'ownerPhone': ownerPhone,
+
+          'uid': ownerUid,
+
+          'userId': ownerUid,
+
+          'name': ownerName,
+
+          'phoneNumber': ownerPhone,
+
+          'walkId': walkId,
+
+          'qrData': qrPayload,
+
+          'scanned': false,
+
+          'scannedBy': null,
+
+          'scannedAt': null,
+
+          'updatedAt':
+              FieldValue.serverTimestamp(),
+        },
+        SetOptions(
+          merge: true,
+        ),
+      );
+
+      debugPrint(
+        'Owner QR saved successfully: $ownerUid',
+      );
+    } catch (e) {
+      // -------------------------------------------------
+      // IMPORTANT:
+      // QR WILL STILL SHOW EVEN IF FIREBASE SAVE FAILS
+      // -------------------------------------------------
+
+      debugPrint(
+        'Owner QR Firebase save failed: $e',
+      );
+    }
+
+    // ---------------------------------------------------
+    // OPEN QR BOTTOM SHEET
+    // ---------------------------------------------------
+
+    if (!mounted) return;
+
+    await showModalBottomSheet(
       context: context,
       backgroundColor: Colors.transparent,
       isScrollControlled: true,
       isDismissible: true,
       enableDrag: true,
       builder: (context) {
-        return MyQRCodeSheet(
+        return OwnerQRBottomSheet(
           ownerUid: ownerUid,
+          ownerName: ownerName,
+          ownerPhone: ownerPhone,
+          walkId: walkId,
+          qrPayload: qrPayload,
         );
       },
     );
