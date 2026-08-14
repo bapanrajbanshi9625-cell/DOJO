@@ -40,7 +40,7 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
           ),
           BottomNavigationBarItem(
             icon: Icon(Icons.history),
-            label: 'Walk History',
+            label: 'Walks',
           ),
           BottomNavigationBarItem(
             icon: Icon(Icons.menu),
