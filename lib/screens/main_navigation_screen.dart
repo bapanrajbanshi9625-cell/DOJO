@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import '../core/constants/app_colors.dart';
 import 'home_screen.dart';
-import 'walk_history_screen.dart';
+import 'walks_screen.dart';
 import 'menu_screen.dart';
 
 class MainNavigationScreen extends StatefulWidget {
