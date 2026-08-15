@@ -30,6 +30,7 @@ class _InstaWalkContainerState
   int _secondsLeft = 120;
 
   String? _requestId;
+
   StreamSubscription<DocumentSnapshot<Map<String, dynamic>>>?
       _requestSubscription;
 
@@ -88,8 +89,7 @@ class _InstaWalkContainerState
         await Navigator.push(
           context,
           MaterialPageRoute(
-            builder: (_) =>
-                const AddressScreen(),
+            builder: (_) => const AddressScreen(),
           ),
         );
 
@@ -214,6 +214,23 @@ class _InstaWalkContainerState
   }
 
   // =========================================================
+  // FINISH SEARCH
+  // =========================================================
+
+  void _finishSearch() {
+    _timer?.cancel();
+    _requestSubscription?.cancel();
+
+    if (!mounted) return;
+
+    setState(() {
+      _searching = false;
+      _searchFinished = true;
+      _secondsLeft = 0;
+    });
+  }
+
+  // =========================================================
   // WALKER ACCEPTED
   // =========================================================
 
@@ -244,6 +261,7 @@ class _InstaWalkContainerState
 
   void _handleRequestCancelled() {
     _timer?.cancel();
+    _requestSubscription?.cancel();
 
     if (!mounted) return;
 
@@ -319,7 +337,7 @@ class _InstaWalkContainerState
       final String status =
           data?['status']?.toString() ?? '';
 
-      // Don't overwrite an accepted request.
+      // Accepted request ko overwrite nahi karna.
       if (status == 'searching') {
         await requestRef.update({
           'status': 'expired',
@@ -328,8 +346,7 @@ class _InstaWalkContainerState
         });
       }
     } catch (_) {
-      // Request may already have been updated
-      // by another process.
+      // Request may already have been updated.
     }
   }
 
@@ -354,12 +371,12 @@ class _InstaWalkContainerState
   // =========================================================
 
   String _timerText() {
-    final int minutes =
+    final String minutes =
         (_secondsLeft ~/ 60)
             .toString()
             .padLeft(2, '0');
 
-    final int seconds =
+    final String seconds =
         (_secondsLeft % 60)
             .toString()
             .padLeft(2, '0');
@@ -423,7 +440,6 @@ class _InstaWalkContainerState
           crossAxisAlignment:
               CrossAxisAlignment.start,
           children: [
-            // HEADER
             Row(
               children: [
                 Container(
