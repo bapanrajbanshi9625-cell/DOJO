@@ -1,47 +1,249 @@
 import 'package:flutter/material.dart';
+
 import '../core/constants/app_colors.dart';
+import '../widgets/menu_card.dart';
+import '../widgets/section_title.dart';
+
 import 'profile_screen.dart';
 import 'notifications_screen.dart';
 import 'login_screen.dart';
+import 'address_screen.dart';
+import 'settings_screen.dart';
+import 'support_screen.dart';
+import 'about_screen.dart';
 
 class MenuScreen extends StatelessWidget {
   const MenuScreen({super.key});
 
+  void _openPage(
+    BuildContext context,
+    Widget page,
+  ) {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => page,
+      ),
+    );
+  }
+
+  void _showLogoutDialog(
+    BuildContext context,
+  ) {
+    showDialog(
+      context: context,
+      builder: (dialogContext) {
+        return AlertDialog(
+          title: const Text(
+            'Logout',
+            style: TextStyle(
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+          content: const Text(
+            'Are you sure you want to logout?',
+          ),
+          actions: [
+            TextButton(
+              onPressed: () {
+                Navigator.pop(dialogContext);
+              },
+              child: const Text('Cancel'),
+            ),
+            ElevatedButton(
+              style: ElevatedButton.styleFrom(
+                backgroundColor:
+                    AppColors.primary,
+                foregroundColor: Colors.white,
+              ),
+              onPressed: () {
+                Navigator.pop(dialogContext);
+
+                Navigator.pushAndRemoveUntil(
+                  context,
+                  MaterialPageRoute(
+                    builder: (_) =>
+                        const LoginScreen(),
+                  ),
+                  (route) => false,
+                );
+              },
+              child: const Text('Logout'),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor:
+          AppColors.background,
+
       appBar: AppBar(
-        backgroundColor: AppColors.primary,
-        title: const Text('Menu', style: TextStyle(color: Colors.white)),
+        backgroundColor:
+            AppColors.primary,
+        foregroundColor: Colors.white,
+        elevation: 0,
+        title: const Text(
+          'Menu',
+          style: TextStyle(
+            fontWeight: FontWeight.bold,
+          ),
+        ),
       ),
+
       body: ListView(
         padding: const EdgeInsets.all(16),
         children: [
-          ListTile(
-            leading: const Icon(Icons.person, color: AppColors.primary),
-            title: const Text('Profile Settings'),
-            onTap: () {
-              Navigator.push(context, MaterialPageRoute(builder: (context) => const ProfileScreen()));
-            },
+          const SectionTitle(
+            title: 'ACCOUNT',
           ),
-          ListTile(
-            leading: const Icon(Icons.notifications, color: AppColors.primary),
-            title: const Text('Notifications'),
+
+          const SizedBox(height: 10),
+
+          MenuCard(
+            icon: Icons.person_outline,
+            title: 'Profile Settings',
+            subtitle:
+                'Manage your profile information',
             onTap: () {
-              Navigator.push(context, MaterialPageRoute(builder: (context) => const NotificationsScreen()));
-            },
-          ),
-          ListTile(
-            leading: const Icon(Icons.logout, color: Colors.red),
-            title: const Text('Logout', style: TextStyle(color: Colors.red)),
-            onTap: () {
-              Navigator.pushAndRemoveUntil(
+              _openPage(
                 context,
-                MaterialPageRoute(builder: (context) => const LoginScreen()),
-                (route) => false,
+                const ProfileScreen(),
               );
             },
           ),
+
+          const SizedBox(height: 10),
+
+          MenuCard(
+            icon: Icons.location_on_outlined,
+            title: 'Address',
+            subtitle:
+                'Update your home or walking address',
+            onTap: () {
+              _openPage(
+                context,
+                const AddressScreen(),
+              );
+            },
+          ),
+
+          const SizedBox(height: 10),
+
+          MenuCard(
+            icon: Icons.notifications_none,
+            title: 'Notifications',
+            subtitle:
+                'Manage your notification preferences',
+            onTap: () {
+              _openPage(
+                context,
+                const NotificationsScreen(),
+              );
+            },
+          ),
+
+          const SizedBox(height: 26),
+
+          const SectionTitle(
+            title: 'APP',
+          ),
+
+          const SizedBox(height: 10),
+
+          MenuCard(
+            icon: Icons.settings_outlined,
+            title: 'Settings',
+            subtitle:
+                'Manage your Dojo Walk app settings',
+            onTap: () {
+              _openPage(
+                context,
+                const SettingsScreen(),
+              );
+            },
+          ),
+
+          const SizedBox(height: 26),
+
+          const SectionTitle(
+            title: 'SUPPORT',
+          ),
+
+          const SizedBox(height: 10),
+
+          MenuCard(
+            icon: Icons.help_outline,
+            title: 'Help & Support',
+            subtitle:
+                'Get help with your Dojo Walk account',
+            onTap: () {
+              _openPage(
+                context,
+                const SupportScreen(),
+              );
+            },
+          ),
+
+          const SizedBox(height: 10),
+
+          MenuCard(
+            icon: Icons.info_outline,
+            title: 'About Dojo Walk',
+            subtitle:
+                'App information and version',
+            onTap: () {
+              _openPage(
+                context,
+                const AboutScreen(),
+              );
+            },
+          ),
+
+          const SizedBox(height: 26),
+
+          MenuCard(
+            icon: Icons.logout,
+            title: 'Logout',
+            subtitle:
+                'Sign out of your account',
+            iconColor: Colors.red,
+            titleColor: Colors.red,
+            onTap: () {
+              _showLogoutDialog(context);
+            },
+          ),
+
+          const SizedBox(height: 35),
+
+          const Center(
+            child: Text(
+              'Dojo Walk',
+              style: TextStyle(
+                color: AppColors.navy,
+                fontSize: 16,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+          ),
+
+          const SizedBox(height: 5),
+
+          const Center(
+            child: Text(
+              'Version 1.0.0',
+              style: TextStyle(
+                color: AppColors.slate,
+                fontSize: 11,
+              ),
+            ),
+          ),
+
+          const SizedBox(height: 20),
         ],
       ),
     );
