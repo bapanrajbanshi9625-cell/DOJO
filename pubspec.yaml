@@ -1,5 +1,5 @@
-name: dojo
-description: A new Flutter project for Dojo App.
+name: dojo_walk
+description: Dojo Walk - Dog walking app.
 publish_to: 'none'
 
 version: 1.0.0+1
@@ -20,6 +20,9 @@ dependencies:
 
   # QR Code
   qr_flutter: ^4.1.0
+
+  # Profile Photo
+  image_picker: ^1.1.2
 
 dev_dependencies:
   flutter_test:
