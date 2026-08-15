@@ -20,7 +20,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
   static const Color orange = Color(0xFFF4511E);
   static const Color navy = Color(0xFF263746);
-  static const Color slate = Color(0xFF475569);
   static const Color background = Color(0xFFEDEFF2);
 
   // ============================================================
@@ -37,6 +36,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
   bool isLoading = true;
 
+  // ============================================================
+  // INIT
+  // ============================================================
+
   @override
   void initState() {
     super.initState();
@@ -44,7 +47,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
   }
 
   // ============================================================
-  // LOAD PROFILE
+  // LOAD PROFILE FROM FIREBASE
   // ============================================================
 
   Future<void> _loadOwnerProfile() async {
@@ -63,9 +66,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
       }
 
       final String uid = user.uid;
-
-      final String phone =
-          user.phoneNumber ?? '';
+      final String phone = user.phoneNumber ?? '';
 
       final DocumentSnapshot<Map<String, dynamic>>
           snapshot =
@@ -135,7 +136,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
   }
 
   // ============================================================
-  // FORMAT MOBILE
+  // FORMAT MOBILE NUMBER
   // ============================================================
 
   String _formatIndianNumber(String number) {
@@ -160,7 +161,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
   }
 
   // ============================================================
-  // MONTH
+  // MONTH NAME
   // ============================================================
 
   String _monthName(int month) {
@@ -214,6 +215,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
         return ChangeMobileFlow(
           currentNumber: mobileNumber,
           onChanged: (String newNumber) {
+            if (!mounted) return;
+
             setState(() {
               mobileNumber = newNumber;
             });
@@ -266,10 +269,12 @@ class _ProfileScreenState extends State<ProfileScreen> {
         foregroundColor: Colors.white,
         elevation: 0,
 
+        toolbarHeight: 52,
+
         leading: IconButton(
           icon: const Icon(
             Icons.arrow_back_ios_new_rounded,
-            size: 19,
+            size: 18,
           ),
           onPressed: () {
             Navigator.pop(context);
@@ -282,10 +287,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
           children: [
             Icon(
               Icons.person_rounded,
-              size: 22,
+              size: 21,
             ),
 
-            SizedBox(width: 8),
+            SizedBox(width: 7),
 
             Text(
               'Profile',
@@ -307,13 +312,12 @@ class _ProfileScreenState extends State<ProfileScreen> {
             ? const Center(
                 child: CircularProgressIndicator(
                   color: orange,
+                  strokeWidth: 2.5,
                 ),
               )
             : RefreshIndicator(
                 color: orange,
-
-                onRefresh:
-                    _loadOwnerProfile,
+                onRefresh: _loadOwnerProfile,
 
                 child: SingleChildScrollView(
                   physics:
@@ -322,9 +326,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   padding:
                       const EdgeInsets.fromLTRB(
                     15,
-                    16,
+                    12,
                     15,
-                    30,
+                    24,
                   ),
 
                   child: Column(
@@ -341,7 +345,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                       ),
 
                       const SizedBox(
-                        height: 18,
+                        height: 14,
                       ),
 
                       // ==================================================
@@ -351,28 +355,26 @@ class _ProfileScreenState extends State<ProfileScreen> {
                       Row(
                         children: [
                           Container(
-                            height: 20,
+                            height: 19,
                             width: 4,
                             decoration:
                                 BoxDecoration(
                               color: orange,
                               borderRadius:
                                   BorderRadius
-                                      .circular(
-                                5,
-                              ),
+                                      .circular(5),
                             ),
                           ),
 
                           const SizedBox(
-                            width: 9,
+                            width: 8,
                           ),
 
                           const Text(
                             'Owner Information',
                             style: TextStyle(
                               color: navy,
-                              fontSize: 17,
+                              fontSize: 16,
                               fontWeight:
                                   FontWeight.w900,
                             ),
@@ -381,7 +383,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                       ),
 
                       const SizedBox(
-                        height: 10,
+                        height: 8,
                       ),
 
                       // ==================================================
