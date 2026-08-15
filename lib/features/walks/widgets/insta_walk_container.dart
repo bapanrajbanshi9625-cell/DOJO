@@ -1,5 +1,10 @@
 import 'dart:async';
+
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
+
+import '../../../screens/address_screen.dart';
 
 class InstaWalkContainer extends StatefulWidget {
   final VoidCallback? onWalkerFound;
@@ -17,39 +22,284 @@ class InstaWalkContainer extends StatefulWidget {
 class _InstaWalkContainerState
     extends State<InstaWalkContainer> {
   Timer? _timer;
+  StreamSubscription<DocumentSnapshot<Map<String, dynamic>>>?
+      _requestSubscription;
 
+  bool _checkingSearch = true;
   bool _searching = false;
   bool _searchFinished = false;
 
-  int _secondsLeft = 300;
+  bool _cancelEnabled = false;
+  bool _cancelling = false;
+
+  int _secondsLeft = 0;
+
+  String? _requestId;
+
+  DocumentReference<Map<String, dynamic>>?
+      get _requestRef {
+    final id = _requestId;
+
+    if (id == null || id.isEmpty) {
+      return null;
+    }
+
+    return FirebaseFirestore.instance
+        .collection('walk_requests')
+        .doc(id);
+  }
+
+  @override
+  void initState() {
+    super.initState();
+    _restoreSearch();
+  }
 
   @override
   void dispose() {
     _timer?.cancel();
+    _requestSubscription?.cancel();
     super.dispose();
   }
 
-  void _startSearch() {
-    if (_searching) return;
+  // =========================================================
+  // RESTORE EXISTING SEARCH
+  // =========================================================
 
-    _timer?.cancel();
+  Future<void> _restoreSearch() async {
+    final user = FirebaseAuth.instance.currentUser;
+
+    if (user == null) {
+      if (mounted) {
+        setState(() {
+          _checkingSearch = false;
+        });
+      }
+      return;
+    }
+
+    try {
+      final query = await FirebaseFirestore.instance
+          .collection('walk_requests')
+          .where(
+            'ownerUid',
+            isEqualTo: user.uid,
+          )
+          .where(
+            'status',
+            whereIn: ['searching'],
+          )
+          .limit(1)
+          .get();
+
+      if (!mounted) return;
+
+      if (query.docs.isEmpty) {
+        setState(() {
+          _checkingSearch = false;
+          _searching = false;
+          _searchFinished = false;
+        });
+        return;
+      }
+
+      final doc = query.docs.first;
+
+      _requestId = doc.id;
+
+      setState(() {
+        _checkingSearch = false;
+        _searching = true;
+        _searchFinished = false;
+      });
+
+      _listenToRequest(doc.reference);
+      _updateTimerFromFirestore(doc.data());
+    } catch (_) {
+      if (!mounted) return;
+
+      setState(() {
+        _checkingSearch = false;
+      });
+    }
+  }
+
+  // =========================================================
+  // FIND WALKER
+  // =========================================================
+
+  Future<void> _findWalker() async {
+    if (_searching || _checkingSearch) return;
+
+    final user = FirebaseAuth.instance.currentUser;
+
+    if (user == null) {
+      _showMessage('Please login first.');
+      return;
+    }
 
     setState(() {
-      _searching = true;
-      _searchFinished = false;
-      _secondsLeft = 300;
+      _checkingSearch = true;
     });
 
-    _timer = Timer.periodic(
-      const Duration(seconds: 1),
-      (timer) {
-        if (!mounted) {
-          timer.cancel();
+    try {
+      final userDoc = await FirebaseFirestore.instance
+          .collection('users')
+          .doc(user.uid)
+          .get();
+
+      final data = userDoc.data();
+
+      final address = data?['address'];
+
+      final hasAddress =
+          address is String &&
+          address.trim().isNotEmpty;
+
+      if (!hasAddress) {
+        if (!mounted) return;
+
+        setState(() {
+          _checkingSearch = false;
+        });
+
+        await Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (_) => const AddressScreen(),
+          ),
+        );
+
+        if (!mounted) return;
+
+        // Address screen से वापस आने के बाद
+        // फिर से Firestore check होगा।
+        final updatedUserDoc =
+            await FirebaseFirestore.instance
+                .collection('users')
+                .doc(user.uid)
+                .get();
+
+        final updatedAddress =
+            updatedUserDoc.data()?['address'];
+
+        final saved =
+            updatedAddress is String &&
+            updatedAddress.trim().isNotEmpty;
+
+        if (!saved) {
           return;
         }
 
-        if (_secondsLeft <= 1) {
-          timer.cancel();
+        // Address save हो गया है।
+        // User को खुद Find a Walker फिर दबाना होगा।
+        _showMessage(
+          'Address saved. Tap Find a Walker again.',
+        );
+
+        return;
+      }
+
+      await _createSearchRequest(user.uid);
+    } catch (_) {
+      if (!mounted) return;
+
+      setState(() {
+        _checkingSearch = false;
+      });
+
+      _showMessage(
+        'Unable to check your address.',
+      );
+    }
+  }
+
+  // =========================================================
+  // CREATE SEARCH REQUEST
+  // =========================================================
+
+  Future<void> _createSearchRequest(
+    String ownerUid,
+  ) async {
+    _timer?.cancel();
+    await _requestSubscription?.cancel();
+
+    final now = DateTime.now();
+
+    final expiresAt =
+        Timestamp.fromDate(
+      now.add(
+        const Duration(minutes: 2),
+      ),
+    );
+
+    final requestRef = FirebaseFirestore
+        .instance
+        .collection('walk_requests')
+        .doc();
+
+    await requestRef.set({
+      'ownerUid': ownerUid,
+      'status': 'searching',
+      'createdAt': FieldValue.serverTimestamp(),
+      'expiresAt': expiresAt,
+      'searchRadiusKm': 3,
+    });
+
+    if (!mounted) return;
+
+    _requestId = requestRef.id;
+
+    setState(() {
+      _checkingSearch = false;
+      _searching = true;
+      _searchFinished = false;
+      _cancelEnabled = false;
+      _cancelling = false;
+      _secondsLeft = 120;
+    });
+
+    _listenToRequest(requestRef);
+
+    _startLocalTimer();
+  }
+
+  // =========================================================
+  // FIRESTORE LISTENER
+  // =========================================================
+
+  void _listenToRequest(
+    DocumentReference<Map<String, dynamic>> ref,
+  ) {
+    _requestSubscription?.cancel();
+
+    _requestSubscription = ref.snapshots().listen(
+      (snapshot) {
+        if (!mounted || !snapshot.exists) return;
+
+        final data = snapshot.data();
+
+        if (data == null) return;
+
+        final status =
+            data['status']?.toString();
+
+        // Walker future में accept करेगा।
+        if (status == 'accepted') {
+          _timer?.cancel();
+
+          setState(() {
+            _searching = false;
+            _searchFinished = false;
+          });
+
+          widget.onWalkerFound?.call();
+          return;
+        }
+
+        // Owner cancelled.
+        if (status == 'cancelled') {
+          _timer?.cancel();
 
           setState(() {
             _searching = false;
@@ -59,16 +309,196 @@ class _InstaWalkContainerState
           return;
         }
 
-        setState(() {
-          _secondsLeft--;
-        });
+        // Search expired.
+        if (status == 'expired') {
+          _timer?.cancel();
+
+          setState(() {
+            _searching = false;
+            _searchFinished = true;
+            _secondsLeft = 0;
+          });
+
+          return;
+        }
+
+        if (status == 'searching') {
+          _updateTimerFromFirestore(data);
+        }
       },
     );
   }
 
-  void _retrySearch() {
-    _startSearch();
+  // =========================================================
+  // FIRESTORE EXPIRES AT
+  // =========================================================
+
+  void _updateTimerFromFirestore(
+    Map<String, dynamic> data,
+  ) {
+    final expiresAt = data['expiresAt'];
+
+    if (expiresAt is! Timestamp) {
+      return;
+    }
+
+    final remaining =
+        expiresAt.toDate().difference(
+              DateTime.now(),
+            );
+
+    final seconds =
+        remaining.inSeconds.clamp(0, 120);
+
+    if (!mounted) return;
+
+    setState(() {
+      _secondsLeft = seconds;
+      _cancelEnabled = seconds <= 60;
+    });
+
+    if (seconds <= 0) {
+      _expireRequest();
+      return;
+    }
+
+    _startLocalTimer();
   }
+
+  // =========================================================
+  // DISPLAY TIMER
+  // =========================================================
+
+  void _startLocalTimer() {
+    _timer?.cancel();
+
+    _timer = Timer.periodic(
+      const Duration(seconds: 1),
+      (timer) async {
+        if (!mounted) {
+          timer.cancel();
+          return;
+        }
+
+        if (_secondsLeft <= 0) {
+          timer.cancel();
+          await _expireRequest();
+          return;
+        }
+
+        setState(() {
+          _secondsLeft--;
+
+          // Exactly 60 seconds remaining:
+          // Cancel becomes enabled.
+          _cancelEnabled =
+              _secondsLeft <= 60;
+        });
+
+        if (_secondsLeft <= 0) {
+          timer.cancel();
+          await _expireRequest();
+        }
+      },
+    );
+  }
+
+  // =========================================================
+  // EXPIRE REQUEST
+  // =========================================================
+
+  Future<void> _expireRequest() async {
+    final ref = _requestRef;
+
+    if (ref == null) return;
+
+    try {
+      final snapshot = await ref.get();
+
+      if (!snapshot.exists) return;
+
+      final status =
+          snapshot.data()?['status']?.toString();
+
+      // Do not overwrite accepted/cancelled.
+      if (status != 'searching') return;
+
+      await ref.update({
+        'status': 'expired',
+        'expiredAt': FieldValue.serverTimestamp(),
+      });
+    } catch (_) {
+      // Firestore listener will handle the final state.
+    }
+  }
+
+  // =========================================================
+  // CANCEL SEARCH
+  // =========================================================
+
+  Future<void> _cancelSearch() async {
+    if (!_searching ||
+        !_cancelEnabled ||
+        _cancelling) {
+      return;
+    }
+
+    final ref = _requestRef;
+
+    if (ref == null) return;
+
+    setState(() {
+      _cancelling = true;
+    });
+
+    try {
+      final snapshot = await ref.get();
+
+      if (!snapshot.exists) return;
+
+      final status =
+          snapshot.data()?['status']?.toString();
+
+      if (status != 'searching') {
+        return;
+      }
+
+      await ref.update({
+        'status': 'cancelled',
+        'cancelledAt':
+            FieldValue.serverTimestamp(),
+      });
+    } catch (_) {
+      if (!mounted) return;
+
+      setState(() {
+        _cancelling = false;
+      });
+
+      _showMessage(
+        'Unable to cancel search.',
+      );
+    }
+  }
+
+  // =========================================================
+  // RETRY
+  // =========================================================
+
+  Future<void> _retrySearch() async {
+    setState(() {
+      _searchFinished = false;
+      _checkingSearch = false;
+      _secondsLeft = 0;
+      _cancelEnabled = false;
+    });
+
+    await _findWalker();
+  }
+
+  // =========================================================
+  // TIMER TEXT
+  // =========================================================
 
   String _timerText() {
     final minutes =
@@ -83,6 +513,26 @@ class _InstaWalkContainerState
 
     return '$minutes:$seconds';
   }
+
+  // =========================================================
+  // MESSAGE
+  // =========================================================
+
+  void _showMessage(String message) {
+    if (!mounted) return;
+
+    ScaffoldMessenger.of(context)
+      ..hideCurrentSnackBar()
+      ..showSnackBar(
+        SnackBar(
+          content: Text(message),
+        ),
+      );
+  }
+
+  // =========================================================
+  // BUILD
+  // =========================================================
 
   @override
   Widget build(BuildContext context) {
@@ -142,9 +592,7 @@ class _InstaWalkContainerState
                     size: 29,
                   ),
                 ),
-
                 const SizedBox(width: 13),
-
                 const Expanded(
                   child: Column(
                     crossAxisAlignment:
@@ -186,28 +634,36 @@ class _InstaWalkContainerState
 
             const SizedBox(height: 16),
 
-            // =================================================
-            // NORMAL STATE
-            // =================================================
-
-            if (!_searching &&
+            if (_checkingSearch)
+              _checkingContainer()
+            else if (!_searching &&
                 !_searchFinished)
-              _findButton(),
-
-            // =================================================
-            // SEARCHING STATE
-            // =================================================
-
-            if (_searching)
-              _searchingContainer(),
-
-            // =================================================
-            // FINISHED STATE
-            // =================================================
-
-            if (_searchFinished)
+              _findButton()
+            else if (_searching)
+              _searchingContainer()
+            else
               _retryContainer(),
           ],
+        ),
+      ),
+    );
+  }
+
+  // =========================================================
+  // CHECKING
+  // =========================================================
+
+  Widget _checkingContainer() {
+    return const SizedBox(
+      width: double.infinity,
+      height: 50,
+      child: Center(
+        child: CircularProgressIndicator(
+          strokeWidth: 2.5,
+          valueColor:
+              AlwaysStoppedAnimation<Color>(
+            Colors.white,
+          ),
         ),
       ),
     );
@@ -222,7 +678,7 @@ class _InstaWalkContainerState
       width: double.infinity,
       height: 50,
       child: ElevatedButton.icon(
-        onPressed: _startSearch,
+        onPressed: _findWalker,
         icon: const Icon(
           Icons.search_rounded,
         ),
@@ -317,7 +773,7 @@ class _InstaWalkContainerState
               SizedBox(width: 7),
               Expanded(
                 child: Text(
-                  'Searching nearby online walkers. The search will continue until a walker accepts or 5 minutes are completed.',
+                  'Searching nearby online walkers. Search remains active until a walker accepts, you cancel it, or 2 minutes expire.',
                   style: TextStyle(
                     color: Colors.white,
                     fontSize: 11,
@@ -332,6 +788,75 @@ class _InstaWalkContainerState
         const SizedBox(height: 12),
 
         Text(
+          _cancelEnabled
+              ? 'You can cancel the search now.'
+              : 'Cancel becomes available at 01:00.',
+          style: TextStyle(
+            color:
+                Colors.white.withOpacity(.80),
+            fontSize: 10,
+          ),
+        ),
+
+        const SizedBox(height: 10),
+
+        SizedBox(
+          width: double.infinity,
+          height: 44,
+          child: OutlinedButton.icon(
+            onPressed:
+                _cancelEnabled && !_cancelling
+                    ? _cancelSearch
+                    : null,
+            icon: _cancelling
+                ? const SizedBox(
+                    height: 16,
+                    width: 16,
+                    child:
+                        CircularProgressIndicator(
+                      strokeWidth: 2,
+                      valueColor:
+                          AlwaysStoppedAnimation<
+                              Color>(
+                        Colors.white,
+                      ),
+                    ),
+                  )
+                : const Icon(
+                    Icons.close_rounded,
+                  ),
+            label: Text(
+              _cancelling
+                  ? 'Cancelling...'
+                  : _cancelEnabled
+                      ? 'Cancel Search'
+                      : 'Cancel Search • Locked',
+              style: const TextStyle(
+                fontWeight: FontWeight.w800,
+              ),
+            ),
+            style:
+                OutlinedButton.styleFrom(
+              foregroundColor: Colors.white,
+              disabledForegroundColor:
+                  Colors.white38,
+              side: BorderSide(
+                color: _cancelEnabled
+                    ? Colors.white
+                    : Colors.white30,
+              ),
+              shape:
+                  RoundedRectangleBorder(
+                borderRadius:
+                    BorderRadius.circular(14),
+              ),
+            ),
+          ),
+        ),
+
+        const SizedBox(height: 8),
+
+        Text(
           'Maximum search distance: 3 km',
           style: TextStyle(
             color:
@@ -344,7 +869,7 @@ class _InstaWalkContainerState
   }
 
   // =========================================================
-  // SEARCH FINISHED
+  // FINISHED
   // =========================================================
 
   Widget _retryContainer() {
