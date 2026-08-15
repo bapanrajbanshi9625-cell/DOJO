@@ -1,11 +1,11 @@
+import 'dart:io';
+
 import 'package:flutter/material.dart';
+import 'package:image_picker/image_picker.dart';
 
-class ProfileCard extends StatelessWidget {
-  static const Color orange =
-      Color(0xFFF4511E);
-
-  static const Color lightOrange =
-      Color(0xFFFFF1E8);
+class ProfileCard extends StatefulWidget {
+  static const Color orange = Color(0xFFF4511E);
+  static const Color lightOrange = Color(0xFFFFF1E8);
 
   final String ownerName;
 
@@ -15,108 +15,190 @@ class ProfileCard extends StatelessWidget {
   });
 
   @override
+  State<ProfileCard> createState() => _ProfileCardState();
+}
+
+class _ProfileCardState extends State<ProfileCard> {
+  File? _profileImage;
+
+  final ImagePicker _picker = ImagePicker();
+
+  Future<void> _changePhoto() async {
+    try {
+      final XFile? pickedFile =
+          await _picker.pickImage(
+        source: ImageSource.gallery,
+        imageQuality: 85,
+        maxWidth: 1200,
+      );
+
+      if (pickedFile == null) return;
+
+      if (!mounted) return;
+
+      setState(() {
+        _profileImage = File(pickedFile.path);
+      });
+    } catch (e) {
+      debugPrint(
+        'Profile image error: $e',
+      );
+
+      if (!mounted) return;
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text(
+            'Unable to select profile photo.',
+          ),
+        ),
+      );
+    }
+  }
+
+  @override
   Widget build(BuildContext context) {
     return Container(
       width: double.infinity,
-
-      padding: const EdgeInsets.fromLTRB(
-        16,
-        20,
-        16,
-        20,
-      ),
+      padding: const EdgeInsets.all(16),
 
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius:
-            BorderRadius.circular(22),
+        borderRadius: BorderRadius.circular(20),
 
         boxShadow: [
           BoxShadow(
-            color:
-                Colors.black.withOpacity(0.07),
-            blurRadius: 14,
-            offset:
-                const Offset(0, 4),
+            color: Colors.black.withOpacity(0.06),
+            blurRadius: 12,
+            offset: const Offset(0, 3),
           ),
         ],
       ),
 
-      child: Row(
-        crossAxisAlignment:
-            CrossAxisAlignment.center,
+      child: LayoutBuilder(
+        builder: (
+          BuildContext context,
+          BoxConstraints constraints,
+        ) {
+          final bool compact =
+              constraints.maxWidth < 340;
 
-        children: [
-          Container(
-            width: 112,
-            height: 112,
+          final double photoSize =
+              compact ? 88 : 96;
 
-            decoration:
-                const BoxDecoration(
-              shape: BoxShape.circle,
-              color: lightOrange,
-            ),
+          return Row(
+            crossAxisAlignment:
+                CrossAxisAlignment.center,
 
-            child: const Icon(
-              Icons.person_rounded,
-              color: orange,
-              size: 58,
-            ),
-          ),
+            children: [
+              // ======================================================
+              // PROFILE PHOTO
+              // ======================================================
 
-          const SizedBox(width: 15),
+              SizedBox(
+                width: photoSize,
+                height: photoSize,
 
-          Expanded(
-            child: SizedBox(
-              height: 112,
+                child: Stack(
+                  clipBehavior: Clip.none,
 
-              child: Stack(
-                children: [
-                  Positioned(
-                    left: 0,
-                    right: 70,
-                    top: 24,
+                  children: [
+                    Container(
+                      width: photoSize,
+                      height: photoSize,
 
-                    child: Text(
-                      ownerName,
+                      decoration:
+                          const BoxDecoration(
+                        shape: BoxShape.circle,
+                        color:
+                            ProfileCard.lightOrange,
+                      ),
 
-                      maxLines: 2,
-
-                      overflow:
-                          TextOverflow.ellipsis,
-
-                      style:
-                          const TextStyle(
-                        fontSize: 22,
-                        fontWeight:
-                            FontWeight.bold,
-                        color: Colors.black,
+                      child: ClipOval(
+                        child: _profileImage != null
+                            ? Image.file(
+                                _profileImage!,
+                                width: photoSize,
+                                height: photoSize,
+                                fit: BoxFit.cover,
+                              )
+                            : Icon(
+                                Icons.person_rounded,
+                                color:
+                                    ProfileCard.orange,
+                                size:
+                                    compact ? 48 : 52,
+                              ),
                       ),
                     ),
-                  ),
 
-                  Positioned(
-                    right: 0,
-                    top: 8,
+                    // ==================================================
+                    // PHOTO EDIT BUTTON
+                    // ==================================================
 
-                    child: Container(
+                    Positioned(
+                      right: -2,
+                      bottom: -2,
+
+                      child: Material(
+                        color:
+                            ProfileCard.orange,
+                        shape: const CircleBorder(),
+
+                        child: InkWell(
+                          onTap: _changePhoto,
+                          customBorder:
+                              const CircleBorder(),
+
+                          child: const Padding(
+                            padding:
+                                EdgeInsets.all(7),
+
+                            child: Icon(
+                              Icons.camera_alt_rounded,
+                              color: Colors.white,
+                              size: 16,
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+
+              const SizedBox(width: 14),
+
+              // ======================================================
+              // PROFILE DETAILS
+              // ======================================================
+
+              Expanded(
+                child: Column(
+                  crossAxisAlignment:
+                      CrossAxisAlignment.start,
+
+                  mainAxisSize: MainAxisSize.min,
+
+                  children: [
+                    // ==================================================
+                    // VERIFIED BADGE
+                    // ==================================================
+
+                    Container(
                       padding:
                           const EdgeInsets.symmetric(
-                        horizontal: 9,
-                        vertical: 6,
+                        horizontal: 8,
+                        vertical: 5,
                       ),
 
                       decoration:
                           BoxDecoration(
                         color:
-                            const Color(
-                          0xFFEFFAF1,
-                        ),
+                            const Color(0xFFEFFAF1),
 
                         borderRadius:
-                            BorderRadius.circular(
-                          10,
-                        ),
+                            BorderRadius.circular(9),
 
                         border: Border.all(
                           color:
@@ -132,18 +214,16 @@ class ProfileCard extends StatelessWidget {
                           Icon(
                             Icons.verified_rounded,
                             color: Colors.green,
-                            size: 17,
+                            size: 15,
                           ),
 
-                          SizedBox(width: 5),
+                          SizedBox(width: 4),
 
                           Text(
                             'Verified Owner',
-                            style:
-                                TextStyle(
-                              color:
-                                  Colors.green,
-                              fontSize: 11.5,
+                            style: TextStyle(
+                              color: Colors.green,
+                              fontSize: 11,
                               fontWeight:
                                   FontWeight.w700,
                             ),
@@ -151,12 +231,58 @@ class ProfileCard extends StatelessWidget {
                         ],
                       ),
                     ),
-                  ),
-                ],
+
+                    const SizedBox(height: 8),
+
+                    // ==================================================
+                    // OWNER NAME
+                    // ==================================================
+
+                    Text(
+                      widget.ownerName.isEmpty
+                          ? 'Owner'
+                          : widget.ownerName,
+
+                      maxLines: 2,
+
+                      overflow:
+                          TextOverflow.ellipsis,
+
+                      style: TextStyle(
+                        fontSize:
+                            compact ? 19 : 21,
+                        fontWeight:
+                            FontWeight.w800,
+                        color: Colors.black87,
+                        height: 1.15,
+                      ),
+                    ),
+
+                    const SizedBox(height: 5),
+
+                    // ==================================================
+                    // PROFILE LABEL
+                    // ==================================================
+
+                    Text(
+                      'Dojo Owner Profile',
+                      maxLines: 1,
+                      overflow:
+                          TextOverflow.ellipsis,
+
+                      style: TextStyle(
+                        fontSize: compact ? 11 : 12,
+                        color: Colors.grey.shade600,
+                        fontWeight:
+                            FontWeight.w500,
+                      ),
+                    ),
+                  ],
+                ),
               ),
-            ),
-          ),
-        ],
+            ],
+          );
+        },
       ),
     );
   }
