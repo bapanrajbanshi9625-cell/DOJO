@@ -1,12 +1,16 @@
 import 'package:flutter/material.dart';
 
-class CustomAppBar extends StatelessWidget implements PreferredSizeWidget {
+class CustomAppBar extends StatelessWidget
+    implements PreferredSizeWidget {
   const CustomAppBar({super.key});
 
   static const orange = Color(0xFFF4511E);
+  static const navy = Color(0xFF263746);
+  static const slate = Color(0xFF475569);
 
   @override
-  Size get preferredSize => const Size.fromHeight(kToolbarHeight);
+  Size get preferredSize =>
+      const Size.fromHeight(kToolbarHeight);
 
   @override
   Widget build(BuildContext context) {
@@ -16,7 +20,13 @@ class CustomAppBar extends StatelessWidget implements PreferredSizeWidget {
       elevation: 0,
       centerTitle: false,
       titleSpacing: 14,
+
+      // =========================================
+      // LEFT — DOJO WALK
+      // =========================================
+
       title: Row(
+        mainAxisSize: MainAxisSize.min,
         children: [
           Container(
             height: 42,
@@ -34,43 +44,45 @@ class CustomAppBar extends StatelessWidget implements PreferredSizeWidget {
               color: Colors.white,
             ),
           ),
+
           const SizedBox(width: 10),
-          const Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                'Dojo',
-                style: TextStyle(
-                  fontSize: 19,
-                  fontWeight: FontWeight.w900,
-                ),
-              ),
-              Text(
-                'Walk Dashboard',
-                style: TextStyle(
-                  fontSize: 10,
-                  color: Colors.white70,
-                ),
-              ),
-            ],
+
+          const Text(
+            'Dojo Walk',
+            style: TextStyle(
+              fontSize: 19,
+              fontWeight: FontWeight.w900,
+              color: Colors.white,
+            ),
           ),
         ],
       ),
+
+      // =========================================
+      // RIGHT — NOTIFICATIONS + HELP
+      // =========================================
+
       actions: [
         _appBarButton(
           context,
           Icons.notifications_outlined,
           'Notifications',
         ),
+
         _appBarButton(
           context,
           Icons.support_agent,
           'Help & Support',
         ),
+
         const SizedBox(width: 7),
       ],
     );
   }
+
+  // =========================================
+  // APP BAR BUTTON
+  // =========================================
 
   Widget _appBarButton(
     BuildContext context,
@@ -107,6 +119,10 @@ class CustomAppBar extends StatelessWidget implements PreferredSizeWidget {
     );
   }
 
+  // =========================================
+  // DIALOG
+  // =========================================
+
   void _showDialog(
     BuildContext context,
     String title,
@@ -116,27 +132,34 @@ class CustomAppBar extends StatelessWidget implements PreferredSizeWidget {
       context: context,
       builder: (ctx) {
         return AlertDialog(
-          backgroundColor: const Color(0xFFF7F8FA),
+          backgroundColor:
+              const Color(0xFFF7F8FA),
+
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(20),
           ),
+
           title: Text(
             title,
             style: const TextStyle(
-              color: Color(0xFF263746),
+              color: navy,
               fontWeight: FontWeight.w900,
             ),
           ),
+
           content: Text(
             content,
             style: const TextStyle(
-              color: Color(0xFF475569),
+              color: slate,
               height: 1.5,
             ),
           ),
+
           actions: [
             TextButton(
-              onPressed: () => Navigator.pop(ctx),
+              onPressed: () {
+                Navigator.pop(ctx);
+              },
               child: const Text(
                 'CLOSE',
                 style: TextStyle(
