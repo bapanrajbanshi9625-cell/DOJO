@@ -22,38 +22,19 @@ class InstaWalkContainer extends StatefulWidget {
 class _InstaWalkContainerState
     extends State<InstaWalkContainer> {
   Timer? _timer;
+
+  bool _searching = false;
+  bool _searchFinished = false;
+  bool _checkingAddress = false;
+
+  int _secondsLeft = 120;
+
+  String? _requestId;
   StreamSubscription<DocumentSnapshot<Map<String, dynamic>>>?
       _requestSubscription;
 
-  bool _checkingSearch = true;
-  bool _searching = false;
-  bool _searchFinished = false;
-
-  bool _cancelEnabled = false;
-  bool _cancelling = false;
-
-  int _secondsLeft = 0;
-
-  String? _requestId;
-
-  DocumentReference<Map<String, dynamic>>?
-      get _requestRef {
-    final id = _requestId;
-
-    if (id == null || id.isEmpty) {
-      return null;
-    }
-
-    return FirebaseFirestore.instance
-        .collection('walk_requests')
-        .doc(id);
-  }
-
-  @override
-  void initState() {
-    super.initState();
-    _restoreSearch();
-  }
+  final FirebaseFirestore _firestore =
+      FirebaseFirestore.instance;
 
   @override
   void dispose() {
@@ -63,75 +44,16 @@ class _InstaWalkContainerState
   }
 
   // =========================================================
-  // RESTORE EXISTING SEARCH
-  // =========================================================
-
-  Future<void> _restoreSearch() async {
-    final user = FirebaseAuth.instance.currentUser;
-
-    if (user == null) {
-      if (mounted) {
-        setState(() {
-          _checkingSearch = false;
-        });
-      }
-      return;
-    }
-
-    try {
-      final query = await FirebaseFirestore.instance
-          .collection('walk_requests')
-          .where(
-            'ownerUid',
-            isEqualTo: user.uid,
-          )
-          .where(
-            'status',
-            whereIn: ['searching'],
-          )
-          .limit(1)
-          .get();
-
-      if (!mounted) return;
-
-      if (query.docs.isEmpty) {
-        setState(() {
-          _checkingSearch = false;
-          _searching = false;
-          _searchFinished = false;
-        });
-        return;
-      }
-
-      final doc = query.docs.first;
-
-      _requestId = doc.id;
-
-      setState(() {
-        _checkingSearch = false;
-        _searching = true;
-        _searchFinished = false;
-      });
-
-      _listenToRequest(doc.reference);
-      _updateTimerFromFirestore(doc.data());
-    } catch (_) {
-      if (!mounted) return;
-
-      setState(() {
-        _checkingSearch = false;
-      });
-    }
-  }
-
-  // =========================================================
   // FIND WALKER
   // =========================================================
 
   Future<void> _findWalker() async {
-    if (_searching || _checkingSearch) return;
+    if (_searching || _checkingAddress) {
+      return;
+    }
 
-    final user = FirebaseAuth.instance.currentUser;
+    final User? user =
+        FirebaseAuth.instance.currentUser;
 
     if (user == null) {
       _showMessage('Please login first.');
@@ -139,237 +61,203 @@ class _InstaWalkContainerState
     }
 
     setState(() {
-      _checkingSearch = true;
+      _checkingAddress = true;
     });
 
     try {
-      final userDoc = await FirebaseFirestore.instance
+      final userDoc = await _firestore
           .collection('users')
           .doc(user.uid)
           .get();
 
       final data = userDoc.data();
 
-      final address = data?['address'];
+      final dynamic addressValue =
+          data?['address'];
 
-      final hasAddress =
-          address is String &&
-          address.trim().isNotEmpty;
+      final String address =
+          addressValue?.toString().trim() ?? '';
 
-      if (!hasAddress) {
-        if (!mounted) return;
+      if (!mounted) return;
 
+      if (address.isEmpty) {
         setState(() {
-          _checkingSearch = false;
+          _checkingAddress = false;
         });
 
         await Navigator.push(
           context,
           MaterialPageRoute(
-            builder: (_) => const AddressScreen(),
+            builder: (_) =>
+                const AddressScreen(),
           ),
-        );
-
-        if (!mounted) return;
-
-        // Address screen से वापस आने के बाद
-        // फिर से Firestore check होगा।
-        final updatedUserDoc =
-            await FirebaseFirestore.instance
-                .collection('users')
-                .doc(user.uid)
-                .get();
-
-        final updatedAddress =
-            updatedUserDoc.data()?['address'];
-
-        final saved =
-            updatedAddress is String &&
-            updatedAddress.trim().isNotEmpty;
-
-        if (!saved) {
-          return;
-        }
-
-        // Address save हो गया है।
-        // User को खुद Find a Walker फिर दबाना होगा।
-        _showMessage(
-          'Address saved. Tap Find a Walker again.',
         );
 
         return;
       }
 
-      await _createSearchRequest(user.uid);
-    } catch (_) {
+      await _startSearch(
+        ownerUid: user.uid,
+        address: address,
+      );
+    } catch (e) {
       if (!mounted) return;
 
       setState(() {
-        _checkingSearch = false;
+        _checkingAddress = false;
       });
 
       _showMessage(
-        'Unable to check your address.',
+        'Unable to start search. Please try again.',
       );
     }
   }
 
   // =========================================================
-  // CREATE SEARCH REQUEST
+  // START SEARCH
   // =========================================================
 
-  Future<void> _createSearchRequest(
-    String ownerUid,
-  ) async {
+  Future<void> _startSearch({
+    required String ownerUid,
+    required String address,
+  }) async {
     _timer?.cancel();
     await _requestSubscription?.cancel();
 
-    final now = DateTime.now();
+    final DateTime now = DateTime.now();
 
-    final expiresAt =
-        Timestamp.fromDate(
-      now.add(
-        const Duration(minutes: 2),
-      ),
-    );
+    final DateTime expiresAt =
+        now.add(const Duration(minutes: 2));
 
-    final requestRef = FirebaseFirestore
-        .instance
-        .collection('walk_requests')
-        .doc();
+    try {
+      final DocumentReference<Map<String, dynamic>>
+          requestRef = _firestore
+              .collection('walk_requests')
+              .doc();
 
-    await requestRef.set({
-      'ownerUid': ownerUid,
-      'status': 'searching',
-      'createdAt': FieldValue.serverTimestamp(),
-      'expiresAt': expiresAt,
-      'searchRadiusKm': 3,
-    });
+      await requestRef.set({
+        'ownerUid': ownerUid,
+        'address': address,
+        'status': 'searching',
+        'distanceKm': 3,
+        'createdAt':
+            FieldValue.serverTimestamp(),
+        'expiresAt':
+            Timestamp.fromDate(expiresAt),
+        'acceptedBy': null,
+        'walkerUid': null,
+      });
 
-    if (!mounted) return;
+      if (!mounted) return;
 
-    _requestId = requestRef.id;
+      setState(() {
+        _checkingAddress = false;
+        _searching = true;
+        _searchFinished = false;
+        _secondsLeft = 120;
+        _requestId = requestRef.id;
+      });
 
-    setState(() {
-      _checkingSearch = false;
-      _searching = true;
-      _searchFinished = false;
-      _cancelEnabled = false;
-      _cancelling = false;
-      _secondsLeft = 120;
-    });
+      _listenForRequest(requestRef);
 
-    _listenToRequest(requestRef);
+      _startTimer();
+    } catch (e) {
+      if (!mounted) return;
 
-    _startLocalTimer();
+      setState(() {
+        _checkingAddress = false;
+      });
+
+      _showMessage(
+        'Unable to create walk request.',
+      );
+    }
   }
 
   // =========================================================
-  // FIRESTORE LISTENER
+  // LISTEN FOR WALKER ACCEPT
   // =========================================================
 
-  void _listenToRequest(
-    DocumentReference<Map<String, dynamic>> ref,
+  void _listenForRequest(
+    DocumentReference<Map<String, dynamic>>
+        requestRef,
   ) {
-    _requestSubscription?.cancel();
-
-    _requestSubscription = ref.snapshots().listen(
+    _requestSubscription =
+        requestRef.snapshots().listen(
       (snapshot) {
-        if (!mounted || !snapshot.exists) return;
+        if (!mounted || !snapshot.exists) {
+          return;
+        }
 
         final data = snapshot.data();
 
-        if (data == null) return;
+        if (data == null) {
+          return;
+        }
 
-        final status =
-            data['status']?.toString();
+        final String status =
+            data['status']?.toString() ?? '';
 
-        // Walker future में accept करेगा।
         if (status == 'accepted') {
-          _timer?.cancel();
-
-          setState(() {
-            _searching = false;
-            _searchFinished = false;
-          });
-
-          widget.onWalkerFound?.call();
-          return;
+          _handleWalkerAccepted(data);
         }
 
-        // Owner cancelled.
         if (status == 'cancelled') {
-          _timer?.cancel();
-
-          setState(() {
-            _searching = false;
-            _searchFinished = true;
-          });
-
-          return;
+          _handleRequestCancelled();
         }
 
-        // Search expired.
         if (status == 'expired') {
-          _timer?.cancel();
-
-          setState(() {
-            _searching = false;
-            _searchFinished = true;
-            _secondsLeft = 0;
-          });
-
-          return;
-        }
-
-        if (status == 'searching') {
-          _updateTimerFromFirestore(data);
+          _finishSearch();
         }
       },
     );
   }
 
   // =========================================================
-  // FIRESTORE EXPIRES AT
+  // WALKER ACCEPTED
   // =========================================================
 
-  void _updateTimerFromFirestore(
+  void _handleWalkerAccepted(
     Map<String, dynamic> data,
   ) {
-    final expiresAt = data['expiresAt'];
-
-    if (expiresAt is! Timestamp) {
-      return;
-    }
-
-    final remaining =
-        expiresAt.toDate().difference(
-              DateTime.now(),
-            );
-
-    final seconds =
-        remaining.inSeconds.clamp(0, 120);
+    _timer?.cancel();
+    _requestSubscription?.cancel();
 
     if (!mounted) return;
 
     setState(() {
-      _secondsLeft = seconds;
-      _cancelEnabled = seconds <= 60;
+      _searching = false;
+      _searchFinished = false;
+      _secondsLeft = 120;
     });
 
-    if (seconds <= 0) {
-      _expireRequest();
-      return;
-    }
+    widget.onWalkerFound?.call();
 
-    _startLocalTimer();
+    _showMessage(
+      'Walker accepted your walk request.',
+    );
   }
 
   // =========================================================
-  // DISPLAY TIMER
+  // REQUEST CANCELLED
   // =========================================================
 
-  void _startLocalTimer() {
+  void _handleRequestCancelled() {
+    _timer?.cancel();
+
+    if (!mounted) return;
+
+    setState(() {
+      _searching = false;
+      _searchFinished = true;
+    });
+  }
+
+  // =========================================================
+  // TIMER
+  // =========================================================
+
+  void _startTimer() {
     _timer?.cancel();
 
     _timer = Timer.periodic(
@@ -380,25 +268,25 @@ class _InstaWalkContainerState
           return;
         }
 
-        if (_secondsLeft <= 0) {
+        if (_secondsLeft <= 1) {
           timer.cancel();
+
           await _expireRequest();
+
+          if (!mounted) return;
+
+          setState(() {
+            _searching = false;
+            _searchFinished = true;
+            _secondsLeft = 0;
+          });
+
           return;
         }
 
         setState(() {
           _secondsLeft--;
-
-          // Exactly 60 seconds remaining:
-          // Cancel becomes enabled.
-          _cancelEnabled =
-              _secondsLeft <= 60;
         });
-
-        if (_secondsLeft <= 0) {
-          timer.cancel();
-          await _expireRequest();
-        }
       },
     );
   }
@@ -408,76 +296,40 @@ class _InstaWalkContainerState
   // =========================================================
 
   Future<void> _expireRequest() async {
-    final ref = _requestRef;
+    final String? requestId = _requestId;
 
-    if (ref == null) return;
-
-    try {
-      final snapshot = await ref.get();
-
-      if (!snapshot.exists) return;
-
-      final status =
-          snapshot.data()?['status']?.toString();
-
-      // Do not overwrite accepted/cancelled.
-      if (status != 'searching') return;
-
-      await ref.update({
-        'status': 'expired',
-        'expiredAt': FieldValue.serverTimestamp(),
-      });
-    } catch (_) {
-      // Firestore listener will handle the final state.
-    }
-  }
-
-  // =========================================================
-  // CANCEL SEARCH
-  // =========================================================
-
-  Future<void> _cancelSearch() async {
-    if (!_searching ||
-        !_cancelEnabled ||
-        _cancelling) {
+    if (requestId == null) {
       return;
     }
 
-    final ref = _requestRef;
-
-    if (ref == null) return;
-
-    setState(() {
-      _cancelling = true;
-    });
-
     try {
-      final snapshot = await ref.get();
+      final requestRef = _firestore
+          .collection('walk_requests')
+          .doc(requestId);
 
-      if (!snapshot.exists) return;
+      final snapshot =
+          await requestRef.get();
 
-      final status =
-          snapshot.data()?['status']?.toString();
-
-      if (status != 'searching') {
+      if (!snapshot.exists) {
         return;
       }
 
-      await ref.update({
-        'status': 'cancelled',
-        'cancelledAt':
-            FieldValue.serverTimestamp(),
-      });
+      final data = snapshot.data();
+
+      final String status =
+          data?['status']?.toString() ?? '';
+
+      // Don't overwrite an accepted request.
+      if (status == 'searching') {
+        await requestRef.update({
+          'status': 'expired',
+          'expiredAt':
+              FieldValue.serverTimestamp(),
+        });
+      }
     } catch (_) {
-      if (!mounted) return;
-
-      setState(() {
-        _cancelling = false;
-      });
-
-      _showMessage(
-        'Unable to cancel search.',
-      );
+      // Request may already have been updated
+      // by another process.
     }
   }
 
@@ -486,12 +338,13 @@ class _InstaWalkContainerState
   // =========================================================
 
   Future<void> _retrySearch() async {
-    setState(() {
-      _searchFinished = false;
-      _checkingSearch = false;
-      _secondsLeft = 0;
-      _cancelEnabled = false;
-    });
+    final User? user =
+        FirebaseAuth.instance.currentUser;
+
+    if (user == null) {
+      _showMessage('Please login first.');
+      return;
+    }
 
     await _findWalker();
   }
@@ -501,12 +354,12 @@ class _InstaWalkContainerState
   // =========================================================
 
   String _timerText() {
-    final minutes =
+    final int minutes =
         (_secondsLeft ~/ 60)
             .toString()
             .padLeft(2, '0');
 
-    final seconds =
+    final int seconds =
         (_secondsLeft % 60)
             .toString()
             .padLeft(2, '0');
@@ -522,12 +375,11 @@ class _InstaWalkContainerState
     if (!mounted) return;
 
     ScaffoldMessenger.of(context)
-      ..hideCurrentSnackBar()
-      ..showSnackBar(
-        SnackBar(
-          content: Text(message),
-        ),
-      );
+        .showSnackBar(
+      SnackBar(
+        content: Text(message),
+      ),
+    );
   }
 
   // =========================================================
@@ -571,10 +423,7 @@ class _InstaWalkContainerState
           crossAxisAlignment:
               CrossAxisAlignment.start,
           children: [
-            // =================================================
             // HEADER
-            // =================================================
-
             Row(
               children: [
                 Container(
@@ -634,36 +483,16 @@ class _InstaWalkContainerState
 
             const SizedBox(height: 16),
 
-            if (_checkingSearch)
-              _checkingContainer()
-            else if (!_searching &&
+            if (!_searching &&
                 !_searchFinished)
-              _findButton()
-            else if (_searching)
-              _searchingContainer()
-            else
+              _findButton(),
+
+            if (_searching)
+              _searchingContainer(),
+
+            if (_searchFinished)
               _retryContainer(),
           ],
-        ),
-      ),
-    );
-  }
-
-  // =========================================================
-  // CHECKING
-  // =========================================================
-
-  Widget _checkingContainer() {
-    return const SizedBox(
-      width: double.infinity,
-      height: 50,
-      child: Center(
-        child: CircularProgressIndicator(
-          strokeWidth: 2.5,
-          valueColor:
-              AlwaysStoppedAnimation<Color>(
-            Colors.white,
-          ),
         ),
       ),
     );
@@ -678,19 +507,42 @@ class _InstaWalkContainerState
       width: double.infinity,
       height: 50,
       child: ElevatedButton.icon(
-        onPressed: _findWalker,
-        icon: const Icon(
-          Icons.search_rounded,
-        ),
-        label: const Text(
-          'Find a Walker',
-          style: TextStyle(
+        onPressed:
+            _checkingAddress
+                ? null
+                : _findWalker,
+        icon: _checkingAddress
+            ? const SizedBox(
+                height: 18,
+                width: 18,
+                child:
+                    CircularProgressIndicator(
+                  strokeWidth: 2,
+                  valueColor:
+                      AlwaysStoppedAnimation<
+                          Color>(
+                    Color(0xFFE45D32),
+                  ),
+                ),
+              )
+            : const Icon(
+                Icons.search_rounded,
+              ),
+        label: Text(
+          _checkingAddress
+              ? 'Checking Address...'
+              : 'Find a Walker',
+          style: const TextStyle(
             fontWeight: FontWeight.w800,
           ),
         ),
         style: ElevatedButton.styleFrom(
           backgroundColor: Colors.white,
           foregroundColor:
+              const Color(0xFFE45D32),
+          disabledBackgroundColor:
+              Colors.white,
+          disabledForegroundColor:
               const Color(0xFFE45D32),
           elevation: 0,
           shape:
@@ -725,9 +577,7 @@ class _InstaWalkContainerState
                 ),
               ),
             ),
-
             const SizedBox(width: 10),
-
             const Expanded(
               child: Text(
                 'Searching for a walker...',
@@ -738,7 +588,6 @@ class _InstaWalkContainerState
                 ),
               ),
             ),
-
             Text(
               _timerText(),
               style: const TextStyle(
@@ -773,7 +622,7 @@ class _InstaWalkContainerState
               SizedBox(width: 7),
               Expanded(
                 child: Text(
-                  'Searching nearby online walkers. Search remains active until a walker accepts, you cancel it, or 2 minutes expire.',
+                  'Searching nearby online walkers. The search will continue until a walker accepts or 2 minutes are completed.',
                   style: TextStyle(
                     color: Colors.white,
                     fontSize: 11,
@@ -788,75 +637,6 @@ class _InstaWalkContainerState
         const SizedBox(height: 12),
 
         Text(
-          _cancelEnabled
-              ? 'You can cancel the search now.'
-              : 'Cancel becomes available at 01:00.',
-          style: TextStyle(
-            color:
-                Colors.white.withOpacity(.80),
-            fontSize: 10,
-          ),
-        ),
-
-        const SizedBox(height: 10),
-
-        SizedBox(
-          width: double.infinity,
-          height: 44,
-          child: OutlinedButton.icon(
-            onPressed:
-                _cancelEnabled && !_cancelling
-                    ? _cancelSearch
-                    : null,
-            icon: _cancelling
-                ? const SizedBox(
-                    height: 16,
-                    width: 16,
-                    child:
-                        CircularProgressIndicator(
-                      strokeWidth: 2,
-                      valueColor:
-                          AlwaysStoppedAnimation<
-                              Color>(
-                        Colors.white,
-                      ),
-                    ),
-                  )
-                : const Icon(
-                    Icons.close_rounded,
-                  ),
-            label: Text(
-              _cancelling
-                  ? 'Cancelling...'
-                  : _cancelEnabled
-                      ? 'Cancel Search'
-                      : 'Cancel Search • Locked',
-              style: const TextStyle(
-                fontWeight: FontWeight.w800,
-              ),
-            ),
-            style:
-                OutlinedButton.styleFrom(
-              foregroundColor: Colors.white,
-              disabledForegroundColor:
-                  Colors.white38,
-              side: BorderSide(
-                color: _cancelEnabled
-                    ? Colors.white
-                    : Colors.white30,
-              ),
-              shape:
-                  RoundedRectangleBorder(
-                borderRadius:
-                    BorderRadius.circular(14),
-              ),
-            ),
-          ),
-        ),
-
-        const SizedBox(height: 8),
-
-        Text(
           'Maximum search distance: 3 km',
           style: TextStyle(
             color:
@@ -869,7 +649,7 @@ class _InstaWalkContainerState
   }
 
   // =========================================================
-  // FINISHED
+  // SEARCH FINISHED
   // =========================================================
 
   Widget _retryContainer() {
@@ -907,7 +687,7 @@ class _InstaWalkContainerState
               Icons.refresh_rounded,
             ),
             label: const Text(
-              'Retry Search',
+              'Re-search',
               style: TextStyle(
                 fontWeight:
                     FontWeight.w800,
