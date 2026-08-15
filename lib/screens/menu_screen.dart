@@ -1,18 +1,82 @@
 import 'package:flutter/material.dart';
 
 import '../core/constants/app_colors.dart';
+import '../widgets/menu_card.dart';
+import '../widgets/section_title.dart';
 
-class HelpSupportScreen extends StatelessWidget {
-  const HelpSupportScreen({super.key});
+import 'profile_screen.dart';
+import 'notifications_screen.dart';
+import 'login_screen.dart';
+import 'address_screen.dart';
+import 'settings_screen.dart';
+import 'help_support_screen.dart';
+import 'about_screen.dart';
 
-  void _showMessage(
+class MenuScreen extends StatelessWidget {
+  const MenuScreen({super.key});
+
+  void _openPage(
     BuildContext context,
-    String message,
+    Widget page,
   ) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(message),
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => page,
       ),
+    );
+  }
+
+  void _showLogoutDialog(
+    BuildContext context,
+  ) {
+    showDialog(
+      context: context,
+      builder: (dialogContext) {
+        return AlertDialog(
+          title: const Text(
+            'Logout',
+            style: TextStyle(
+              color: AppColors.navy,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+          content: const Text(
+            'Are you sure you want to logout?',
+          ),
+          actions: [
+            TextButton(
+              onPressed: () {
+                Navigator.pop(dialogContext);
+              },
+              child: const Text(
+                'Cancel',
+                style: TextStyle(
+                  color: AppColors.slate,
+                ),
+              ),
+            ),
+            ElevatedButton(
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppColors.primary,
+                foregroundColor: Colors.white,
+              ),
+              onPressed: () {
+                Navigator.pop(dialogContext);
+
+                Navigator.pushAndRemoveUntil(
+                  context,
+                  MaterialPageRoute(
+                    builder: (_) => const LoginScreen(),
+                  ),
+                  (route) => false,
+                );
+              },
+              child: const Text('Logout'),
+            ),
+          ],
+        );
+      },
     );
   }
 
@@ -26,7 +90,7 @@ class HelpSupportScreen extends StatelessWidget {
         foregroundColor: Colors.white,
         elevation: 0,
         title: const Text(
-          'Help & Support',
+          'Menu',
           style: TextStyle(
             fontWeight: FontWeight.bold,
           ),
@@ -36,182 +100,166 @@ class HelpSupportScreen extends StatelessWidget {
       body: ListView(
         padding: const EdgeInsets.all(16),
         children: [
-          // Contact Support
-          _SupportTile(
-            icon: Icons.support_agent_outlined,
-            title: 'Contact Support',
-            subtitle: 'Get help from Dojo Walk support',
+          // =================================================
+          // ACCOUNT
+          // =================================================
+
+          const SectionTitle(
+            title: 'ACCOUNT',
+          ),
+
+          const SizedBox(height: 10),
+
+          MenuCard(
+            icon: Icons.person_outline,
+            title: 'Profile Settings',
+            subtitle: 'Manage your profile information',
             onTap: () {
-              _showMessage(
+              _openPage(
                 context,
-                'Contact Support selected.',
+                const ProfileScreen(),
               );
             },
           ),
 
-          const SizedBox(height: 12),
+          const SizedBox(height: 10),
 
-          // FAQ
-          _SupportTile(
-            icon: Icons.question_answer_outlined,
-            title: 'Frequently Asked Questions',
-            subtitle: 'Find answers to common questions',
+          MenuCard(
+            icon: Icons.location_on_outlined,
+            title: 'Address',
+            subtitle: 'Update your home or walking address',
             onTap: () {
-              _showMessage(
+              _openPage(
                 context,
-                'FAQ selected.',
+                const AddressScreen(),
               );
             },
           ),
 
-          const SizedBox(height: 12),
+          const SizedBox(height: 10),
 
-          // Report Problem
-          _SupportTile(
-            icon: Icons.report_problem_outlined,
-            title: 'Report a Problem',
-            subtitle: 'Tell us about a problem with the app',
+          MenuCard(
+            icon: Icons.notifications_none,
+            title: 'Notifications',
+            subtitle: 'Manage your notification preferences',
             onTap: () {
-              _showMessage(
+              _openPage(
                 context,
-                'Report a Problem selected.',
+                const NotificationsScreen(),
               );
             },
           ),
 
-          const SizedBox(height: 12),
+          const SizedBox(height: 26),
 
-          // Feedback
-          _SupportTile(
-            icon: Icons.feedback_outlined,
-            title: 'Send Feedback',
-            subtitle: 'Share your feedback with us',
+          // =================================================
+          // APP
+          // =================================================
+
+          const SectionTitle(
+            title: 'APP',
+          ),
+
+          const SizedBox(height: 10),
+
+          MenuCard(
+            icon: Icons.settings_outlined,
+            title: 'Settings',
+            subtitle: 'Manage your Dojo Walk app settings',
             onTap: () {
-              _showMessage(
+              _openPage(
                 context,
-                'Send Feedback selected.',
+                const SettingsScreen(),
               );
             },
           ),
 
-          const SizedBox(height: 28),
+          const SizedBox(height: 26),
 
-          Container(
-            padding: const EdgeInsets.all(18),
-            decoration: BoxDecoration(
-              color: AppColors.card,
-              borderRadius: BorderRadius.circular(18),
-            ),
-            child: const Column(
-              children: [
-                Icon(
-                  Icons.pets,
-                  color: AppColors.primary,
-                  size: 38,
-                ),
-                SizedBox(height: 10),
-                Text(
-                  'Dojo Walk Support',
-                  style: TextStyle(
-                    color: AppColors.navy,
-                    fontSize: 16,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-                SizedBox(height: 6),
-                Text(
-                  'We are here to help you with your Dojo Walk experience.',
-                  textAlign: TextAlign.center,
-                  style: TextStyle(
-                    color: AppColors.slate,
-                    fontSize: 12,
-                  ),
-                ),
-              ],
-            ),
+          // =================================================
+          // SUPPORT
+          // =================================================
+
+          const SectionTitle(
+            title: 'SUPPORT',
           ),
-        ],
-      ),
-    );
-  }
-}
 
-class _SupportTile extends StatelessWidget {
-  final IconData icon;
-  final String title;
-  final String subtitle;
-  final VoidCallback onTap;
+          const SizedBox(height: 10),
 
-  const _SupportTile({
-    required this.icon,
-    required this.title,
-    required this.subtitle,
-    required this.onTap,
-  });
+          MenuCard(
+            icon: Icons.help_outline,
+            title: 'Help & Support',
+            subtitle: 'Get help with your Dojo Walk account',
+            onTap: () {
+              _openPage(
+                context,
+                const HelpSupportScreen(),
+              );
+            },
+          ),
 
-  @override
-  Widget build(BuildContext context) {
-    return Card(
-      margin: EdgeInsets.zero,
-      color: AppColors.card,
-      elevation: 0,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(16),
-      ),
-      child: InkWell(
-        borderRadius: BorderRadius.circular(16),
-        onTap: onTap,
-        child: Padding(
-          padding: const EdgeInsets.all(15),
-          child: Row(
-            children: [
-              Container(
-                width: 46,
-                height: 46,
-                decoration: BoxDecoration(
-                  color: AppColors.primary.withOpacity(0.10),
-                  borderRadius: BorderRadius.circular(13),
-                ),
-                child: Icon(
-                  icon,
-                  color: AppColors.primary,
-                  size: 24,
-                ),
+          const SizedBox(height: 10),
+
+          MenuCard(
+            icon: Icons.info_outline,
+            title: 'About Dojo Walk',
+            subtitle: 'App information and version',
+            onTap: () {
+              _openPage(
+                context,
+                const AboutScreen(),
+              );
+            },
+          ),
+
+          const SizedBox(height: 26),
+
+          // =================================================
+          // LOGOUT
+          // =================================================
+
+          MenuCard(
+            icon: Icons.logout,
+            title: 'Logout',
+            subtitle: 'Sign out of your account',
+            iconColor: Colors.red,
+            titleColor: Colors.red,
+            onTap: () {
+              _showLogoutDialog(context);
+            },
+          ),
+
+          const SizedBox(height: 35),
+
+          // =================================================
+          // FOOTER
+          // =================================================
+
+          const Center(
+            child: Text(
+              'Dojo Walk',
+              style: TextStyle(
+                color: AppColors.navy,
+                fontSize: 16,
+                fontWeight: FontWeight.bold,
               ),
+            ),
+          ),
 
-              const SizedBox(width: 14),
+          const SizedBox(height: 5),
 
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      title,
-                      style: const TextStyle(
-                        color: AppColors.navy,
-                        fontSize: 15,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                    const SizedBox(height: 4),
-                    Text(
-                      subtitle,
-                      style: const TextStyle(
-                        color: AppColors.slate,
-                        fontSize: 12,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-
-              const Icon(
-                Icons.chevron_right,
+          const Center(
+            child: Text(
+              'Version 1.0.0',
+              style: TextStyle(
                 color: AppColors.slate,
+                fontSize: 11,
               ),
-            ],
+            ),
           ),
-        ),
+
+          const SizedBox(height: 20),
+        ],
       ),
     );
   }
