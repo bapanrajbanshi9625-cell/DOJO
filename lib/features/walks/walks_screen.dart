@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import '../../screens/custom_app_bar.dart';
+
 import 'widgets/walks_header.dart';
 import 'widgets/insta_walk_container.dart';
 import 'widgets/this_week_section.dart';
@@ -20,12 +22,31 @@ class _WalksScreenState extends State<WalksScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: const Color(0xFFF7F8FA),
+
+      // ========================================================
+      // DOJO WALK APP BAR
+      // ========================================================
+
+      appBar: const CustomAppBar(),
+
+      // ========================================================
+      // BODY
+      // ========================================================
+
       body: SafeArea(
         child: CustomScrollView(
           slivers: [
+            // ==================================================
+            // WALKS HEADER
+            // ==================================================
+
             const SliverToBoxAdapter(
               child: WalksHeader(),
             ),
+
+            // ==================================================
+            // INSTA WALK
+            // ==================================================
 
             SliverToBoxAdapter(
               child: InstaWalkContainer(
@@ -35,9 +56,17 @@ class _WalksScreenState extends State<WalksScreen> {
               ),
             ),
 
+            // ==================================================
+            // THIS WEEK
+            // ==================================================
+
             const SliverToBoxAdapter(
               child: ThisWeekSection(),
             ),
+
+            // ==================================================
+            // PAST WEEKS
+            // ==================================================
 
             SliverToBoxAdapter(
               child: PastWeeksSection(
@@ -50,8 +79,14 @@ class _WalksScreenState extends State<WalksScreen> {
               ),
             ),
 
+            // ==================================================
+            // BOTTOM SPACE
+            // ==================================================
+
             const SliverToBoxAdapter(
-              child: SizedBox(height: 30),
+              child: SizedBox(
+                height: 30,
+              ),
             ),
           ],
         ),
