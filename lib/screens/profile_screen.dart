@@ -14,7 +14,18 @@ class ProfileScreen extends StatefulWidget {
 }
 
 class _ProfileScreenState extends State<ProfileScreen> {
+  // ============================================================
+  // COLORS
+  // ============================================================
+
   static const Color orange = Color(0xFFF4511E);
+  static const Color navy = Color(0xFF263746);
+  static const Color slate = Color(0xFF475569);
+  static const Color background = Color(0xFFEDEFF2);
+
+  // ============================================================
+  // PROFILE DATA
+  // ============================================================
 
   String mobileNumber = '';
   String ownerUid = '';
@@ -196,7 +207,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
       backgroundColor: Colors.white,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(
-          top: Radius.circular(26),
+          top: Radius.circular(24),
         ),
       ),
       builder: (_) {
@@ -244,8 +255,11 @@ class _ProfileScreenState extends State<ProfileScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor:
-          const Color(0xFFF8F8F8),
+      backgroundColor: background,
+
+      // ========================================================
+      // APP BAR
+      // ========================================================
 
       appBar: AppBar(
         backgroundColor: orange,
@@ -255,7 +269,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
         leading: IconButton(
           icon: const Icon(
             Icons.arrow_back_ios_new_rounded,
-            size: 21,
+            size: 19,
           ),
           onPressed: () {
             Navigator.pop(context);
@@ -268,19 +282,25 @@ class _ProfileScreenState extends State<ProfileScreen> {
           children: [
             Icon(
               Icons.person_rounded,
-              size: 27,
+              size: 22,
             ),
-            SizedBox(width: 10),
+
+            SizedBox(width: 8),
+
             Text(
               'Profile',
               style: TextStyle(
-                fontSize: 23,
-                fontWeight: FontWeight.w600,
+                fontSize: 18,
+                fontWeight: FontWeight.w800,
               ),
             ),
           ],
         ),
       ),
+
+      // ========================================================
+      // BODY
+      // ========================================================
 
       body: SafeArea(
         child: isLoading
@@ -291,7 +311,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
               )
             : RefreshIndicator(
                 color: orange,
-                onRefresh: _loadOwnerProfile,
+
+                onRefresh:
+                    _loadOwnerProfile,
 
                 child: SingleChildScrollView(
                   physics:
@@ -299,9 +321,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
                   padding:
                       const EdgeInsets.fromLTRB(
+                    15,
                     16,
-                    18,
-                    16,
+                    15,
                     30,
                   ),
 
@@ -310,38 +332,75 @@ class _ProfileScreenState extends State<ProfileScreen> {
                         CrossAxisAlignment.start,
 
                     children: [
+                      // ==================================================
+                      // PROFILE CARD
+                      // ==================================================
+
                       ProfileCard(
                         ownerName: ownerName,
                       ),
 
-                      const SizedBox(height: 28),
-
-                      const Padding(
-                        padding:
-                            EdgeInsets.symmetric(
-                          horizontal: 4,
-                        ),
-
-                        child: Text(
-                          'Owner Information',
-                          style: TextStyle(
-                            fontSize: 23,
-                            fontWeight:
-                                FontWeight.bold,
-                            color: Colors.black,
-                          ),
-                        ),
+                      const SizedBox(
+                        height: 18,
                       ),
 
-                      const SizedBox(height: 14),
+                      // ==================================================
+                      // OWNER INFORMATION TITLE
+                      // ==================================================
+
+                      Row(
+                        children: [
+                          Container(
+                            height: 20,
+                            width: 4,
+                            decoration:
+                                BoxDecoration(
+                              color: orange,
+                              borderRadius:
+                                  BorderRadius
+                                      .circular(
+                                5,
+                              ),
+                            ),
+                          ),
+
+                          const SizedBox(
+                            width: 9,
+                          ),
+
+                          const Text(
+                            'Owner Information',
+                            style: TextStyle(
+                              color: navy,
+                              fontSize: 17,
+                              fontWeight:
+                                  FontWeight.w900,
+                            ),
+                          ),
+                        ],
+                      ),
+
+                      const SizedBox(
+                        height: 10,
+                      ),
+
+                      // ==================================================
+                      // OWNER INFORMATION CARD
+                      // ==================================================
 
                       OwnerInformationCard(
-                        mobileNumber: mobileNumber,
-                        ownerName: ownerName,
-                        ownerAge: ownerAge,
-                        ownerGender: ownerGender,
-                        ownerUid: ownerUid,
-                        memberSince: memberSince,
+                        mobileNumber:
+                            mobileNumber,
+                        ownerName:
+                            ownerName,
+                        ownerAge:
+                            ownerAge,
+                        ownerGender:
+                            ownerGender,
+                        ownerUid:
+                            ownerUid,
+                        memberSince:
+                            memberSince,
                         onChangeMobile:
                             _openChangeMobile,
                         onCopyUid:
