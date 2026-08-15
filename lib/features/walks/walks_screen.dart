@@ -4,8 +4,6 @@ import '../../screens/custom_app_bar.dart';
 
 import 'widgets/walks_header.dart';
 import 'widgets/insta_walk_container.dart';
-import 'widgets/this_week_section.dart';
-import 'widgets/past_weeks_section.dart';
 
 class WalksScreen extends StatefulWidget {
   const WalksScreen({super.key});
@@ -15,9 +13,6 @@ class WalksScreen extends StatefulWidget {
 }
 
 class _WalksScreenState extends State<WalksScreen> {
-  DateTime selectedPastWeek = DateTime.now()
-      .subtract(const Duration(days: 7));
-
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -48,35 +43,8 @@ class _WalksScreenState extends State<WalksScreen> {
             // INSTA WALK
             // ==================================================
 
-            SliverToBoxAdapter(
-              child: InstaWalkContainer(
-                onWalkerFound: () {
-                  setState(() {});
-                },
-              ),
-            ),
-
-            // ==================================================
-            // THIS WEEK
-            // ==================================================
-
             const SliverToBoxAdapter(
-              child: ThisWeekSection(),
-            ),
-
-            // ==================================================
-            // PAST WEEKS
-            // ==================================================
-
-            SliverToBoxAdapter(
-              child: PastWeeksSection(
-                selectedDate: selectedPastWeek,
-                onDateChanged: (date) {
-                  setState(() {
-                    selectedPastWeek = date;
-                  });
-                },
-              ),
+              child: InstaWalkContainer(),
             ),
 
             // ==================================================
