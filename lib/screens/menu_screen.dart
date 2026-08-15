@@ -9,11 +9,15 @@ import 'notifications_screen.dart';
 import 'login_screen.dart';
 import 'address_screen.dart';
 import 'settings_screen.dart';
-import 'support_screen.dart';
+import 'help_support_screen.dart';
 import 'about_screen.dart';
 
 class MenuScreen extends StatelessWidget {
   const MenuScreen({super.key});
+
+  // =====================================================
+  // OPEN SCREEN
+  // =====================================================
 
   void _openPage(
     BuildContext context,
@@ -27,6 +31,10 @@ class MenuScreen extends StatelessWidget {
     );
   }
 
+  // =====================================================
+  // LOGOUT
+  // =====================================================
+
   void _showLogoutDialog(
     BuildContext context,
   ) {
@@ -38,6 +46,7 @@ class MenuScreen extends StatelessWidget {
             'Logout',
             style: TextStyle(
               fontWeight: FontWeight.bold,
+              color: AppColors.navy,
             ),
           ),
           content: const Text(
@@ -48,8 +57,14 @@ class MenuScreen extends StatelessWidget {
               onPressed: () {
                 Navigator.pop(dialogContext);
               },
-              child: const Text('Cancel'),
+              child: const Text(
+                'Cancel',
+                style: TextStyle(
+                  color: AppColors.slate,
+                ),
+              ),
             ),
+
             ElevatedButton(
               style: ElevatedButton.styleFrom(
                 backgroundColor:
@@ -76,11 +91,19 @@ class MenuScreen extends StatelessWidget {
     );
   }
 
+  // =====================================================
+  // BUILD
+  // =====================================================
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor:
           AppColors.background,
+
+      // =================================================
+      // APP BAR
+      // =================================================
 
       appBar: AppBar(
         backgroundColor:
@@ -95,15 +118,25 @@ class MenuScreen extends StatelessWidget {
         ),
       ),
 
+      // =================================================
+      // BODY
+      // =================================================
+
       body: ListView(
         padding: const EdgeInsets.all(16),
         children: [
+
+          // =================================================
+          // ACCOUNT
+          // =================================================
+
           const SectionTitle(
             title: 'ACCOUNT',
           ),
 
           const SizedBox(height: 10),
 
+          // PROFILE
           MenuCard(
             icon: Icons.person_outline,
             title: 'Profile Settings',
@@ -119,8 +152,10 @@ class MenuScreen extends StatelessWidget {
 
           const SizedBox(height: 10),
 
+          // ADDRESS
           MenuCard(
-            icon: Icons.location_on_outlined,
+            icon:
+                Icons.location_on_outlined,
             title: 'Address',
             subtitle:
                 'Update your home or walking address',
@@ -134,8 +169,10 @@ class MenuScreen extends StatelessWidget {
 
           const SizedBox(height: 10),
 
+          // NOTIFICATIONS
           MenuCard(
-            icon: Icons.notifications_none,
+            icon:
+                Icons.notifications_none,
             title: 'Notifications',
             subtitle:
                 'Manage your notification preferences',
@@ -149,14 +186,20 @@ class MenuScreen extends StatelessWidget {
 
           const SizedBox(height: 26),
 
+          // =================================================
+          // APP
+          // =================================================
+
           const SectionTitle(
             title: 'APP',
           ),
 
           const SizedBox(height: 10),
 
+          // SETTINGS
           MenuCard(
-            icon: Icons.settings_outlined,
+            icon:
+                Icons.settings_outlined,
             title: 'Settings',
             subtitle:
                 'Manage your Dojo Walk app settings',
@@ -170,12 +213,17 @@ class MenuScreen extends StatelessWidget {
 
           const SizedBox(height: 26),
 
+          // =================================================
+          // SUPPORT
+          // =================================================
+
           const SectionTitle(
             title: 'SUPPORT',
           ),
 
           const SizedBox(height: 10),
 
+          // HELP & SUPPORT
           MenuCard(
             icon: Icons.help_outline,
             title: 'Help & Support',
@@ -184,13 +232,14 @@ class MenuScreen extends StatelessWidget {
             onTap: () {
               _openPage(
                 context,
-                const SupportScreen(),
+                const HelpSupportScreen(),
               );
             },
           ),
 
           const SizedBox(height: 10),
 
+          // ABOUT
           MenuCard(
             icon: Icons.info_outline,
             title: 'About Dojo Walk',
@@ -206,6 +255,10 @@ class MenuScreen extends StatelessWidget {
 
           const SizedBox(height: 26),
 
+          // =================================================
+          // LOGOUT
+          // =================================================
+
           MenuCard(
             icon: Icons.logout,
             title: 'Logout',
@@ -219,6 +272,10 @@ class MenuScreen extends StatelessWidget {
           ),
 
           const SizedBox(height: 35),
+
+          // =================================================
+          // FOOTER
+          // =================================================
 
           const Center(
             child: Text(
