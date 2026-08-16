@@ -1,14 +1,9 @@
-import 'dart:io';
-
-import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'package:firebase_storage/firebase_storage.dart';
 import 'package:flutter/material.dart';
-import 'package:record/record.dart';
 
 import '../models/assigned_walker.dart';
 import '../services/assigned_walker_service.dart';
-import '../services/walk_chat_service.dart';
+import '../services/walk_request_service.dart';
 
 class AssignWalkerContainer extends StatelessWidget {
   const AssignWalkerContainer({
@@ -32,10 +27,17 @@ class AssignWalkerContainer extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final User? user =
+        FirebaseAuth.instance.currentUser;
+
+    if (user == null) {
+      return const SizedBox.shrink();
+    }
+
     return StreamBuilder<AssignedWalker?>(
       stream:
-          AssignedWalkerService.instance
-              .assignedWalkerStream(),
+          AssignedWalkerService
+              .watchAssignedWalker(user.uid),
       builder: (
         context,
         snapshot,
@@ -47,42 +49,22 @@ class AssignWalkerContainer extends StatelessWidget {
           return const SizedBox.shrink();
         }
 
-        return _AssignedWalkerCard(
-          walker: walker,
+        return _buildContainer(
+          context,
+          walker,
         );
       },
     );
   }
-}
 
-class _AssignedWalkerCard
-    extends StatelessWidget {
-  final AssignedWalker walker;
-
-  const _AssignedWalkerCard({
-    required this.walker,
-  });
-
-  static const Color navy =
-      Color(0xFF263746);
-
-  static const Color slate =
-      Color(0xFF64748B);
-
-  static const Color greenPrimary =
-      Color(0xFF16803A);
-
-  static const Color orangeSecondary =
-      Color(0xFFE45D32);
-
-  static const Color blackPrimary =
-      Color(0xFF111111);
-
-  @override
-  Widget build(BuildContext context) {
+  Widget _buildContainer(
+    BuildContext context,
+    AssignedWalker walker,
+  ) {
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.all(18),
+      padding:
+          const EdgeInsets.all(18),
       decoration: BoxDecoration(
         color: const Color(0xFFF7F8FA),
         borderRadius:
@@ -104,21 +86,19 @@ class _AssignedWalkerCard
         crossAxisAlignment:
             CrossAxisAlignment.start,
         children: [
-          // =========================================
-          // HEADER
-          // =========================================
-
           Row(
             children: [
               Container(
                 height: 42,
                 width: 42,
-                decoration: BoxDecoration(
-                  color:
-                      orangeSecondary
-                          .withOpacity(.10),
+                decoration:
+                    BoxDecoration(
+                  color: orangeSecondary
+                      .withOpacity(.10),
                   borderRadius:
-                      BorderRadius.circular(13),
+                      BorderRadius.circular(
+                    13,
+                  ),
                 ),
                 child: const Icon(
                   Icons
@@ -128,9 +108,7 @@ class _AssignedWalkerCard
                   size: 24,
                 ),
               ),
-
               const SizedBox(width: 11),
-
               const Expanded(
                 child: Column(
                   crossAxisAlignment:
@@ -156,37 +134,33 @@ class _AssignedWalkerCard
                   ],
                 ),
               ),
-
-              Container(
-                height: 27,
-                width: 27,
-                decoration:
-                    BoxDecoration(
-                  color:
-                      greenPrimary
-                          .withOpacity(.10),
-                  shape: BoxShape.circle,
+              if (walker.verified)
+                Container(
+                  height: 27,
+                  width: 27,
+                  decoration:
+                      BoxDecoration(
+                    color: greenPrimary
+                        .withOpacity(.10),
+                    shape: BoxShape.circle,
+                  ),
+                  child: const Icon(
+                    Icons.check_rounded,
+                    color:
+                        greenPrimary,
+                    size: 17,
+                  ),
                 ),
-                child: const Icon(
-                  Icons.check_rounded,
-                  color:
-                      greenPrimary,
-                  size: 17,
-                ),
-              ),
             ],
           ),
 
           const SizedBox(height: 17),
 
-          // =========================================
-          // WALKER
-          // =========================================
-
           Container(
             padding:
                 const EdgeInsets.all(13),
-            decoration: BoxDecoration(
+            decoration:
+                BoxDecoration(
               color: Colors.white,
               borderRadius:
                   BorderRadius.circular(17),
@@ -202,9 +176,8 @@ class _AssignedWalkerCard
                   width: 53,
                   decoration:
                       BoxDecoration(
-                    color:
-                        orangeSecondary
-                            .withOpacity(.10),
+                    color: orangeSecondary
+                        .withOpacity(.10),
                     shape: BoxShape.circle,
                   ),
                   child: const Icon(
@@ -214,9 +187,7 @@ class _AssignedWalkerCard
                     size: 28,
                   ),
                 ),
-
                 const SizedBox(width: 12),
-
                 Expanded(
                   child: Column(
                     crossAxisAlignment:
@@ -241,11 +212,9 @@ class _AssignedWalkerCard
                               ),
                             ),
                           ),
-
                           if (walker.verified) ...[
                             const SizedBox(
-                              width: 6,
-                            ),
+                                width: 6),
                             const Icon(
                               Icons
                                   .verified_rounded,
@@ -256,14 +225,9 @@ class _AssignedWalkerCard
                           ],
                         ],
                       ),
-
                       const SizedBox(height: 5),
-
                       Text(
-                        'Walker UID: ${walker.walkerUid}',
-                        maxLines: 1,
-                        overflow:
-                            TextOverflow.ellipsis,
+                        'Walker ID: ${walker.walkerId}',
                         style:
                             const TextStyle(
                           color: slate,
@@ -272,9 +236,7 @@ class _AssignedWalkerCard
                               FontWeight.w600,
                         ),
                       ),
-
                       const SizedBox(height: 3),
-
                       Text(
                         walker.verified
                             ? 'Verified Walker'
@@ -297,34 +259,27 @@ class _AssignedWalkerCard
 
           const SizedBox(height: 15),
 
-          // =========================================
-          // CALL + TRACK
-          // =========================================
-
           Row(
             children: [
               Expanded(
-                child: _ActionButton(
-                  icon:
-                      Icons.call_rounded,
+                child: _actionButton(
+                  icon: Icons.call_rounded,
                   label: 'Call',
                   background:
                       greenPrimary,
                   foreground:
                       Colors.white,
                   onTap: () {
-                    _callWalker(
+                    _showMessage(
                       context,
-                      walker,
+                      'Calling ${walker.walkerName}...',
                     );
                   },
                 ),
               ),
-
               const SizedBox(width: 10),
-
               Expanded(
-                child: _ActionButton(
+                child: _actionButton(
                   icon:
                       Icons.location_on_rounded,
                   label: 'Track',
@@ -333,9 +288,9 @@ class _AssignedWalkerCard
                   foreground:
                       Colors.white,
                   onTap: () {
-                    _trackWalker(
+                    _showMessage(
                       context,
-                      walker,
+                      'Opening live walker tracking...',
                     );
                   },
                 ),
@@ -345,14 +300,10 @@ class _AssignedWalkerCard
 
           const SizedBox(height: 10),
 
-          // =========================================
-          // CHAT + INTERACTION
-          // =========================================
-
           Row(
             children: [
               Expanded(
-                child: _ActionButton(
+                child: _actionButton(
                   icon:
                       Icons.chat_bubble_rounded,
                   label: 'Chat',
@@ -368,25 +319,18 @@ class _AssignedWalkerCard
                   },
                 ),
               ),
-
               const SizedBox(width: 10),
-
               Expanded(
-                child: _ActionButton(
-                  icon:
-                      Icons.mic_rounded,
+                child: _actionButton(
+                  icon: Icons.mic_rounded,
                   label: 'Interaction',
                   background:
                       const Color(0xFFFFEEE8),
                   foreground:
                       orangeSecondary,
-                  borderColor:
-                      orangeSecondary
-                          .withOpacity(.25),
                   onTap: () {
                     _openVoiceInteraction(
                       context,
-                      walker,
                     );
                   },
                 ),
@@ -396,10 +340,6 @@ class _AssignedWalkerCard
 
           const SizedBox(height: 13),
 
-          // =========================================
-          // STATUS
-          // =========================================
-
           Container(
             width: double.infinity,
             padding:
@@ -407,7 +347,8 @@ class _AssignedWalkerCard
               horizontal: 13,
               vertical: 11,
             ),
-            decoration: BoxDecoration(
+            decoration:
+                BoxDecoration(
               color:
                   const Color(0xFFF0F7F2),
               borderRadius:
@@ -422,8 +363,7 @@ class _AssignedWalkerCard
                 Icon(
                   Icons
                       .directions_walk_rounded,
-                  color:
-                      greenPrimary,
+                  color: greenPrimary,
                   size: 19,
                 ),
                 SizedBox(width: 8),
@@ -457,13 +397,12 @@ class _AssignedWalkerCard
     );
   }
 
-  static Widget _ActionButton({
+  static Widget _actionButton({
     required IconData icon,
     required String label,
     required Color background,
     required Color foreground,
     required VoidCallback onTap,
-    Color? borderColor,
   }) {
     return SizedBox(
       height: 49,
@@ -478,8 +417,7 @@ class _AssignedWalkerCard
           maxLines: 1,
           overflow:
               TextOverflow.ellipsis,
-          style:
-              const TextStyle(
+          style: const TextStyle(
             fontSize: 11,
             fontWeight:
                 FontWeight.w900,
@@ -500,55 +438,7 @@ class _AssignedWalkerCard
               RoundedRectangleBorder(
             borderRadius:
                 BorderRadius.circular(14),
-            side: borderColor == null
-                ? BorderSide.none
-                : BorderSide(
-                    color:
-                        borderColor,
-                  ),
           ),
-        ),
-      ),
-    );
-  }
-
-  static void _callWalker(
-    BuildContext context,
-    AssignedWalker walker,
-  ) {
-    if (walker.walkerPhone.isEmpty) {
-      ScaffoldMessenger.of(context)
-          .showSnackBar(
-        const SnackBar(
-          content: Text(
-            'Walker phone number is unavailable.',
-          ),
-        ),
-      );
-      return;
-    }
-
-    // Phone launcher ko yahan add kar sakte ho.
-    ScaffoldMessenger.of(context)
-        .showSnackBar(
-      SnackBar(
-        content: Text(
-          'Calling ${walker.walkerName}...',
-        ),
-      ),
-    );
-  }
-
-  static void _trackWalker(
-    BuildContext context,
-    AssignedWalker walker,
-  ) {
-    Navigator.push(
-      context,
-      MaterialPageRoute(
-        builder: (_) =>
-            _WalkerTrackingScreen(
-          walker: walker,
         ),
       ),
     );
@@ -563,8 +453,7 @@ class _AssignedWalkerCard
       isScrollControlled: true,
       backgroundColor:
           Colors.transparent,
-      builder: (_) =>
-          _ChatSheet(
+      builder: (_) => _ChatSheet(
         walker: walker,
       ),
     );
@@ -572,7 +461,6 @@ class _AssignedWalkerCard
 
   static void _openVoiceInteraction(
     BuildContext context,
-    AssignedWalker walker,
   ) {
     showModalBottomSheet(
       context: context,
@@ -580,8 +468,376 @@ class _AssignedWalkerCard
       backgroundColor:
           Colors.transparent,
       builder: (_) =>
-          _VoiceInteractionSheet(
-        walker: walker,
+          const _VoiceInteractionSheet(),
+    );
+  }
+
+  static void _showMessage(
+    BuildContext context,
+    String message,
+  ) {
+    ScaffoldMessenger.of(context)
+        .showSnackBar(
+      SnackBar(
+        content: Text(message),
+        behavior:
+            SnackBarBehavior.floating,
+      ),
+    );
+  }
+}
+
+class _ChatSheet extends StatefulWidget {
+  final AssignedWalker walker;
+
+  const _ChatSheet({
+    required this.walker,
+  });
+
+  @override
+  State<_ChatSheet> createState() =>
+      _ChatSheetState();
+}
+
+class _ChatSheetState
+    extends State<_ChatSheet> {
+  final TextEditingController
+      _controller =
+      TextEditingController();
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  Future<void> _send() async {
+    final text =
+        _controller.text.trim();
+
+    if (text.isEmpty) {
+      return;
+    }
+
+    final User? user =
+        FirebaseAuth.instance.currentUser;
+
+    if (user == null) {
+      return;
+    }
+
+    await WalkRequestService
+        .sendMessage(
+      requestId:
+          widget.walker.walkerUid,
+      ownerUid: user.uid,
+      walkerUid:
+          widget.walker.walkerUid,
+      message: text,
+    );
+
+    _controller.clear();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      height: 520,
+      padding:
+          const EdgeInsets.fromLTRB(
+        18,
+        12,
+        18,
+        18,
+      ),
+      decoration:
+          const BoxDecoration(
+        color: Color(0xFFF7F8FA),
+        borderRadius:
+            BorderRadius.vertical(
+          top: Radius.circular(25),
+        ),
+      ),
+      child: Column(
+        children: [
+          Container(
+            width: 42,
+            height: 4,
+            decoration:
+                BoxDecoration(
+              color:
+                  const Color(0xFFD0D5DB),
+              borderRadius:
+                  BorderRadius.circular(10),
+            ),
+          ),
+          const SizedBox(height: 15),
+          Row(
+            children: [
+              Expanded(
+                child: Text(
+                  'Chat with ${widget.walker.walkerName}',
+                  style:
+                      const TextStyle(
+                    color:
+                        AssignWalkerContainer
+                            .navy,
+                    fontSize: 19,
+                    fontWeight:
+                        FontWeight.w900,
+                  ),
+                ),
+              ),
+              IconButton(
+                onPressed: () =>
+                    Navigator.pop(
+                  context,
+                ),
+                icon: const Icon(
+                  Icons.close_rounded,
+                ),
+              ),
+            ],
+          ),
+          const Expanded(
+            child: Center(
+              child: Text(
+                'No messages yet',
+                style: TextStyle(
+                  color:
+                      AssignWalkerContainer
+                          .slate,
+                  fontSize: 13,
+                ),
+              ),
+            ),
+          ),
+          Row(
+            children: [
+              Expanded(
+                child: TextField(
+                  controller:
+                      _controller,
+                  decoration:
+                      InputDecoration(
+                    hintText:
+                        'Type a message...',
+                    filled: true,
+                    fillColor:
+                        Colors.white,
+                    border:
+                        OutlineInputBorder(
+                      borderRadius:
+                          BorderRadius
+                              .circular(14),
+                      borderSide:
+                          BorderSide.none,
+                    ),
+                  ),
+                ),
+              ),
+              const SizedBox(width: 8),
+              SizedBox(
+                height: 50,
+                width: 50,
+                child: ElevatedButton(
+                  onPressed: _send,
+                  style:
+                      ElevatedButton.styleFrom(
+                    backgroundColor:
+                        AssignWalkerContainer
+                            .orangeSecondary,
+                    foregroundColor:
+                        Colors.white,
+                    elevation: 0,
+                    shape:
+                        RoundedRectangleBorder(
+                      borderRadius:
+                          BorderRadius.circular(
+                        14,
+                      ),
+                    ),
+                    padding: EdgeInsets.zero,
+                  ),
+                  child: const Icon(
+                    Icons.send_rounded,
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _VoiceInteractionSheet
+    extends StatefulWidget {
+  const _VoiceInteractionSheet();
+
+  @override
+  State<_VoiceInteractionSheet> createState() =>
+      _VoiceInteractionSheetState();
+}
+
+class _VoiceInteractionSheetState
+    extends State<_VoiceInteractionSheet> {
+  bool recording = false;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding:
+          const EdgeInsets.fromLTRB(
+        20,
+        12,
+        20,
+        24,
+      ),
+      decoration:
+          const BoxDecoration(
+        color: Color(0xFFF7F8FA),
+        borderRadius:
+            BorderRadius.vertical(
+          top: Radius.circular(26),
+        ),
+      ),
+      child: SafeArea(
+        child: Column(
+          mainAxisSize:
+              MainAxisSize.min,
+          children: [
+            Row(
+              children: [
+                const Expanded(
+                  child: Text(
+                    'Voice Interaction',
+                    style: TextStyle(
+                      color:
+                          AssignWalkerContainer
+                              .navy,
+                      fontSize: 19,
+                      fontWeight:
+                          FontWeight.w900,
+                    ),
+                  ),
+                ),
+                IconButton(
+                  onPressed: () =>
+                      Navigator.pop(
+                    context,
+                  ),
+                  icon: const Icon(
+                    Icons.close_rounded,
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 5),
+            Text(
+              recording
+                  ? 'Recording your voice...'
+                  : 'Talk to your walker',
+              style:
+                  const TextStyle(
+                color:
+                    AssignWalkerContainer
+                        .slate,
+                fontSize: 12,
+              ),
+            ),
+            const SizedBox(height: 22),
+            AnimatedContainer(
+              duration:
+                  const Duration(
+                milliseconds: 250,
+              ),
+              height:
+                  recording ? 112 : 100,
+              width:
+                  recording ? 112 : 100,
+              decoration:
+                  BoxDecoration(
+                color: recording
+                    ? const Color(
+                        0xFFFFE5DD)
+                    : const Color(
+                        0xFFFFEEE8),
+                shape: BoxShape.circle,
+              ),
+              child: Icon(
+                recording
+                    ? Icons.graphic_eq_rounded
+                    : Icons.mic_rounded,
+                color:
+                    AssignWalkerContainer
+                        .orangeSecondary,
+                size: 45,
+              ),
+            ),
+            const SizedBox(height: 18),
+            SizedBox(
+              width: double.infinity,
+              height: 51,
+              child: ElevatedButton.icon(
+                onPressed: () {
+                  setState(() {
+                    recording =
+                        !recording;
+                  });
+                },
+                icon: Icon(
+                  recording
+                      ? Icons.send_rounded
+                      : Icons.mic_rounded,
+                ),
+                label: Text(
+                  recording
+                      ? 'Send'
+                      : 'Start Recording',
+                  style:
+                      const TextStyle(
+                    fontWeight:
+                        FontWeight.w900,
+                  ),
+                ),
+                style:
+                    ElevatedButton.styleFrom(
+                  backgroundColor:
+                      AssignWalkerContainer
+                          .orangeSecondary,
+                  foregroundColor:
+                      Colors.white,
+                  elevation: 0,
+                  shape:
+                      RoundedRectangleBorder(
+                    borderRadius:
+                        BorderRadius.circular(
+                      15,
+                    ),
+                  ),
+                ),
+              ),
+            ),
+            const SizedBox(height: 9),
+            TextButton(
+              onPressed: () =>
+                  Navigator.pop(context),
+              child: const Text(
+                'Cancel',
+                style: TextStyle(
+                  color:
+                      AssignWalkerContainer
+                          .slate,
+                  fontSize: 12,
+                  fontWeight:
+                      FontWeight.w700,
+                ),
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
