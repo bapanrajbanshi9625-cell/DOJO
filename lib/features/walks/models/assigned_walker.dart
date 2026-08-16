@@ -1,35 +1,74 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
+
 class AssignedWalker {
+  final String walkId;
   final String walkerUid;
   final String walkerName;
-  final String walkerId;
+  final String walkerPhone;
   final bool verified;
   final String status;
-  final String? phone;
+  final String? profileImage;
+  final double? latitude;
+  final double? longitude;
 
   const AssignedWalker({
+    required this.walkId,
     required this.walkerUid,
     required this.walkerName,
-    required this.walkerId,
+    required this.walkerPhone,
     required this.verified,
     required this.status,
-    this.phone,
+    this.profileImage,
+    this.latitude,
+    this.longitude,
   });
 
   factory AssignedWalker.fromFirestore(
+    String id,
     Map<String, dynamic> data,
   ) {
     return AssignedWalker(
+      walkId: id,
       walkerUid: data['walkerUid']?.toString() ?? '',
       walkerName:
           data['walkerName']?.toString() ?? 'Walker',
-      walkerId:
-          data['walkerId']?.toString() ??
-          data['walkerUid']?.toString() ??
-          '',
-      verified: data['verified'] == true,
+      walkerPhone:
+          data['walkerPhone']?.toString() ?? '',
+      verified: data['walkerVerified'] == true,
       status:
-          data['status']?.toString() ?? 'accepted',
-      phone: data['walkerPhone']?.toString(),
+          data['status']?.toString() ?? 'assigned',
+      profileImage:
+          data['walkerProfileImage']?.toString(),
+      latitude: _doubleValue(
+        data['walkerLatitude'],
+      ),
+      longitude: _doubleValue(
+        data['walkerLongitude'],
+      ),
     );
+  }
+
+  static double? _doubleValue(dynamic value) {
+    if (value is num) {
+      return value.toDouble();
+    }
+
+    return double.tryParse(
+      value?.toString() ?? '',
+    );
+  }
+
+  Map<String, dynamic> toMap() {
+    return {
+      'walkerUid': walkerUid,
+      'walkerName': walkerName,
+      'walkerPhone': walkerPhone,
+      'walkerVerified': verified,
+      'status': status,
+      'walkerProfileImage': profileImage,
+      'walkerLatitude': latitude,
+      'walkerLongitude': longitude,
+      'updatedAt': FieldValue.serverTimestamp(),
+    };
   }
 }
