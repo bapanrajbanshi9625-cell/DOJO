@@ -1,5 +1,3 @@
-assigned_walker_service.dart
-
 import 'package:cloud_firestore/cloud_firestore.dart';
 
 import '../models/assigned_walker.dart';
@@ -32,9 +30,12 @@ class AssignedWalkerService {
 
       final doc = snapshot.docs.first;
 
+      final Map<String, dynamic> data =
+          doc.data();
+
       return AssignedWalker.fromFirestore(
         doc.id,
-        doc.data(),
+        data,
       );
     });
   }
