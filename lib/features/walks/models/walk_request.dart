@@ -1,5 +1,3 @@
-import 'package:cloud_firestore/cloud_firestore.dart';
-
 class WalkRequest {
   final String id;
   final String ownerUid;
@@ -36,21 +34,28 @@ class WalkRequest {
     return WalkRequest(
       id: id,
       ownerUid: data['ownerUid']?.toString() ?? '',
-      ownerName: data['ownerName']?.toString() ?? 'Dog Owner',
-      dogName: data['dogName']?.toString() ?? 'Dog',
-      pickupAddress: data['address']?.toString() ??
+      ownerName:
+          data['ownerName']?.toString() ?? 'Dog Owner',
+      dogName:
+          data['dogName']?.toString() ?? 'Dog',
+      pickupAddress:
+          data['address']?.toString() ??
           data['pickupAddress']?.toString() ??
           'Pickup location unavailable',
-      distanceKm: _doubleValue(data['distanceKm']),
+      distanceKm:
+          _doubleValue(data['distanceKm']),
       estimatedTime:
           data['estimatedTime']?.toString() ?? 'Nearby',
-      status: data['status']?.toString() ?? 'searching',
+      status:
+          data['status']?.toString() ?? 'searching',
       pickupLatitude:
           _nullableDouble(data['pickupLatitude']),
       pickupLongitude:
           _nullableDouble(data['pickupLongitude']),
-      walkerUid: data['walkerUid']?.toString(),
-      acceptedBy: data['acceptedBy']?.toString(),
+      walkerUid:
+          data['walkerUid']?.toString(),
+      acceptedBy:
+          data['acceptedBy']?.toString(),
     );
   }
 
@@ -59,7 +64,10 @@ class WalkRequest {
       return value.toDouble();
     }
 
-    return double.tryParse(value?.toString() ?? '') ?? 999;
+    return double.tryParse(
+          value?.toString() ?? '',
+        ) ??
+        999;
   }
 
   static double? _nullableDouble(dynamic value) {
@@ -67,6 +75,8 @@ class WalkRequest {
       return value.toDouble();
     }
 
-    return double.tryParse(value?.toString() ?? '');
+    return double.tryParse(
+      value?.toString() ?? '',
+    );
   }
 }
