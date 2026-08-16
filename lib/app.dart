@@ -5,12 +5,17 @@ import 'core/network/network_monitor.dart';
 import 'screens/splash_screen.dart';
 
 class DojoApp extends StatelessWidget {
-  const DojoApp({super.key});
+  final String? startupError;
+
+  const DojoApp({
+    super.key,
+    this.startupError,
+  });
 
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'Dojo App',
+      title: 'Dojo Walk',
 
       theme: ThemeData(
         primarySwatch: Colors.orange,
@@ -24,8 +29,10 @@ class DojoApp extends StatelessWidget {
 
       debugShowCheckedModeBanner: false,
 
-      home: const NetworkMonitor(
-        child: SplashScreen(),
+      home: NetworkMonitor(
+        child: SplashScreen(
+          startupError: startupError,
+        ),
       ),
     );
   }
