@@ -1,5 +1,3 @@
-assigned_walker.dart
-
 import 'package:cloud_firestore/cloud_firestore.dart';
 
 class AssignedWalker {
@@ -25,25 +23,20 @@ class AssignedWalker {
     this.longitude,
   });
 
-  // Existing UI compatibility.
-  String get walkerId => walkerUid;
-
   factory AssignedWalker.fromFirestore(
     String id,
     Map<String, dynamic> data,
   ) {
     return AssignedWalker(
       walkId: id,
-      walkerUid:
-          data['walkerUid']?.toString() ?? '',
+      walkerUid: data['walkerUid']?.toString() ?? '',
       walkerName:
           data['walkerName']?.toString() ?? 'Walker',
       walkerPhone:
           data['walkerPhone']?.toString() ?? '',
-      verified:
-          data['walkerVerified'] == true,
+      verified: data['walkerVerified'] == true,
       status:
-          data['status']?.toString() ?? 'accepted',
+          data['status']?.toString() ?? 'assigned',
       profileImage:
           data['walkerProfileImage']?.toString(),
       latitude: _doubleValue(
@@ -55,9 +48,7 @@ class AssignedWalker {
     );
   }
 
-  static double? _doubleValue(
-    dynamic value,
-  ) {
+  static double? _doubleValue(dynamic value) {
     if (value is num) {
       return value.toDouble();
     }
@@ -77,8 +68,7 @@ class AssignedWalker {
       'walkerProfileImage': profileImage,
       'walkerLatitude': latitude,
       'walkerLongitude': longitude,
-      'updatedAt':
-          FieldValue.serverTimestamp(),
+      'updatedAt': FieldValue.serverTimestamp(),
     };
   }
 }
