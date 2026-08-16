@@ -18,6 +18,9 @@ dependencies:
   firebase_auth: ^4.17.8
   cloud_firestore: ^4.17.5
 
+  # Network / Internet Connection
+  connectivity_plus: ^6.1.4
+
   # QR Code
   qr_flutter: ^4.1.0
 
