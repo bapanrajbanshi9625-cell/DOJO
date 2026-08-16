@@ -5,12 +5,7 @@ import 'core/network/network_monitor.dart';
 import 'screens/splash_screen.dart';
 
 class DojoApp extends StatelessWidget {
-  final String? startupError;
-
-  const DojoApp({
-    super.key,
-    this.startupError,
-  });
+  const DojoApp({super.key});
 
   @override
   Widget build(BuildContext context) {
@@ -29,10 +24,8 @@ class DojoApp extends StatelessWidget {
 
       debugShowCheckedModeBanner: false,
 
-      home: NetworkMonitor(
-        child: SplashScreen(
-          startupError: startupError,
-        ),
+      home: const NetworkMonitor(
+        child: SplashScreen(),
       ),
     );
   }
