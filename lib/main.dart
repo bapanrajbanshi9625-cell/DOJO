@@ -1,5 +1,3 @@
-// File location: lib/main.dart
-
 import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
 
@@ -39,9 +37,12 @@ Future<void> main() async {
     }
   }
 
+  // Prevent unused-variable warning.
+  if (startupError != null) {
+    debugPrint('Startup error: $startupError');
+  }
+
   runApp(
-    DojoApp(
-      startupError: startupError,
-    ),
+    const DojoApp(),
   );
 }
