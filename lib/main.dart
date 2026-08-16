@@ -40,7 +40,7 @@ Future<void> main() async {
   }
 
   runApp(
-    DojoWalkerApp(
+    DojoApp(
       startupError: startupError,
     ),
   );
