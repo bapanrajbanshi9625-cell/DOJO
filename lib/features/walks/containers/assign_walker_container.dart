@@ -10,20 +10,15 @@ class AssignWalkerContainer extends StatelessWidget {
     super.key,
   });
 
-  static const Color navy =
-      Color(0xFF263746);
+  static const Color navy = Color(0xFF263746);
 
-  static const Color slate =
-      Color(0xFF64748B);
+  static const Color slate = Color(0xFF64748B);
 
-  static const Color greenPrimary =
-      Color(0xFF16803A);
+  static const Color greenPrimary = Color(0xFF16803A);
 
-  static const Color orangeSecondary =
-      Color(0xFFE45D32);
+  static const Color orangeSecondary = Color(0xFFE45D32);
 
-  static const Color blackPrimary =
-      Color(0xFF111111);
+  static const Color blackPrimary = Color(0xFF111111);
 
   @override
   Widget build(BuildContext context) {
@@ -35,9 +30,9 @@ class AssignWalkerContainer extends StatelessWidget {
     }
 
     return StreamBuilder<AssignedWalker?>(
-      stream:
-          AssignedWalkerService
-              .watchAssignedWalker(user.uid),
+      stream: AssignedWalkerService.watchAssignedWalker(
+        user.uid,
+      ),
       builder: (
         context,
         snapshot,
@@ -63,22 +58,18 @@ class AssignWalkerContainer extends StatelessWidget {
   ) {
     return Container(
       width: double.infinity,
-      padding:
-          const EdgeInsets.all(18),
+      padding: const EdgeInsets.all(18),
       decoration: BoxDecoration(
         color: const Color(0xFFF7F8FA),
-        borderRadius:
-            BorderRadius.circular(24),
+        borderRadius: BorderRadius.circular(24),
         border: Border.all(
           color: const Color(0xFFD7DCE2),
         ),
         boxShadow: [
           BoxShadow(
-            color:
-                Colors.black.withOpacity(.06),
+            color: Colors.black.withOpacity(.06),
             blurRadius: 16,
-            offset:
-                const Offset(0, 6),
+            offset: const Offset(0, 6),
           ),
         ],
       ),
@@ -91,20 +82,14 @@ class AssignWalkerContainer extends StatelessWidget {
               Container(
                 height: 42,
                 width: 42,
-                decoration:
-                    BoxDecoration(
-                  color: orangeSecondary
-                      .withOpacity(.10),
+                decoration: BoxDecoration(
+                  color: orangeSecondary.withOpacity(.10),
                   borderRadius:
-                      BorderRadius.circular(
-                    13,
-                  ),
+                      BorderRadius.circular(13),
                 ),
                 child: const Icon(
-                  Icons
-                      .person_pin_circle_rounded,
-                  color:
-                      orangeSecondary,
+                  Icons.person_pin_circle_rounded,
+                  color: orangeSecondary,
                   size: 24,
                 ),
               ),
@@ -119,8 +104,7 @@ class AssignWalkerContainer extends StatelessWidget {
                       style: TextStyle(
                         color: navy,
                         fontSize: 18,
-                        fontWeight:
-                            FontWeight.w900,
+                        fontWeight: FontWeight.w900,
                       ),
                     ),
                     SizedBox(height: 3),
@@ -138,16 +122,13 @@ class AssignWalkerContainer extends StatelessWidget {
                 Container(
                   height: 27,
                   width: 27,
-                  decoration:
-                      BoxDecoration(
-                    color: greenPrimary
-                        .withOpacity(.10),
+                  decoration: BoxDecoration(
+                    color: greenPrimary.withOpacity(.10),
                     shape: BoxShape.circle,
                   ),
                   child: const Icon(
                     Icons.check_rounded,
-                    color:
-                        greenPrimary,
+                    color: greenPrimary,
                     size: 17,
                   ),
                 ),
@@ -157,16 +138,13 @@ class AssignWalkerContainer extends StatelessWidget {
           const SizedBox(height: 17),
 
           Container(
-            padding:
-                const EdgeInsets.all(13),
-            decoration:
-                BoxDecoration(
+            padding: const EdgeInsets.all(13),
+            decoration: BoxDecoration(
               color: Colors.white,
               borderRadius:
                   BorderRadius.circular(17),
               border: Border.all(
-                color:
-                    const Color(0xFFE0E4E9),
+                color: const Color(0xFFE0E4E9),
               ),
             ),
             child: Row(
@@ -174,16 +152,14 @@ class AssignWalkerContainer extends StatelessWidget {
                 Container(
                   height: 53,
                   width: 53,
-                  decoration:
-                      BoxDecoration(
-                    color: orangeSecondary
-                        .withOpacity(.10),
+                  decoration: BoxDecoration(
+                    color:
+                        orangeSecondary.withOpacity(.10),
                     shape: BoxShape.circle,
                   ),
                   child: const Icon(
                     Icons.person_rounded,
-                    color:
-                        orangeSecondary,
+                    color: orangeSecondary,
                     size: 28,
                   ),
                 ),
@@ -200,54 +176,50 @@ class AssignWalkerContainer extends StatelessWidget {
                               walker.walkerName,
                               maxLines: 1,
                               overflow:
-                                  TextOverflow
-                                      .ellipsis,
-                              style:
-                                  const TextStyle(
+                                  TextOverflow.ellipsis,
+                              style: const TextStyle(
                                 color: navy,
                                 fontSize: 15,
                                 fontWeight:
-                                    FontWeight
-                                        .w900,
+                                    FontWeight.w900,
                               ),
                             ),
                           ),
                           if (walker.verified) ...[
-                            const SizedBox(
-                                width: 6),
+                            const SizedBox(width: 6),
                             const Icon(
-                              Icons
-                                  .verified_rounded,
-                              color:
-                                  greenPrimary,
+                              Icons.verified_rounded,
+                              color: greenPrimary,
                               size: 17,
                             ),
                           ],
                         ],
                       ),
+
                       const SizedBox(height: 5),
+
+                      // FIX:
+                      // AssignedWalker has walkerUid,
+                      // not walkerId.
                       Text(
-                        'Walker ID: ${walker.walkerId}',
-                        style:
-                            const TextStyle(
+                        'Walker ID: ${walker.walkerUid}',
+                        style: const TextStyle(
                           color: slate,
                           fontSize: 10,
-                          fontWeight:
-                              FontWeight.w600,
+                          fontWeight: FontWeight.w600,
                         ),
                       ),
+
                       const SizedBox(height: 3),
+
                       Text(
                         walker.verified
                             ? 'Verified Walker'
                             : 'Walker',
-                        style:
-                            const TextStyle(
-                          color:
-                              greenPrimary,
+                        style: const TextStyle(
+                          color: greenPrimary,
                           fontSize: 10,
-                          fontWeight:
-                              FontWeight.w800,
+                          fontWeight: FontWeight.w800,
                         ),
                       ),
                     ],
@@ -265,10 +237,8 @@ class AssignWalkerContainer extends StatelessWidget {
                 child: _actionButton(
                   icon: Icons.call_rounded,
                   label: 'Call',
-                  background:
-                      greenPrimary,
-                  foreground:
-                      Colors.white,
+                  background: greenPrimary,
+                  foreground: Colors.white,
                   onTap: () {
                     _showMessage(
                       context,
@@ -280,13 +250,10 @@ class AssignWalkerContainer extends StatelessWidget {
               const SizedBox(width: 10),
               Expanded(
                 child: _actionButton(
-                  icon:
-                      Icons.location_on_rounded,
+                  icon: Icons.location_on_rounded,
                   label: 'Track',
-                  background:
-                      blackPrimary,
-                  foreground:
-                      Colors.white,
+                  background: blackPrimary,
+                  foreground: Colors.white,
                   onTap: () {
                     _showMessage(
                       context,
@@ -304,13 +271,10 @@ class AssignWalkerContainer extends StatelessWidget {
             children: [
               Expanded(
                 child: _actionButton(
-                  icon:
-                      Icons.chat_bubble_rounded,
+                  icon: Icons.chat_bubble_rounded,
                   label: 'Chat',
-                  background:
-                      orangeSecondary,
-                  foreground:
-                      Colors.white,
+                  background: orangeSecondary,
+                  foreground: Colors.white,
                   onTap: () {
                     _openChat(
                       context,
@@ -326,8 +290,7 @@ class AssignWalkerContainer extends StatelessWidget {
                   label: 'Interaction',
                   background:
                       const Color(0xFFFFEEE8),
-                  foreground:
-                      orangeSecondary,
+                  foreground: orangeSecondary,
                   onTap: () {
                     _openVoiceInteraction(
                       context,
@@ -342,27 +305,22 @@ class AssignWalkerContainer extends StatelessWidget {
 
           Container(
             width: double.infinity,
-            padding:
-                const EdgeInsets.symmetric(
+            padding: const EdgeInsets.symmetric(
               horizontal: 13,
               vertical: 11,
             ),
-            decoration:
-                BoxDecoration(
-              color:
-                  const Color(0xFFF0F7F2),
+            decoration: BoxDecoration(
+              color: const Color(0xFFF0F7F2),
               borderRadius:
                   BorderRadius.circular(13),
               border: Border.all(
-                color:
-                    const Color(0xFFD5E9D9),
+                color: const Color(0xFFD5E9D9),
               ),
             ),
             child: const Row(
               children: [
                 Icon(
-                  Icons
-                      .directions_walk_rounded,
+                  Icons.directions_walk_rounded,
                   color: greenPrimary,
                   size: 19,
                 ),
@@ -371,22 +329,18 @@ class AssignWalkerContainer extends StatelessWidget {
                   child: Text(
                     'Walker on the way',
                     style: TextStyle(
-                      color:
-                          greenPrimary,
+                      color: greenPrimary,
                       fontSize: 11,
-                      fontWeight:
-                          FontWeight.w800,
+                      fontWeight: FontWeight.w800,
                     ),
                   ),
                 ),
                 Text(
                   'Active',
                   style: TextStyle(
-                    color:
-                        greenPrimary,
+                    color: greenPrimary,
                     fontSize: 10,
-                    fontWeight:
-                        FontWeight.w900,
+                    fontWeight: FontWeight.w900,
                   ),
                 ),
               ],
@@ -415,27 +369,20 @@ class AssignWalkerContainer extends StatelessWidget {
         label: Text(
           label,
           maxLines: 1,
-          overflow:
-              TextOverflow.ellipsis,
+          overflow: TextOverflow.ellipsis,
           style: const TextStyle(
             fontSize: 11,
-            fontWeight:
-                FontWeight.w900,
+            fontWeight: FontWeight.w900,
           ),
         ),
-        style:
-            ElevatedButton.styleFrom(
-          backgroundColor:
-              background,
-          foregroundColor:
-              foreground,
+        style: ElevatedButton.styleFrom(
+          backgroundColor: background,
+          foregroundColor: foreground,
           elevation: 0,
-          padding:
-              const EdgeInsets.symmetric(
+          padding: const EdgeInsets.symmetric(
             horizontal: 9,
           ),
-          shape:
-              RoundedRectangleBorder(
+          shape: RoundedRectangleBorder(
             borderRadius:
                 BorderRadius.circular(14),
           ),
@@ -451,8 +398,7 @@ class AssignWalkerContainer extends StatelessWidget {
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
-      backgroundColor:
-          Colors.transparent,
+      backgroundColor: Colors.transparent,
       builder: (_) => _ChatSheet(
         walker: walker,
       ),
@@ -465,8 +411,7 @@ class AssignWalkerContainer extends StatelessWidget {
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
-      backgroundColor:
-          Colors.transparent,
+      backgroundColor: Colors.transparent,
       builder: (_) =>
           const _VoiceInteractionSheet(),
     );
@@ -476,12 +421,10 @@ class AssignWalkerContainer extends StatelessWidget {
     BuildContext context,
     String message,
   ) {
-    ScaffoldMessenger.of(context)
-        .showSnackBar(
+    ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Text(message),
-        behavior:
-            SnackBarBehavior.floating,
+        behavior: SnackBarBehavior.floating,
       ),
     );
   }
@@ -501,8 +444,7 @@ class _ChatSheet extends StatefulWidget {
 
 class _ChatSheetState
     extends State<_ChatSheet> {
-  final TextEditingController
-      _controller =
+  final TextEditingController _controller =
       TextEditingController();
 
   @override
@@ -512,7 +454,7 @@ class _ChatSheetState
   }
 
   Future<void> _send() async {
-    final text =
+    final String text =
         _controller.text.trim();
 
     if (text.isEmpty) {
@@ -526,35 +468,50 @@ class _ChatSheetState
       return;
     }
 
-    await WalkRequestService
-        .sendMessage(
-      requestId:
-          widget.walker.walkerUid,
-      ownerUid: user.uid,
-      walkerUid:
-          widget.walker.walkerUid,
-      message: text,
-    );
+    try {
+      await WalkRequestService.sendMessage(
+        // FIX:
+        // Chat messages belong to the walk request,
+        // so use walkId instead of walkerUid.
+        requestId: widget.walker.walkId,
+        ownerUid: user.uid,
+        walkerUid: widget.walker.walkerUid,
+        message: text,
+      );
 
-    _controller.clear();
+      if (!mounted) {
+        return;
+      }
+
+      _controller.clear();
+    } catch (e) {
+      if (!mounted) {
+        return;
+      }
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text(
+            'Unable to send message. Please try again.',
+          ),
+        ),
+      );
+    }
   }
 
   @override
   Widget build(BuildContext context) {
     return Container(
       height: 520,
-      padding:
-          const EdgeInsets.fromLTRB(
+      padding: const EdgeInsets.fromLTRB(
         18,
         12,
         18,
         18,
       ),
-      decoration:
-          const BoxDecoration(
+      decoration: const BoxDecoration(
         color: Color(0xFFF7F8FA),
-        borderRadius:
-            BorderRadius.vertical(
+        borderRadius: BorderRadius.vertical(
           top: Radius.circular(25),
         ),
       ),
@@ -563,80 +520,74 @@ class _ChatSheetState
           Container(
             width: 42,
             height: 4,
-            decoration:
-                BoxDecoration(
-              color:
-                  const Color(0xFFD0D5DB),
+            decoration: BoxDecoration(
+              color: const Color(0xFFD0D5DB),
               borderRadius:
                   BorderRadius.circular(10),
             ),
           ),
+
           const SizedBox(height: 15),
+
           Row(
             children: [
               Expanded(
                 child: Text(
                   'Chat with ${widget.walker.walkerName}',
-                  style:
-                      const TextStyle(
-                    color:
-                        AssignWalkerContainer
-                            .navy,
+                  style: const TextStyle(
+                    color: AssignWalkerContainer.navy,
                     fontSize: 19,
-                    fontWeight:
-                        FontWeight.w900,
+                    fontWeight: FontWeight.w900,
                   ),
                 ),
               ),
               IconButton(
                 onPressed: () =>
-                    Navigator.pop(
-                  context,
-                ),
+                    Navigator.pop(context),
                 icon: const Icon(
                   Icons.close_rounded,
                 ),
               ),
             ],
           ),
+
           const Expanded(
             child: Center(
               child: Text(
                 'No messages yet',
                 style: TextStyle(
-                  color:
-                      AssignWalkerContainer
-                          .slate,
+                  color: AssignWalkerContainer.slate,
                   fontSize: 13,
                 ),
               ),
             ),
           ),
+
           Row(
             children: [
               Expanded(
                 child: TextField(
-                  controller:
-                      _controller,
-                  decoration:
-                      InputDecoration(
+                  controller: _controller,
+                  textInputAction:
+                      TextInputAction.send,
+                  onSubmitted: (_) => _send(),
+                  decoration: InputDecoration(
                     hintText:
                         'Type a message...',
                     filled: true,
-                    fillColor:
-                        Colors.white,
-                    border:
-                        OutlineInputBorder(
+                    fillColor: Colors.white,
+                    border: OutlineInputBorder(
                       borderRadius:
-                          BorderRadius
-                              .circular(14),
+                          BorderRadius.circular(14),
                       borderSide:
                           BorderSide.none,
                     ),
                   ),
                 ),
               ),
+
               const SizedBox(width: 8),
+
               SizedBox(
                 height: 50,
                 width: 50,
@@ -653,9 +604,7 @@ class _ChatSheetState
                     shape:
                         RoundedRectangleBorder(
                       borderRadius:
-                          BorderRadius.circular(
-                        14,
-                      ),
+                          BorderRadius.circular(14),
                     ),
                     padding: EdgeInsets.zero,
                   ),
@@ -688,25 +637,21 @@ class _VoiceInteractionSheetState
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding:
-          const EdgeInsets.fromLTRB(
+      padding: const EdgeInsets.fromLTRB(
         20,
         12,
         20,
         24,
       ),
-      decoration:
-          const BoxDecoration(
+      decoration: const BoxDecoration(
         color: Color(0xFFF7F8FA),
-        borderRadius:
-            BorderRadius.vertical(
+        borderRadius: BorderRadius.vertical(
           top: Radius.circular(26),
         ),
       ),
       child: SafeArea(
         child: Column(
-          mainAxisSize:
-              MainAxisSize.min,
+          mainAxisSize: MainAxisSize.min,
           children: [
             Row(
               children: [
@@ -715,8 +660,7 @@ class _VoiceInteractionSheetState
                     'Voice Interaction',
                     style: TextStyle(
                       color:
-                          AssignWalkerContainer
-                              .navy,
+                          AssignWalkerContainer.navy,
                       fontSize: 19,
                       fontWeight:
                           FontWeight.w900,
@@ -725,45 +669,38 @@ class _VoiceInteractionSheetState
                 ),
                 IconButton(
                   onPressed: () =>
-                      Navigator.pop(
-                    context,
-                  ),
+                      Navigator.pop(context),
                   icon: const Icon(
                     Icons.close_rounded,
                   ),
                 ),
               ],
             ),
+
             const SizedBox(height: 5),
+
             Text(
               recording
                   ? 'Recording your voice...'
                   : 'Talk to your walker',
-              style:
-                  const TextStyle(
+              style: const TextStyle(
                 color:
-                    AssignWalkerContainer
-                        .slate,
+                    AssignWalkerContainer.slate,
                 fontSize: 12,
               ),
             ),
+
             const SizedBox(height: 22),
+
             AnimatedContainer(
               duration:
-                  const Duration(
-                milliseconds: 250,
-              ),
-              height:
-                  recording ? 112 : 100,
-              width:
-                  recording ? 112 : 100,
-              decoration:
-                  BoxDecoration(
+                  const Duration(milliseconds: 250),
+              height: recording ? 112 : 100,
+              width: recording ? 112 : 100,
+              decoration: BoxDecoration(
                 color: recording
-                    ? const Color(
-                        0xFFFFE5DD)
-                    : const Color(
-                        0xFFFFEEE8),
+                    ? const Color(0xFFFFE5DD)
+                    : const Color(0xFFFFEEE8),
                 shape: BoxShape.circle,
               ),
               child: Icon(
@@ -776,15 +713,16 @@ class _VoiceInteractionSheetState
                 size: 45,
               ),
             ),
+
             const SizedBox(height: 18),
+
             SizedBox(
               width: double.infinity,
               height: 51,
               child: ElevatedButton.icon(
                 onPressed: () {
                   setState(() {
-                    recording =
-                        !recording;
+                    recording = !recording;
                   });
                 },
                 icon: Icon(
@@ -796,10 +734,8 @@ class _VoiceInteractionSheetState
                   recording
                       ? 'Send'
                       : 'Start Recording',
-                  style:
-                      const TextStyle(
-                    fontWeight:
-                        FontWeight.w900,
+                  style: const TextStyle(
+                    fontWeight: FontWeight.w900,
                   ),
                 ),
                 style:
@@ -807,20 +743,19 @@ class _VoiceInteractionSheetState
                   backgroundColor:
                       AssignWalkerContainer
                           .orangeSecondary,
-                  foregroundColor:
-                      Colors.white,
+                  foregroundColor: Colors.white,
                   elevation: 0,
                   shape:
                       RoundedRectangleBorder(
                     borderRadius:
-                        BorderRadius.circular(
-                      15,
-                    ),
+                        BorderRadius.circular(15),
                   ),
                 ),
               ),
             ),
+
             const SizedBox(height: 9),
+
             TextButton(
               onPressed: () =>
                   Navigator.pop(context),
@@ -828,11 +763,9 @@ class _VoiceInteractionSheetState
                 'Cancel',
                 style: TextStyle(
                   color:
-                      AssignWalkerContainer
-                          .slate,
+                      AssignWalkerContainer.slate,
                   fontSize: 12,
-                  fontWeight:
-                      FontWeight.w700,
+                  fontWeight: FontWeight.w700,
                 ),
               ),
             ),
