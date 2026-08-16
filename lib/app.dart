@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import 'core/constants/app_colors.dart';
+import 'core/network/network_monitor.dart';
 import 'screens/splash_screen.dart';
 
 class DojoApp extends StatelessWidget {
@@ -14,7 +15,6 @@ class DojoApp extends StatelessWidget {
       theme: ThemeData(
         primarySwatch: Colors.orange,
         scaffoldBackgroundColor: const Color(0xFFF8FAFC),
-
         colorScheme: ColorScheme.fromSeed(
           seedColor: AppColors.primary,
           primary: AppColors.primary,
@@ -22,10 +22,11 @@ class DojoApp extends StatelessWidget {
         ),
       ),
 
-      // SplashScreen Firebase login session check करेगा.
-      home: const SplashScreen(),
-
       debugShowCheckedModeBanner: false,
+
+      home: const NetworkMonitor(
+        child: SplashScreen(),
+      ),
     );
   }
 }
