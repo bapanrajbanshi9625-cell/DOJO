@@ -1,15 +1,15 @@
+// File location: lib/main.dart
+
 import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
 
 import 'app.dart';
 import 'firebase_options.dart';
-import 'core/network/network_monitor.dart';
-import 'screens/no_network_screen.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
-  bool firebaseFailed = false;
+  String? startupError;
 
   try {
     if (Firebase.apps.isEmpty) {
@@ -21,22 +21,27 @@ Future<void> main() async {
     debugPrint('Firebase initialization error: $e');
     debugPrintStack(stackTrace: stackTrace);
 
-    final text = e.toString().toLowerCase();
+    final error = e.toString().toLowerCase();
 
-    firebaseFailed =
-        text.contains('network') ||
-        text.contains('timeout') ||
-        text.contains('socket') ||
-        text.contains('connection') ||
-        text.contains('unavailable');
+    final isNetworkError =
+        error.contains('network') ||
+        error.contains('timeout') ||
+        error.contains('socket') ||
+        error.contains('connection') ||
+        error.contains('unavailable') ||
+        error.contains('internet') ||
+        error.contains('failed host lookup');
+
+    if (isNetworkError) {
+      startupError = 'NO_NETWORK';
+    } else {
+      startupError = 'Firebase initialization failed:\n$e';
+    }
   }
 
   runApp(
-    firebaseFailed
-        ? const MaterialApp(
-            debugShowCheckedModeBanner: false,
-            home: NoNetworkScreen(),
-          )
-        : const DojoApp(),
+    DojoWalkerApp(
+      startupError: startupError,
+    ),
   );
 }
