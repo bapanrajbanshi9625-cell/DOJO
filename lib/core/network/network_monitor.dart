@@ -1,5 +1,4 @@
 import 'dart:async';
-import 'dart:io';
 
 import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:flutter/material.dart';
@@ -25,138 +24,98 @@ class _NetworkMonitorState
       _subscription;
 
   bool _offline = false;
-  bool _checking = false;
+  bool _checking = true;
 
-  // ============================================================
-  // INIT
-  // ============================================================
+  final Connectivity _connectivity =
+      Connectivity();
 
   @override
   void initState() {
     super.initState();
 
-    _checkInternet();
+    _initializeNetwork();
 
-    _subscription = Connectivity()
+    _subscription = _connectivity
         .onConnectivityChanged
         .listen(_handleConnectivity);
   }
 
-  // ============================================================
-  // CHECK INTERNET
-  // ============================================================
-
-  Future<void> _checkInternet() async {
-    if (_checking) return;
-
-    if (mounted) {
-      setState(() {
-        _checking = true;
-      });
-    }
-
+  Future<void> _initializeNetwork() async {
     try {
-      final bool internetAvailable =
-          await _hasInternet();
+      final List<ConnectivityResult> results =
+          await _connectivity.checkConnectivity();
+
+      if (!mounted) return;
+
+      _updateNetworkState(results);
+    } catch (e) {
+      debugPrint(
+        'Initial connectivity check failed: $e',
+      );
 
       if (!mounted) return;
 
       setState(() {
-        _offline = !internetAvailable;
+        _offline = false;
+        _checking = false;
       });
+    }
+  }
+
+  void _handleConnectivity(
+    List<ConnectivityResult> results,
+  ) {
+    if (!mounted) return;
+
+    _updateNetworkState(results);
+  }
+
+  void _updateNetworkState(
+    List<ConnectivityResult> results,
+  ) {
+    final bool connected = results.any(
+      (result) =>
+          result == ConnectivityResult.mobile ||
+          result == ConnectivityResult.wifi ||
+          result == ConnectivityResult.ethernet ||
+          result == ConnectivityResult.vpn ||
+          result == ConnectivityResult.satellite ||
+          result == ConnectivityResult.other,
+    );
+
+    setState(() {
+      _offline = !connected;
+      _checking = false;
+    });
+  }
+
+  Future<void> _retry() async {
+    if (!mounted) return;
+
+    setState(() {
+      _checking = true;
+    });
+
+    try {
+      final List<ConnectivityResult> results =
+          await _connectivity.checkConnectivity();
+
+      if (!mounted) return;
+
+      _updateNetworkState(results);
     } catch (e) {
       debugPrint(
-        'Network monitor error: $e',
+        'Network retry failed: $e',
       );
 
       if (!mounted) return;
 
       setState(() {
         _offline = true;
+        _checking = false;
       });
-    } finally {
-      if (mounted) {
-        setState(() {
-          _checking = false;
-        });
-      }
     }
   }
-
-  // ============================================================
-  // REAL INTERNET CHECK
-  // ============================================================
-
-  Future<bool> _hasInternet() async {
-    try {
-      final List<ConnectivityResult> results =
-          await Connectivity()
-              .checkConnectivity();
-
-      final bool connected =
-          results.any(
-        (result) =>
-            result ==
-                ConnectivityResult.mobile ||
-            result ==
-                ConnectivityResult.wifi ||
-            result ==
-                ConnectivityResult.ethernet ||
-            result ==
-                ConnectivityResult.vpn,
-      );
-
-      if (!connected) {
-        return false;
-      }
-
-      // --------------------------------------------------------
-      // REAL INTERNET TEST
-      // --------------------------------------------------------
-
-      final List<InternetAddress> addresses =
-          await InternetAddress.lookup(
-        'firebase.google.com',
-      ).timeout(
-        const Duration(seconds: 5),
-      );
-
-      return addresses.isNotEmpty &&
-          addresses.first.rawAddress.isNotEmpty;
-    } catch (e) {
-      debugPrint(
-        'Internet check failed: $e',
-      );
-
-      return false;
-    }
-  }
-
-  // ============================================================
-  // CONNECTIVITY CHANGE
-  // ============================================================
-
-  Future<void> _handleConnectivity(
-    List<ConnectivityResult> results,
-  ) async {
-    // Network state changed.
-    // Check the actual internet again.
-    await _checkInternet();
-  }
-
-  // ============================================================
-  // RETRY BUTTON
-  // ============================================================
-
-  Future<void> _retry() async {
-    if (_checking) return;
-
-    await _checkInternet();
-  }
-
-  // ============================================================
-  // DISPOSE
-  // ============================================================
 
   @override
   void dispose() {
@@ -166,27 +125,17 @@ class _NetworkMonitorState
     super.dispose();
   }
 
-  // ============================================================
-  // BUILD
-  // ============================================================
-
   @override
-  Widget build(
-    BuildContext context,
-  ) {
-    // ----------------------------------------------------------
-    // NO INTERNET
-    // ----------------------------------------------------------
+  Widget build(BuildContext context) {
+    if (_checking) {
+      return widget.child;
+    }
 
     if (_offline) {
       return NoNetworkScreen(
         onRetry: _retry,
       );
     }
-
-    // ----------------------------------------------------------
-    // INTERNET AVAILABLE
-    // ----------------------------------------------------------
 
     return widget.child;
   }
