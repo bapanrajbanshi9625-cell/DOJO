@@ -38,7 +38,7 @@ class OwnerIdService {
     }
 
     // ==========================================================
-    // PHONE ACCOUNT
+    // PHONE ACCOUNT REFERENCE
     // ==========================================================
 
     final DocumentReference<Map<String, dynamic>>
@@ -71,19 +71,23 @@ class OwnerIdService {
     }
 
     // ==========================================================
-    // CREATE NEW OWNER ID
+    // CREATE OWNER ID
     // ==========================================================
 
     return await _firestore.runTransaction<String>(
       (transaction) async {
         // ------------------------------------------------------
-        // COUNTER
+        // COUNTER REFERENCE
         // ------------------------------------------------------
 
         final DocumentReference<Map<String, dynamic>>
             counterRef = _firestore
                 .collection(_countersCollection)
                 .doc(_ownerCounterDocument);
+
+        // ------------------------------------------------------
+        // READ COUNTER
+        // ------------------------------------------------------
 
         final DocumentSnapshot<Map<String, dynamic>>
             counterSnapshot =
@@ -102,6 +106,10 @@ class OwnerIdService {
           }
         }
 
+        // ------------------------------------------------------
+        // NEXT SERIAL
+        // ------------------------------------------------------
+
         final int nextSerial = lastSerial + 1;
 
         if (nextSerial > 9999) {
@@ -116,9 +124,11 @@ class OwnerIdService {
 
         final DateTime now = DateTime.now();
 
-        // 2026 -> 26
+        // Example: 2026 -> 26
         final String year =
-            (now.year % 100).toString().padLeft(2, '0');
+            (now.year % 100)
+                .toString()
+                .padLeft(2, '0');
 
         // ------------------------------------------------------
         // MONTH CODE
@@ -160,11 +170,13 @@ class OwnerIdService {
             dayCodes[now.weekday - 1];
 
         // ------------------------------------------------------
-        // 4 DIGIT SERIAL
+        // SERIAL
         // ------------------------------------------------------
 
         final String serial =
-            nextSerial.toString().padLeft(4, '0');
+            nextSerial
+                .toString()
+                .padLeft(4, '0');
 
         // ======================================================
         // FINAL OWNER ID
@@ -176,20 +188,14 @@ class OwnerIdService {
         //
         // OWN26GM0001
         //
-        // OWN = 3
-        // 26  = 2
-        // G   = 1
-        // M   = 1
-        // 0001 = 4
-        //
-        // TOTAL = 11 CHARACTERS
+        // Total = 11 characters
         // ======================================================
 
         final String ownerId =
             'OWN$year$monthCode$dayCode$serial';
 
         // ------------------------------------------------------
-        // OWNER PROFILE
+        // OWNER PROFILE REFERENCE
         // ------------------------------------------------------
 
         final DocumentReference<Map<String, dynamic>>
@@ -212,7 +218,7 @@ class OwnerIdService {
         );
 
         // ------------------------------------------------------
-        // OWNER PROFILE
+        // CREATE OWNER PROFILE
         // ------------------------------------------------------
 
         transaction.set(
@@ -231,7 +237,7 @@ class OwnerIdService {
         );
 
         // ------------------------------------------------------
-        // PHONE ACCOUNT
+        // CREATE PHONE ACCOUNT
         // ------------------------------------------------------
 
         transaction.set(
@@ -278,7 +284,8 @@ class OwnerIdService {
     final Map<String, dynamic>? data =
         snapshot.data();
 
-    final dynamic ownerId = data?['ownerId'];
+    final dynamic ownerId =
+        data?['ownerId'];
 
     if (ownerId is String &&
         ownerId.trim().isNotEmpty) {
