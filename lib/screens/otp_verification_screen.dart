@@ -2,6 +2,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 
+import '../services/owner_id_service.dart';
 import 'main_navigation_screen.dart';
 import 'profile_setup.dart';
 
@@ -27,10 +28,6 @@ class _OtpVerificationScreenState
 
   bool _isVerifying = false;
 
-  // ============================================================
-  // DOJO ORANGE
-  // ============================================================
-
   static const Color dojoOrange =
       Color(0xFFFF5A1F);
 
@@ -39,11 +36,8 @@ class _OtpVerificationScreenState
   // ============================================================
 
   Future<void> _verifyOtp() async {
-    final otp = _otpController.text.trim();
-
-    // ----------------------------------------------------------
-    // OTP VALIDATION
-    // ----------------------------------------------------------
+    final String otp =
+        _otpController.text.trim();
 
     if (otp.length != 6) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -62,82 +56,109 @@ class _OtpVerificationScreenState
 
     try {
       // ========================================================
-      // 1. CREATE FIREBASE PHONE CREDENTIAL
+      // 1. CREATE PHONE CREDENTIAL
       // ========================================================
 
-      final credential =
+      final PhoneAuthCredential credential =
           PhoneAuthProvider.credential(
         verificationId: widget.verificationId,
         smsCode: otp,
       );
 
       // ========================================================
-      // 2. SIGN IN WITH FIREBASE
+      // 2. FIREBASE LOGIN
       // ========================================================
 
-      final userCredential =
+      final UserCredential userCredential =
           await FirebaseAuth.instance
               .signInWithCredential(
         credential,
       );
 
-      final user = userCredential.user;
+      final User? user =
+          userCredential.user;
 
       if (user == null) {
         throw Exception(
-          'Firebase user not found',
+          'Firebase user not found.',
         );
       }
 
-      final uid = user.uid;
+      final String uid = user.uid;
+
+      final String phoneNumber =
+          user.phoneNumber ??
+              '+91${widget.phoneNumber.trim()}';
+
+      debugPrint(
+        'OWNER FIREBASE UID: $uid',
+      );
+
+      debugPrint(
+        'OWNER PHONE: $phoneNumber',
+      );
 
       // ========================================================
-      // 3. CHECK users/{UID}
+      // 3. CREATE / GET OWNER ID
+      // ========================================================
+      //
+      // Existing Owner:
+      //     Same Owner ID returned
+      //
+      // New Owner:
+      //     New Owner ID generated
+      //
+      // Example:
+      //
+      // OWN26GM0001
+      //
       // ========================================================
 
-      final userDoc =
+      final String ownerId =
+          await OwnerIdService.instance
+              .getOrCreateOwnerId(
+        uid: uid,
+        phoneNumber: phoneNumber,
+      );
+
+      debugPrint(
+        '========================================',
+      );
+
+      debugPrint(
+        'OWNER ACCOUNT READY',
+      );
+
+      debugPrint(
+        'OWNER ID: $ownerId',
+      );
+
+      debugPrint(
+        'FIREBASE UID: $uid',
+      );
+
+      debugPrint(
+        '========================================',
+      );
+
+      // ========================================================
+      // 4. CHECK OWNER PROFILE
+      // ========================================================
+
+      final DocumentSnapshot<Map<String, dynamic>>
+          ownerProfile =
           await FirebaseFirestore.instance
-              .collection('users')
-              .doc(uid)
+              .collection('ownerProfiles')
+              .doc(ownerId)
               .get();
 
-      bool profileExists =
-          userDoc.exists;
-
-      // ========================================================
-      // 4. CHECK OLD USER BY PHONE
-      //
-      // Existing users whose old document ID was not
-      // Firebase UID can still be detected.
-      // ========================================================
-
-      if (!profileExists) {
-        final fullPhoneNumber =
-            '+91${widget.phoneNumber}';
-
-        final oldUserQuery =
-            await FirebaseFirestore.instance
-                .collection('users')
-                .where(
-                  'phone',
-                  isEqualTo: fullPhoneNumber,
-                )
-                .limit(1)
-                .get();
-
-        if (oldUserQuery.docs.isNotEmpty) {
-          profileExists = true;
-        }
-      }
-
-      // ========================================================
-      // CHECK MOUNTED
-      // ========================================================
+      final bool profileExists =
+          ownerProfile.exists;
 
       if (!mounted) return;
 
       // ========================================================
-      // 5. EXISTING USER → HOME
+      // 5. EXISTING OWNER PROFILE → HOME
       // ========================================================
 
       if (profileExists) {
@@ -154,17 +175,7 @@ class _OtpVerificationScreenState
       }
 
       // ========================================================
-      // 6. NEW USER → PROFILE SETUP
-      // ========================================================
-      //
-      // Profile Setup file:
-      //
-      // lib/screens/profile_setup.dart
-      //
-      // Screen:
-      //
-      // ProfileSetupScreen
-      //
+      // 6. NEW OWNER → PROFILE SETUP
       // ========================================================
 
       Navigator.pushAndRemoveUntil(
@@ -224,13 +235,25 @@ class _OtpVerificationScreenState
     // ==========================================================
 
     on FirebaseException catch (e) {
+      debugPrint(
+        'OWNER FIRESTORE ERROR',
+      );
+
+      debugPrint(
+        'CODE: ${e.code}',
+      );
+
+      debugPrint(
+        'MESSAGE: ${e.message}',
+      );
+
       if (!mounted) return;
 
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(
-            e.message ??
-                'Database error. Please try again.',
+            'Owner account setup failed: '
+            '${e.message ?? e.code}',
           ),
         ),
       );
@@ -241,12 +264,16 @@ class _OtpVerificationScreenState
     // ==========================================================
 
     catch (e) {
+      debugPrint(
+        'OWNER ACCOUNT SETUP ERROR: $e',
+      );
+
       if (!mounted) return;
 
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
+        SnackBar(
           content: Text(
-            'Something went wrong. Please try again.',
+            'Owner account setup failed: $e',
           ),
         ),
       );
@@ -285,10 +312,6 @@ class _OtpVerificationScreenState
       backgroundColor:
           const Color(0xFFF7F7F7),
 
-      // ========================================================
-      // APP BAR
-      // ========================================================
-
       appBar: AppBar(
         backgroundColor:
             Colors.transparent,
@@ -298,10 +321,6 @@ class _OtpVerificationScreenState
           color: Colors.black87,
         ),
       ),
-
-      // ========================================================
-      // BODY
-      // ========================================================
 
       body: SafeArea(
         child: Padding(
@@ -313,11 +332,6 @@ class _OtpVerificationScreenState
             crossAxisAlignment:
                 CrossAxisAlignment.start,
             children: [
-
-              // ==================================================
-              // OTP ICON
-              // ==================================================
-
               const Center(
                 child: CircleAvatar(
                   radius: 40,
@@ -334,10 +348,6 @@ class _OtpVerificationScreenState
               const SizedBox(
                 height: 24,
               ),
-
-              // ==================================================
-              // TITLE
-              // ==================================================
 
               const Center(
                 child: Text(
@@ -356,10 +366,6 @@ class _OtpVerificationScreenState
                 height: 8,
               ),
 
-              // ==================================================
-              // PHONE NUMBER
-              // ==================================================
-
               Center(
                 child: Text(
                   'Enter the 6-digit code sent to +91 ${widget.phoneNumber}',
@@ -377,10 +383,6 @@ class _OtpVerificationScreenState
                 height: 32,
               ),
 
-              // ==================================================
-              // OTP LABEL
-              // ==================================================
-
               const Text(
                 'Enter OTP',
                 style: TextStyle(
@@ -394,10 +396,6 @@ class _OtpVerificationScreenState
               const SizedBox(
                 height: 8,
               ),
-
-              // ==================================================
-              // OTP FIELD
-              // ==================================================
 
               TextField(
                 controller:
@@ -421,7 +419,6 @@ class _OtpVerificationScreenState
                   filled: true,
                   fillColor:
                       Colors.white,
-
                   border:
                       OutlineInputBorder(
                     borderRadius:
@@ -433,7 +430,6 @@ class _OtpVerificationScreenState
                           .grey.shade300,
                     ),
                   ),
-
                   enabledBorder:
                       OutlineInputBorder(
                     borderRadius:
@@ -445,7 +441,6 @@ class _OtpVerificationScreenState
                           .grey.shade300,
                     ),
                   ),
-
                   focusedBorder:
                       OutlineInputBorder(
                     borderRadius:
@@ -465,10 +460,6 @@ class _OtpVerificationScreenState
                 height: 24,
               ),
 
-              // ==================================================
-              // VERIFY BUTTON
-              // ==================================================
-
               SizedBox(
                 width:
                     double.infinity,
@@ -487,12 +478,10 @@ class _OtpVerificationScreenState
                               .circular(12),
                     ),
                   ),
-
                   onPressed:
                       _isVerifying
                           ? null
                           : _verifyOtp,
-
                   child:
                       _isVerifying
                           ? const SizedBox(
