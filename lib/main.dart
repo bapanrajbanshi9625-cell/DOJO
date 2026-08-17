@@ -7,8 +7,6 @@ import 'firebase_options.dart';
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
-  String? startupError;
-
   try {
     if (Firebase.apps.isEmpty) {
       await Firebase.initializeApp(
@@ -16,30 +14,13 @@ Future<void> main() async {
       );
     }
   } catch (e, stackTrace) {
-    debugPrint('Firebase initialization error: $e');
-    debugPrintStack(stackTrace: stackTrace);
+    debugPrint(
+      'Firebase initialization error: $e',
+    );
 
-    final error = e.toString().toLowerCase();
-
-    final isNetworkError =
-        error.contains('network') ||
-        error.contains('timeout') ||
-        error.contains('socket') ||
-        error.contains('connection') ||
-        error.contains('unavailable') ||
-        error.contains('internet') ||
-        error.contains('failed host lookup');
-
-    if (isNetworkError) {
-      startupError = 'NO_NETWORK';
-    } else {
-      startupError = 'Firebase initialization failed:\n$e';
-    }
-  }
-
-  // Prevent unused-variable warning.
-  if (startupError != null) {
-    debugPrint('Startup error: $startupError');
+    debugPrintStack(
+      stackTrace: stackTrace,
+    );
   }
 
   runApp(
