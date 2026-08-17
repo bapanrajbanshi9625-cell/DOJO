@@ -1,4 +1,4 @@
-name: DOJO App CI/CD Pipeline
+name: Dojo Walk CI/CD Pipeline
 
 on:
   push:
@@ -11,7 +11,7 @@ on:
 
 jobs:
   build_and_test:
-    name: Build and Test Flutter App
+    name: Build and Test Dojo Walk Flutter App
     runs-on: ubuntu-latest
 
     steps:
@@ -59,13 +59,13 @@ jobs:
       # --------------------------------------------------
       # 6. Analyze
       # --------------------------------------------------
-      - name: Analyze code
+      - name: Analyze Dojo Walk code
         run: flutter analyze --no-fatal-infos
 
       # --------------------------------------------------
       # 7. Tests
       # --------------------------------------------------
-      - name: Run tests
+      - name: Run Dojo Walk tests
         run: flutter test
 
       # --------------------------------------------------
@@ -76,11 +76,11 @@ jobs:
         run: |
           set -e
 
-          mkdir -p /tmp/dojo_backup
+          mkdir -p /tmp/dojo_walk_backup
 
           if [ -f android/app/google-services.json ]; then
             cp android/app/google-services.json \
-              /tmp/dojo_backup/google-services.json
+              /tmp/dojo_walk_backup/google-services.json
 
             echo "Firebase google-services.json backed up."
           else
@@ -96,23 +96,23 @@ jobs:
           set -e
 
           if [ -d android/app/src ]; then
-            cp -a android/app/src /tmp/dojo_backup/app_src
+            cp -a android/app/src /tmp/dojo_walk_backup/app_src
             echo "android/app/src backed up."
           fi
 
           if [ -f android/app/build.gradle ]; then
             cp android/app/build.gradle \
-              /tmp/dojo_backup/app_build.gradle
+              /tmp/dojo_walk_backup/app_build.gradle
           fi
 
           if [ -f android/app/build.gradle.kts ]; then
             cp android/app/build.gradle.kts \
-              /tmp/dojo_backup/app_build.gradle.kts
+              /tmp/dojo_walk_backup/app_build.gradle.kts
           fi
 
           if [ -f android/gradle.properties ]; then
             cp android/gradle.properties \
-              /tmp/dojo_backup/gradle.properties
+              /tmp/dojo_walk_backup/gradle.properties
           fi
 
       # --------------------------------------------------
@@ -123,16 +123,16 @@ jobs:
         run: |
           set -e
 
-          echo "Generating fresh Flutter Android project..."
+          echo "Generating fresh Dojo Walk Flutter Android project..."
 
           mv android android_old
 
           flutter create \
             --platforms=android \
-            --project-name=dojo \
+            --project-name=dojo_walk \
             .
 
-          echo "Fresh Android project created."
+          echo "Fresh Dojo Walk Android project created."
 
       # --------------------------------------------------
       # 11. Restore Firebase configuration
@@ -142,50 +142,50 @@ jobs:
         run: |
           set -e
 
-          if [ -f /tmp/dojo_backup/google-services.json ]; then
+          if [ -f /tmp/dojo_walk_backup/google-services.json ]; then
             mkdir -p android/app
 
-            cp /tmp/dojo_backup/google-services.json \
+            cp /tmp/dojo_walk_backup/google-services.json \
               android/app/google-services.json
 
             echo "Firebase configuration restored."
           fi
 
       # --------------------------------------------------
-      # 12. Restore Android source
+      # 12. Restore Android app source
       # --------------------------------------------------
       - name: Restore Android app source
         shell: bash
         run: |
           set -e
 
-          if [ -d /tmp/dojo_backup/app_src ]; then
+          if [ -d /tmp/dojo_walk_backup/app_src ]; then
             rm -rf android/app/src
 
-            cp -a /tmp/dojo_backup/app_src \
+            cp -a /tmp/dojo_walk_backup/app_src \
               android/app/src
 
             echo "Android app source restored."
           fi
 
       # --------------------------------------------------
-      # 13. Generate DOJO launcher icon
+      # 13. Generate Dojo Walk launcher icon
       # --------------------------------------------------
-      - name: Generate DOJO launcher icon
+      - name: Generate Dojo Walk launcher icon
         shell: bash
         run: |
           set -e
 
-          echo "Generating DOJO launcher icon..."
+          echo "Generating Dojo Walk launcher icon..."
 
           dart run flutter_launcher_icons
 
-          echo "DOJO launcher icon generated."
+          echo "Dojo Walk launcher icon generated."
 
       # --------------------------------------------------
       # 14. Verify launcher icon
       # --------------------------------------------------
-      - name: Verify launcher icon
+      - name: Verify Dojo Walk launcher icon
         shell: bash
         run: |
           set -e
@@ -208,14 +208,14 @@ jobs:
       # --------------------------------------------------
       # 15. Check Gradle configuration
       # --------------------------------------------------
-      - name: Check Android Gradle configuration
+      - name: Check Dojo Walk Gradle configuration
         working-directory: android
         shell: bash
         run: |
           set -e
 
           echo "======================================"
-          echo "Gradle wrapper"
+          echo "Dojo Walk Gradle wrapper"
           echo "======================================"
 
           ls -la
@@ -235,23 +235,23 @@ jobs:
       # --------------------------------------------------
       # 16. Build Release APK
       # --------------------------------------------------
-      - name: Build Release APK
+      - name: Build Dojo Walk Release APK
         shell: bash
         run: |
           set -e
 
-          echo "Building DOJO release APK..."
+          echo "Building Dojo Walk release APK..."
 
           flutter build apk --release
 
-          echo "Release APK build completed."
+          echo "Dojo Walk release APK build completed."
 
       # --------------------------------------------------
       # 17. Upload Release APK
       # --------------------------------------------------
-      - name: Upload Release APK
+      - name: Upload Dojo Walk Release APK
         uses: actions/upload-artifact@v4
         with:
-          name: DOJO-release-apk
+          name: Dojo-Walk-release-apk
           path: build/app/outputs/flutter-apk/app-release.apk
           if-no-files-found: error
