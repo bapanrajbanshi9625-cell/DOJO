@@ -73,10 +73,6 @@ class _HomeScreenState extends State<HomeScreen> {
               .limit(1)
               .get();
 
-      // -------------------------------------------------
-      // NO ACTIVE WALK
-      // -------------------------------------------------
-
       if (result.docs.isEmpty) {
         if (!mounted) return;
 
@@ -89,10 +85,6 @@ class _HomeScreenState extends State<HomeScreen> {
 
         return;
       }
-
-      // -------------------------------------------------
-      // ACTIVE WALK FOUND
-      // -------------------------------------------------
 
       final DocumentSnapshot<Map<String, dynamic>> walkDoc =
           result.docs.first;
@@ -155,10 +147,6 @@ class _HomeScreenState extends State<HomeScreen> {
       ),
     );
 
-    // ---------------------------------------------------
-    // CHECK AGAIN AFTER RETURN
-    // ---------------------------------------------------
-
     if (mounted) {
       await _checkActiveWalk();
     }
@@ -171,10 +159,6 @@ class _HomeScreenState extends State<HomeScreen> {
   Future<void> _openMyQRCode() async {
     final User? user =
         FirebaseAuth.instance.currentUser;
-
-    // ---------------------------------------------------
-    // LOGIN CHECK
-    // ---------------------------------------------------
 
     if (user == null) {
       if (!mounted) return;
@@ -189,10 +173,6 @@ class _HomeScreenState extends State<HomeScreen> {
 
       return;
     }
-
-    // ---------------------------------------------------
-    // OWNER UID
-    // ---------------------------------------------------
 
     final String ownerUid =
         user.uid.trim();
@@ -211,44 +191,24 @@ class _HomeScreenState extends State<HomeScreen> {
       return;
     }
 
-    // ---------------------------------------------------
-    // OWNER NAME
-    // ---------------------------------------------------
-
     final String ownerName =
         user.displayName?.trim().isNotEmpty == true
             ? user.displayName!.trim()
             : 'Owner';
-
-    // ---------------------------------------------------
-    // OWNER PHONE
-    // ---------------------------------------------------
 
     final String ownerPhone =
         user.phoneNumber?.trim().isNotEmpty == true
             ? user.phoneNumber!.trim()
             : '';
 
-    // ---------------------------------------------------
-    // UNIQUE WALK ID
-    // ---------------------------------------------------
-
     final String walkId =
         'WALK_${DateTime.now().millisecondsSinceEpoch}';
 
-    // ---------------------------------------------------
-    // OWNER QR DATA
-    // ---------------------------------------------------
-
     final Map<String, dynamic> qrData = {
       'type': 'owner',
-
       'ownerUid': ownerUid,
-
       'ownerName': ownerName,
-
       'ownerPhone': ownerPhone,
-
       'walkId': walkId,
 
       // Compatibility fields
@@ -258,16 +218,8 @@ class _HomeScreenState extends State<HomeScreen> {
       'phoneNumber': ownerPhone,
     };
 
-    // ---------------------------------------------------
-    // QR PAYLOAD
-    // ---------------------------------------------------
-
     final String qrPayload =
         jsonEncode(qrData);
-
-    // ---------------------------------------------------
-    // SAVE OWNER QR TO FIREBASE
-    // ---------------------------------------------------
 
     try {
       await FirebaseFirestore.instance
@@ -276,31 +228,18 @@ class _HomeScreenState extends State<HomeScreen> {
           .set(
         {
           'type': 'owner',
-
           'ownerUid': ownerUid,
-
           'ownerName': ownerName,
-
           'ownerPhone': ownerPhone,
-
           'uid': ownerUid,
-
           'userId': ownerUid,
-
           'name': ownerName,
-
           'phoneNumber': ownerPhone,
-
           'walkId': walkId,
-
           'qrData': qrPayload,
-
           'scanned': false,
-
           'scannedBy': null,
-
           'scannedAt': null,
-
           'updatedAt':
               FieldValue.serverTimestamp(),
         },
@@ -313,19 +252,10 @@ class _HomeScreenState extends State<HomeScreen> {
         'Owner QR saved successfully: $ownerUid',
       );
     } catch (e) {
-      // -------------------------------------------------
-      // IMPORTANT:
-      // QR WILL STILL SHOW EVEN IF FIREBASE SAVE FAILS
-      // -------------------------------------------------
-
       debugPrint(
         'Owner QR Firebase save failed: $e',
       );
     }
-
-    // ---------------------------------------------------
-    // OPEN QR BOTTOM SHEET
-    // ---------------------------------------------------
 
     if (!mounted) return;
 
@@ -347,29 +277,38 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
+  // =====================================================
+  // BUILD
+  // =====================================================
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: HomeScreen.background,
+      backgroundColor:
+          HomeScreen.background,
 
-      appBar: const CustomAppBar(),
+      appBar:
+          const CustomAppBar(),
 
       body: RefreshIndicator(
-        onRefresh: _checkActiveWalk,
+        onRefresh:
+            _checkActiveWalk,
 
-        child: SingleChildScrollView(
+        child:
+            SingleChildScrollView(
           physics:
               const AlwaysScrollableScrollPhysics(),
 
           padding:
               const EdgeInsets.fromLTRB(
             15,
-            18,
             15,
-            110,
+            15,
+            105,
           ),
 
-          child: Column(
+          child:
+              Column(
             crossAxisAlignment:
                 CrossAxisAlignment.start,
 
@@ -379,10 +318,14 @@ class _HomeScreenState extends State<HomeScreen> {
               // =========================================
 
               Container(
-                width: double.infinity,
+                width:
+                    double.infinity,
 
                 padding:
-                    const EdgeInsets.all(17),
+                    const EdgeInsets.symmetric(
+                  horizontal: 15,
+                  vertical: 14,
+                ),
 
                 decoration:
                     BoxDecoration(
@@ -399,63 +342,69 @@ class _HomeScreenState extends State<HomeScreen> {
                   ),
 
                   borderRadius:
-                      BorderRadius.circular(20),
+                      BorderRadius.circular(
+                    18,
+                  ),
 
                   boxShadow: [
                     BoxShadow(
                       color:
                           Colors.black.withOpacity(
-                        0.12,
+                        0.10,
                       ),
-                      blurRadius: 15,
+                      blurRadius: 12,
                       offset:
-                          const Offset(0, 6),
+                          const Offset(0, 5),
                     ),
                   ],
                 ),
 
-                child: Row(
+                child:
+                    Row(
                   children: [
                     Container(
-                      height: 52,
-                      width: 52,
+                      height: 46,
+                      width: 46,
 
                       decoration:
                           BoxDecoration(
                         color:
                             HomeScreen.orange
                                 .withOpacity(
-                          0.18,
+                          0.16,
                         ),
 
                         borderRadius:
                             BorderRadius.circular(
-                          15,
+                          13,
                         ),
 
-                        border: Border.all(
+                        border:
+                            Border.all(
                           color:
                               HomeScreen.orange
                                   .withOpacity(
-                            0.45,
+                            0.40,
                           ),
                         ),
                       ),
 
-                      child: const Icon(
+                      child:
+                          const Icon(
                         Icons.pets,
                         color:
                             HomeScreen.orange,
-                        size: 27,
+                        size: 24,
                       ),
                     ),
 
                     const SizedBox(
-                      width: 13,
+                      width: 12,
                     ),
 
                     const Expanded(
-                      child: Column(
+                      child:
+                          Column(
                         crossAxisAlignment:
                             CrossAxisAlignment
                                 .start,
@@ -463,27 +412,39 @@ class _HomeScreenState extends State<HomeScreen> {
                         children: [
                           Text(
                             'Welcome back 👋',
+                            maxLines: 1,
+                            overflow:
+                                TextOverflow
+                                    .ellipsis,
+
                             style:
                                 TextStyle(
                               color:
                                   Colors.white,
-                              fontSize: 20,
+                              fontSize: 18,
                               fontWeight:
                                   FontWeight.w900,
                             ),
                           ),
 
                           SizedBox(
-                            height: 4,
+                            height: 3,
                           ),
 
                           Text(
                             'Your walking activity is on track.',
+                            maxLines: 1,
+                            overflow:
+                                TextOverflow
+                                    .ellipsis,
+
                             style:
                                 TextStyle(
                               color:
                                   Colors.white70,
-                              fontSize: 12,
+                              fontSize: 11,
+                              fontWeight:
+                                  FontWeight.w500,
                             ),
                           ),
                         ],
@@ -500,18 +461,22 @@ class _HomeScreenState extends State<HomeScreen> {
               if (!_isLoadingWalk &&
                   _walkId != null) ...[
                 const SizedBox(
-                  height: 18,
+                  height: 15,
                 ),
 
                 GestureDetector(
                   onTap:
                       _openLiveWalk,
 
-                  child: Container(
-                    width: double.infinity,
+                  child:
+                      Container(
+                    width:
+                        double.infinity,
 
                     padding:
-                        const EdgeInsets.all(17),
+                        const EdgeInsets.all(
+                      14,
+                    ),
 
                     decoration:
                         BoxDecoration(
@@ -525,7 +490,7 @@ class _HomeScreenState extends State<HomeScreen> {
 
                       borderRadius:
                           BorderRadius.circular(
-                        18,
+                        17,
                       ),
 
                       boxShadow: [
@@ -533,50 +498,53 @@ class _HomeScreenState extends State<HomeScreen> {
                           color:
                               Colors.green
                                   .withOpacity(
-                            0.22,
+                            0.18,
                           ),
-                          blurRadius: 14,
+                          blurRadius: 12,
                           offset:
                               const Offset(
                             0,
-                            6,
+                            5,
                           ),
                         ),
                       ],
                     ),
 
-                    child: Row(
+                    child:
+                        Row(
                       children: [
                         Container(
-                          height: 52,
-                          width: 52,
+                          height: 46,
+                          width: 46,
 
                           decoration:
                               BoxDecoration(
                             color:
                                 Colors.white
                                     .withOpacity(
-                              0.16,
+                              0.15,
                             ),
                             shape:
                                 BoxShape.circle,
                           ),
 
-                          child: const Icon(
+                          child:
+                              const Icon(
                             Icons
                                 .directions_walk,
                             color:
                                 Colors.white,
-                            size: 28,
+                            size: 25,
                           ),
                         ),
 
                         const SizedBox(
-                          width: 13,
+                          width: 12,
                         ),
 
                         Expanded(
-                          child: Column(
+                          child:
+                              Column(
                             crossAxisAlignment:
                                 CrossAxisAlignment
                                     .start,
@@ -584,18 +552,23 @@ class _HomeScreenState extends State<HomeScreen> {
                             children: [
                               const Text(
                                 'Live Walk Active',
+                                maxLines: 1,
+                                overflow:
+                                    TextOverflow
+                                        .ellipsis,
+
                                 style:
                                     TextStyle(
                                   color:
                                       Colors.white,
-                                  fontSize: 17,
+                                  fontSize: 16,
                                   fontWeight:
                                       FontWeight.w900,
                                 ),
                               ),
 
                               const SizedBox(
-                                height: 4,
+                                height: 3,
                               ),
 
                               Text(
@@ -604,16 +577,21 @@ class _HomeScreenState extends State<HomeScreen> {
                                     ? 'Your walker is connected'
                                     : 'Walker is currently walking',
 
+                                maxLines: 1,
+                                overflow:
+                                    TextOverflow
+                                        .ellipsis,
+
                                 style:
                                     const TextStyle(
                                   color:
                                       Colors.white70,
-                                  fontSize: 12,
+                                  fontSize: 11,
                                 ),
                               ),
 
                               const SizedBox(
-                                height: 7,
+                                height: 5,
                               ),
 
                               const Text(
@@ -622,7 +600,7 @@ class _HomeScreenState extends State<HomeScreen> {
                                     TextStyle(
                                   color:
                                       Colors.white,
-                                  fontSize: 12,
+                                  fontSize: 11,
                                   fontWeight:
                                       FontWeight.w700,
                                 ),
@@ -636,7 +614,7 @@ class _HomeScreenState extends State<HomeScreen> {
                               .arrow_forward_ios,
                           color:
                               Colors.white,
-                          size: 18,
+                          size: 16,
                         ),
                       ],
                     ),
@@ -649,7 +627,7 @@ class _HomeScreenState extends State<HomeScreen> {
               // =========================================
 
               const SizedBox(
-                height: 22,
+                height: 19,
               ),
 
               _sectionTitle(
@@ -657,12 +635,14 @@ class _HomeScreenState extends State<HomeScreen> {
               ),
 
               const SizedBox(
-                height: 11,
+                height: 9,
               ),
 
               Container(
                 padding:
-                    const EdgeInsets.all(18),
+                    const EdgeInsets.all(
+                  13,
+                ),
 
                 decoration:
                     BoxDecoration(
@@ -670,9 +650,12 @@ class _HomeScreenState extends State<HomeScreen> {
                       HomeScreen.card,
 
                   borderRadius:
-                      BorderRadius.circular(20),
+                      BorderRadius.circular(
+                    18,
+                  ),
 
-                  border: Border.all(
+                  border:
+                      Border.all(
                     color:
                         const Color(
                       0xFFD6DAE0,
@@ -684,21 +667,26 @@ class _HomeScreenState extends State<HomeScreen> {
                       color:
                           Colors.black
                               .withOpacity(
-                        0.07,
+                        0.055,
                       ),
-                      blurRadius: 14,
+                      blurRadius: 11,
                       offset:
-                          const Offset(0, 6),
+                          const Offset(
+                        0,
+                        5,
+                      ),
                     ),
                   ],
                 ),
 
-                child: Column(
+                child:
+                    Column(
                   children: [
                     Row(
                       children: [
                         Expanded(
-                          child: _statCard(
+                          child:
+                              _statCard(
                             context,
 
                             title:
@@ -722,11 +710,12 @@ class _HomeScreenState extends State<HomeScreen> {
                         ),
 
                         const SizedBox(
-                          width: 12,
+                          width: 9,
                         ),
 
                         Expanded(
-                          child: _statCard(
+                          child:
+                              _statCard(
                             context,
 
                             title:
@@ -756,7 +745,7 @@ class _HomeScreenState extends State<HomeScreen> {
                     ),
 
                     const SizedBox(
-                      height: 12,
+                      height: 9,
                     ),
 
                     Row(
@@ -769,7 +758,7 @@ class _HomeScreenState extends State<HomeScreen> {
                         ),
 
                         const SizedBox(
-                          width: 12,
+                          width: 9,
                         ),
 
                         Expanded(
@@ -789,7 +778,7 @@ class _HomeScreenState extends State<HomeScreen> {
               // =========================================
 
               const SizedBox(
-                height: 23,
+                height: 19,
               ),
 
               _sectionTitle(
@@ -797,7 +786,7 @@ class _HomeScreenState extends State<HomeScreen> {
               ),
 
               const SizedBox(
-                height: 11,
+                height: 9,
               ),
 
               _walkCard(
@@ -820,7 +809,7 @@ class _HomeScreenState extends State<HomeScreen> {
               ),
 
               const SizedBox(
-                height: 9,
+                height: 8,
               ),
 
               _walkCard(
@@ -867,14 +856,17 @@ class _HomeScreenState extends State<HomeScreen> {
         onPressed:
             _openMyQRCode,
 
-        icon: const Icon(
+        icon:
+            const Icon(
           Icons.qr_code_2,
         ),
 
-        label: const Text(
+        label:
+            const Text(
           'Generate QR Code',
 
-          style: TextStyle(
+          style:
+              TextStyle(
             fontWeight:
                 FontWeight.w900,
           ),
@@ -893,7 +885,7 @@ class _HomeScreenState extends State<HomeScreen> {
     return Row(
       children: [
         Container(
-          height: 21,
+          height: 19,
           width: 4,
 
           decoration:
@@ -902,12 +894,14 @@ class _HomeScreenState extends State<HomeScreen> {
                 HomeScreen.orange,
 
             borderRadius:
-                BorderRadius.circular(5),
+                BorderRadius.circular(
+              5,
+            ),
           ),
         ),
 
         const SizedBox(
-          width: 9,
+          width: 8,
         ),
 
         Text(
@@ -918,7 +912,7 @@ class _HomeScreenState extends State<HomeScreen> {
             color:
                 HomeScreen.navy,
 
-            fontSize: 17,
+            fontSize: 16,
 
             fontWeight:
                 FontWeight.w900,
@@ -943,7 +937,9 @@ class _HomeScreenState extends State<HomeScreen> {
   }) {
     return InkWell(
       borderRadius:
-          BorderRadius.circular(16),
+          BorderRadius.circular(
+        14,
+      ),
 
       onTap: () {
         _showDialog(
@@ -953,60 +949,81 @@ class _HomeScreenState extends State<HomeScreen> {
         );
       },
 
-      child: Container(
+      child:
+          Container(
+        constraints:
+            const BoxConstraints(
+          minHeight: 88,
+        ),
+
         padding:
             const EdgeInsets.symmetric(
-          horizontal: 14,
-          vertical: 18,
+          horizontal: 11,
+          vertical: 12,
         ),
 
         decoration:
             BoxDecoration(
           color:
-              const Color(0xFFEFF2F5),
+              const Color(
+            0xFFEFF2F5,
+          ),
 
           borderRadius:
-              BorderRadius.circular(16),
+              BorderRadius.circular(
+            14,
+          ),
 
-          border: Border.all(
+          border:
+              Border.all(
             color:
-                const Color(0xFFD4D9DF),
+                const Color(
+              0xFFD4D9DF,
+            ),
           ),
         ),
 
-        child: Row(
+        child:
+            Row(
           children: [
             Container(
-              height: 50,
-              width: 50,
+              height: 43,
+              width: 43,
 
               decoration:
                   BoxDecoration(
                 color:
-                    iconColor.withOpacity(
+                    iconColor
+                        .withOpacity(
                   0.12,
                 ),
 
                 borderRadius:
                     BorderRadius.circular(
-                  14,
+                  12,
                 ),
               ),
 
-              child: Icon(
+              child:
+                  Icon(
                 icon,
                 color:
                     iconColor,
-                size: 25,
+                size: 22,
               ),
             ),
 
             const SizedBox(
-              width: 12,
+              width: 9,
             ),
 
             Expanded(
-              child: Column(
+              child:
+                  Column(
+                mainAxisAlignment:
+                    MainAxisAlignment
+                        .center,
+
                 crossAxisAlignment:
                     CrossAxisAlignment
                         .start,
@@ -1015,12 +1032,18 @@ class _HomeScreenState extends State<HomeScreen> {
                   Text(
                     title,
 
+                    maxLines: 1,
+
+                    overflow:
+                        TextOverflow
+                            .ellipsis,
+
                     style:
                         const TextStyle(
                       color:
                           HomeScreen.slate,
 
-                      fontSize: 12,
+                      fontSize: 11,
 
                       fontWeight:
                           FontWeight.w600,
@@ -1028,7 +1051,7 @@ class _HomeScreenState extends State<HomeScreen> {
                   ),
 
                   const SizedBox(
-                    height: 5,
+                    height: 3,
                   ),
 
                   FittedBox(
@@ -1039,7 +1062,8 @@ class _HomeScreenState extends State<HomeScreen> {
                         Alignment
                             .centerLeft,
 
-                    child: RichText(
+                    child:
+                        RichText(
                       text:
                           TextSpan(
                         children: [
@@ -1052,7 +1076,7 @@ class _HomeScreenState extends State<HomeScreen> {
                               color:
                                   HomeScreen.navy,
 
-                              fontSize: 22,
+                              fontSize: 20,
 
                               fontWeight:
                                   FontWeight.w900,
@@ -1071,7 +1095,7 @@ class _HomeScreenState extends State<HomeScreen> {
                                     iconColor,
 
                                 fontSize:
-                                    11,
+                                    10,
 
                                 fontWeight:
                                     FontWeight
@@ -1100,7 +1124,9 @@ class _HomeScreenState extends State<HomeScreen> {
   ) {
     return InkWell(
       borderRadius:
-          BorderRadius.circular(16),
+          BorderRadius.circular(
+        14,
+      ),
 
       onTap: () {
         _showDialog(
@@ -1112,32 +1138,46 @@ class _HomeScreenState extends State<HomeScreen> {
         );
       },
 
-      child: Container(
+      child:
+          Container(
+        constraints:
+            const BoxConstraints(
+          minHeight: 88,
+        ),
+
         padding:
             const EdgeInsets.symmetric(
-          horizontal: 14,
-          vertical: 18,
+          horizontal: 11,
+          vertical: 12,
         ),
 
         decoration:
             BoxDecoration(
           color:
-              const Color(0xFFEFF2F5),
+              const Color(
+            0xFFEFF2F5,
+          ),
 
           borderRadius:
-              BorderRadius.circular(16),
+              BorderRadius.circular(
+            14,
+          ),
 
-          border: Border.all(
+          border:
+              Border.all(
             color:
-                const Color(0xFFD4D9DF),
+                const Color(
+              0xFFD4D9DF,
+            ),
           ),
         ),
 
-        child: Row(
+        child:
+            Row(
           children: [
             Container(
-              height: 50,
-              width: 50,
+              height: 43,
+              width: 43,
 
               decoration:
                   BoxDecoration(
@@ -1149,24 +1189,30 @@ class _HomeScreenState extends State<HomeScreen> {
 
                 borderRadius:
                     BorderRadius.circular(
-                  14,
+                  12,
                 ),
               ),
 
-              child: const Icon(
+              child:
+                  const Icon(
                 Icons.timer_outlined,
                 color:
                     Colors.green,
-                size: 25,
+                size: 22,
               ),
             ),
 
             const SizedBox(
-              width: 12,
+              width: 9,
             ),
 
             const Expanded(
-              child: Column(
+              child:
+                  Column(
+                mainAxisAlignment:
+                    MainAxisAlignment
+                        .center,
+
                 crossAxisAlignment:
                     CrossAxisAlignment
                         .start,
@@ -1175,12 +1221,18 @@ class _HomeScreenState extends State<HomeScreen> {
                   Text(
                     'Active Duration',
 
+                    maxLines: 1,
+
+                    overflow:
+                        TextOverflow
+                            .ellipsis,
+
                     style:
                         TextStyle(
                       color:
                           HomeScreen.slate,
 
-                      fontSize: 12,
+                      fontSize: 11,
 
                       fontWeight:
                           FontWeight.w600,
@@ -1188,7 +1240,7 @@ class _HomeScreenState extends State<HomeScreen> {
                   ),
 
                   SizedBox(
-                    height: 5,
+                    height: 3,
                   ),
 
                   FittedBox(
@@ -1199,7 +1251,8 @@ class _HomeScreenState extends State<HomeScreen> {
                         Alignment
                             .centerLeft,
 
-                    child: Text(
+                    child:
+                        Text(
                       '6 hrs',
 
                       style:
@@ -1207,7 +1260,7 @@ class _HomeScreenState extends State<HomeScreen> {
                         color:
                             HomeScreen.navy,
 
-                        fontSize: 22,
+                        fontSize: 20,
 
                         fontWeight:
                             FontWeight.w900,
@@ -1232,7 +1285,9 @@ class _HomeScreenState extends State<HomeScreen> {
   ) {
     return InkWell(
       borderRadius:
-          BorderRadius.circular(16),
+          BorderRadius.circular(
+        14,
+      ),
 
       onTap: () {
         _showDialog(
@@ -1244,22 +1299,33 @@ class _HomeScreenState extends State<HomeScreen> {
         );
       },
 
-      child: Container(
+      child:
+          Container(
+        constraints:
+            const BoxConstraints(
+          minHeight: 88,
+        ),
+
         padding:
             const EdgeInsets.symmetric(
-          horizontal: 14,
-          vertical: 18,
+          horizontal: 11,
+          vertical: 12,
         ),
 
         decoration:
             BoxDecoration(
           color:
-              const Color(0xFFFFF1EA),
+              const Color(
+            0xFFFFF1EA,
+          ),
 
           borderRadius:
-              BorderRadius.circular(16),
+              BorderRadius.circular(
+            14,
+          ),
 
-          border: Border.all(
+          border:
+              Border.all(
             color:
                 HomeScreen.orange
                     .withOpacity(
@@ -1268,11 +1334,12 @@ class _HomeScreenState extends State<HomeScreen> {
           ),
         ),
 
-        child: Row(
+        child:
+            Row(
           children: [
             Container(
-              height: 50,
-              width: 50,
+              height: 43,
+              width: 43,
 
               decoration:
                   BoxDecoration(
@@ -1281,24 +1348,30 @@ class _HomeScreenState extends State<HomeScreen> {
 
                 borderRadius:
                     BorderRadius.circular(
-                  14,
+                  12,
                 ),
               ),
 
-              child: const Icon(
+              child:
+                  const Icon(
                 Icons.assessment_outlined,
                 color:
                     Colors.white,
-                size: 25,
+                size: 22,
               ),
             ),
 
             const SizedBox(
-              width: 12,
+              width: 9,
             ),
 
             const Expanded(
-              child: Column(
+              child:
+                  Column(
+                mainAxisAlignment:
+                    MainAxisAlignment
+                        .center,
+
                 crossAxisAlignment:
                     CrossAxisAlignment
                         .start,
@@ -1307,12 +1380,18 @@ class _HomeScreenState extends State<HomeScreen> {
                   Text(
                     'Report Card',
 
+                    maxLines: 1,
+
+                    overflow:
+                        TextOverflow
+                            .ellipsis,
+
                     style:
                         TextStyle(
                       color:
                           HomeScreen.slate,
 
-                      fontSize: 12,
+                      fontSize: 11,
 
                       fontWeight:
                           FontWeight.w600,
@@ -1320,7 +1399,7 @@ class _HomeScreenState extends State<HomeScreen> {
                   ),
 
                   SizedBox(
-                    height: 5,
+                    height: 3,
                   ),
 
                   FittedBox(
@@ -1331,7 +1410,8 @@ class _HomeScreenState extends State<HomeScreen> {
                         Alignment
                             .centerLeft,
 
-                    child: Text(
+                    child:
+                        Text(
                       'Performance',
 
                       style:
@@ -1339,7 +1419,7 @@ class _HomeScreenState extends State<HomeScreen> {
                         color:
                             HomeScreen.navy,
 
-                        fontSize: 18,
+                        fontSize: 17,
 
                         fontWeight:
                             FontWeight.w900,
@@ -1369,7 +1449,9 @@ class _HomeScreenState extends State<HomeScreen> {
   }) {
     return InkWell(
       borderRadius:
-          BorderRadius.circular(16),
+          BorderRadius.circular(
+        14,
+      ),
 
       onTap: () {
         _showDialog(
@@ -1385,9 +1467,12 @@ class _HomeScreenState extends State<HomeScreen> {
         );
       },
 
-      child: Container(
+      child:
+          Container(
         padding:
-            const EdgeInsets.all(13),
+            const EdgeInsets.all(
+          11,
+        ),
 
         decoration:
             BoxDecoration(
@@ -1395,11 +1480,16 @@ class _HomeScreenState extends State<HomeScreen> {
               HomeScreen.card,
 
           borderRadius:
-              BorderRadius.circular(16),
+              BorderRadius.circular(
+            14,
+          ),
 
-          border: Border.all(
+          border:
+              Border.all(
             color:
-                const Color(0xFFD4D9DF),
+                const Color(
+              0xFFD4D9DF,
+            ),
           ),
 
           boxShadow: [
@@ -1407,22 +1497,26 @@ class _HomeScreenState extends State<HomeScreen> {
               color:
                   Colors.black
                       .withOpacity(
-                0.05,
+                0.045,
               ),
 
-              blurRadius: 10,
+              blurRadius: 8,
 
               offset:
-                  const Offset(0, 4),
+                  const Offset(
+                0,
+                3,
+              ),
             ),
           ],
         ),
 
-        child: Row(
+        child:
+            Row(
           children: [
             Container(
-              height: 45,
-              width: 45,
+              height: 42,
+              width: 42,
 
               decoration:
                   BoxDecoration(
@@ -1434,23 +1528,26 @@ class _HomeScreenState extends State<HomeScreen> {
 
                 borderRadius:
                     BorderRadius.circular(
-                  13,
+                  12,
                 ),
               ),
 
-              child: const Icon(
+              child:
+                  const Icon(
                 Icons.pets,
                 color:
                     Colors.green,
+                size: 21,
               ),
             ),
 
             const SizedBox(
-              width: 12,
+              width: 10,
             ),
 
             Expanded(
-              child: Column(
+              child:
+                  Column(
                 crossAxisAlignment:
                     CrossAxisAlignment
                         .start,
@@ -1458,6 +1555,12 @@ class _HomeScreenState extends State<HomeScreen> {
                 children: [
                   Text(
                     '$id • $time',
+
+                    maxLines: 1,
+
+                    overflow:
+                        TextOverflow
+                            .ellipsis,
 
                     style:
                         const TextStyle(
@@ -1467,23 +1570,29 @@ class _HomeScreenState extends State<HomeScreen> {
                       fontWeight:
                           FontWeight.w900,
 
-                      fontSize: 13,
+                      fontSize: 12,
                     ),
                   ),
 
                   const SizedBox(
-                    height: 5,
+                    height: 4,
                   ),
 
                   Text(
                     '$distance • $duration • $date',
+
+                    maxLines: 1,
+
+                    overflow:
+                        TextOverflow
+                            .ellipsis,
 
                     style:
                         const TextStyle(
                       color:
                           HomeScreen.slate,
 
-                      fontSize: 11,
+                      fontSize: 10,
                     ),
                   ),
                 ],
@@ -1494,8 +1603,8 @@ class _HomeScreenState extends State<HomeScreen> {
               padding:
                   const EdgeInsets
                       .symmetric(
-                horizontal: 8,
-                vertical: 5,
+                horizontal: 7,
+                vertical: 4,
               ),
 
               decoration:
@@ -1508,11 +1617,12 @@ class _HomeScreenState extends State<HomeScreen> {
 
                 borderRadius:
                     BorderRadius.circular(
-                  8,
+                  7,
                 ),
               ),
 
-              child: const Text(
+              child:
+                  const Text(
                 'DONE',
 
                 style:
@@ -1520,7 +1630,7 @@ class _HomeScreenState extends State<HomeScreen> {
                   color:
                       Colors.green,
 
-                  fontSize: 9,
+                  fontSize: 8,
 
                   fontWeight:
                       FontWeight.w900,
@@ -1529,14 +1639,16 @@ class _HomeScreenState extends State<HomeScreen> {
             ),
 
             const SizedBox(
-              width: 7,
+              width: 6,
             ),
 
             const Icon(
               Icons.arrow_forward_ios,
-              size: 13,
+              size: 12,
               color:
-                  Color(0xFF8A96A3),
+                  Color(
+                0xFF8A96A3,
+              ),
             ),
           ],
         ),
@@ -1559,7 +1671,9 @@ class _HomeScreenState extends State<HomeScreen> {
       builder: (ctx) {
         return AlertDialog(
           backgroundColor:
-              const Color(0xFFF7F8FA),
+              const Color(
+            0xFFF7F8FA,
+          ),
 
           shape:
               RoundedRectangleBorder(
@@ -1569,7 +1683,8 @@ class _HomeScreenState extends State<HomeScreen> {
             ),
           ),
 
-          title: Text(
+          title:
+              Text(
             title,
 
             style:
@@ -1582,7 +1697,8 @@ class _HomeScreenState extends State<HomeScreen> {
             ),
           ),
 
-          content: Text(
+          content:
+              Text(
             content,
 
             style:
@@ -1596,10 +1712,14 @@ class _HomeScreenState extends State<HomeScreen> {
 
           actions: [
             TextButton(
-              onPressed: () =>
-                  Navigator.pop(ctx),
+              onPressed:
+                  () =>
+                      Navigator.pop(
+                ctx,
+              ),
 
-              child: const Text(
+              child:
+                  const Text(
                 'CLOSE',
 
                 style:
