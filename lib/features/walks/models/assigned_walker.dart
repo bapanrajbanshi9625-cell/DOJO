@@ -2,7 +2,10 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 
 class AssignedWalker {
   final String walkId;
-  final String walkerUid;
+
+  /// Application-level Walker ID.
+  final String walkerId;
+
   final String walkerName;
   final String walkerPhone;
   final bool verified;
@@ -13,7 +16,7 @@ class AssignedWalker {
 
   const AssignedWalker({
     required this.walkId,
-    required this.walkerUid,
+    required this.walkerId,
     required this.walkerName,
     required this.walkerPhone,
     required this.verified,
@@ -29,26 +32,70 @@ class AssignedWalker {
   ) {
     return AssignedWalker(
       walkId: id,
-      walkerUid: data['walkerUid']?.toString() ?? '',
-      walkerName:
-          data['walkerName']?.toString() ?? 'Walker',
-      walkerPhone:
-          data['walkerPhone']?.toString() ?? '',
-      verified: data['walkerVerified'] == true,
-      status:
-          data['status']?.toString() ?? 'assigned',
+
+      // New field: walkerId
+      // Backward compatibility: walkerUid
+      walkerId: _stringValue(
+        data['walkerId'] ??
+            data['walkerUid'],
+      ),
+
+      walkerName: _stringValue(
+        data['walkerName'],
+        fallback: 'Walker',
+      ),
+
+      walkerPhone: _stringValue(
+        data['walkerPhone'],
+      ),
+
+      verified:
+          data['walkerVerified'] == true,
+
+      status: _stringValue(
+        data['status'],
+        fallback: 'assigned',
+      ),
+
       profileImage:
-          data['walkerProfileImage']?.toString(),
+          _nullableString(
+        data['walkerProfileImage'],
+      ),
+
       latitude: _doubleValue(
         data['walkerLatitude'],
       ),
+
       longitude: _doubleValue(
         data['walkerLongitude'],
       ),
     );
   }
 
-  static double? _doubleValue(dynamic value) {
+  static String _stringValue(
+    dynamic value, {
+    String fallback = '',
+  }) {
+    final String result =
+        value?.toString().trim() ?? '';
+
+    return result.isEmpty
+        ? fallback
+        : result;
+  }
+
+  static String? _nullableString(
+    dynamic value,
+  ) {
+    final String result =
+        value?.toString().trim() ?? '';
+
+    return result.isEmpty ? null : result;
+  }
+
+  static double? _doubleValue(
+    dynamic value,
+  ) {
     if (value is num) {
       return value.toDouble();
     }
@@ -60,7 +107,7 @@ class AssignedWalker {
 
   Map<String, dynamic> toMap() {
     return {
-      'walkerUid': walkerUid,
+      'walkerId': walkerId,
       'walkerName': walkerName,
       'walkerPhone': walkerPhone,
       'walkerVerified': verified,
@@ -68,7 +115,8 @@ class AssignedWalker {
       'walkerProfileImage': profileImage,
       'walkerLatitude': latitude,
       'walkerLongitude': longitude,
-      'updatedAt': FieldValue.serverTimestamp(),
+      'updatedAt':
+          FieldValue.serverTimestamp(),
     };
   }
 }
