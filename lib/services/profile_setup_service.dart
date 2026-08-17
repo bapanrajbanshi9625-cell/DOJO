@@ -38,7 +38,7 @@ class ProfileSetupService {
     }
 
     // ==========================================================
-    // 2. BACKEND UID
+    // 2. FIREBASE UID
     // ==========================================================
 
     final String uid = user.uid.trim();
@@ -47,13 +47,12 @@ class ProfileSetupService {
       throw FirebaseException(
         plugin: 'firebase_auth',
         code: 'uid-missing',
-        message:
-            'Firebase UID was not found.',
+        message: 'Firebase UID was not found.',
       );
     }
 
     // ==========================================================
-    // 3. VERIFIED PHONE NUMBER
+    // 3. VERIFIED PHONE
     // ==========================================================
 
     final String mobileNumber =
@@ -69,16 +68,7 @@ class ProfileSetupService {
     }
 
     // ==========================================================
-    // 4. GET OR CREATE OWNER ID
-    // ==========================================================
-    //
-    // Example:
-    //
-    // OWN26GM0001
-    //
-    // Owner ID is the BUSINESS ID.
-    // Firebase UID remains backend-only.
-    //
+    // 4. OWNER BUSINESS ID
     // ==========================================================
 
     final String ownerId =
@@ -87,8 +77,16 @@ class ProfileSetupService {
       phoneNumber: mobileNumber,
     );
 
+    if (ownerId.trim().isEmpty) {
+      throw FirebaseException(
+        plugin: 'cloud_firestore',
+        code: 'owner-id-missing',
+        message: 'Owner ID could not be created.',
+      );
+    }
+
     // ==========================================================
-    // 5. CONVERT PET DATA
+    // 5. PET DATA
     // ==========================================================
 
     final List<Map<String, dynamic>> petData =
@@ -101,12 +99,13 @@ class ProfileSetupService {
     // ==========================================================
 
     final DocumentReference<Map<String, dynamic>>
-        ownerProfileRef = _firestore
+        ownerProfileRef =
+        _firestore
             .collection('ownerProfiles')
             .doc(ownerId);
 
     // ==========================================================
-    // 7. CHECK EXISTING PROFILE
+    // 7. GET EXISTING OWNER PROFILE
     // ==========================================================
 
     final DocumentSnapshot<Map<String, dynamic>>
@@ -120,13 +119,13 @@ class ProfileSetupService {
     await ownerProfileRef.set(
       {
         // ------------------------------------------------------
-        // OWNER BUSINESS ID
+        // BUSINESS OWNER ID
         // ------------------------------------------------------
 
         'ownerId': ownerId,
 
         // ------------------------------------------------------
-        // BACKEND AUTH UID
+        // FIREBASE AUTH UID
         // ------------------------------------------------------
 
         'authUid': uid,
@@ -158,11 +157,7 @@ class ProfileSetupService {
         // ------------------------------------------------------
         // PROFILE PHOTO
         // ------------------------------------------------------
-        //
-        // Photo upload can be connected later.
-        //
-        // Don't overwrite an existing photo.
-        //
+
         if (!existingProfile.exists ||
             existingProfile.data()?['profilePhoto'] == null)
           'profilePhoto': '',
@@ -176,10 +171,7 @@ class ProfileSetupService {
         // ------------------------------------------------------
         // ACTIVE STATUS
         // ------------------------------------------------------
-        //
-        // New owner starts active.
-        // Later Admin can change this.
-        //
+
         if (!existingProfile.exists)
           'isActive': true,
 
@@ -199,12 +191,41 @@ class ProfileSetupService {
         // ------------------------------------------------------
         // CREATED
         // ------------------------------------------------------
-        //
-        // Only written for a new document.
-        //
+
         if (!existingProfile.exists)
           'createdAt':
               FieldValue.serverTimestamp(),
+      },
+      SetOptions(merge: true),
+    );
+
+    // ==========================================================
+    // 9. SYNC USERS/{UID}
+    // ==========================================================
+    //
+    // SplashScreen currently checks:
+    //
+    // users/{Firebase UID}
+    //
+    // Therefore keep this document synchronized with the
+    // ownerProfiles document.
+    //
+    // ==========================================================
+
+    await _firestore
+        .collection('users')
+        .doc(uid)
+        .set(
+      {
+        'uid': uid,
+        'ownerId': ownerId,
+        'phone': mobileNumber,
+        'fullName': ownerName.trim(),
+        'address': address.trim(),
+        'role': 'owner',
+        'profileCompleted': true,
+        'updatedAt':
+            FieldValue.serverTimestamp(),
       },
       SetOptions(merge: true),
     );
@@ -226,12 +247,11 @@ class ProfileSetupService {
       throw FirebaseException(
         plugin: 'cloud_firestore',
         code: 'owner-id-missing',
-        message:
-            'Owner ID was not found.',
+        message: 'Owner ID was not found.',
       );
     }
 
-    return await _firestore
+    return _firestore
         .collection('ownerProfiles')
         .doc(cleanOwnerId)
         .get();
@@ -251,8 +271,7 @@ class ProfileSetupService {
       throw FirebaseException(
         plugin: 'firebase_auth',
         code: 'user-not-logged-in',
-        message:
-            'User is not logged in.',
+        message: 'User is not logged in.',
       );
     }
 
@@ -267,12 +286,11 @@ class ProfileSetupService {
       throw FirebaseException(
         plugin: 'cloud_firestore',
         code: 'owner-id-not-found',
-        message:
-            'Owner ID was not found.',
+        message: 'Owner ID was not found.',
       );
     }
 
-    return await _firestore
+    return _firestore
         .collection('ownerProfiles')
         .doc(ownerId)
         .get();
