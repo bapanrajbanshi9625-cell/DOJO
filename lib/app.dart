@@ -12,17 +12,19 @@ class DojoApp extends StatelessWidget {
     return MaterialApp(
       title: 'Dojo Walk',
 
+      debugShowCheckedModeBanner: false,
+
       theme: ThemeData(
         primarySwatch: Colors.orange,
-        scaffoldBackgroundColor: const Color(0xFFF8FAFC),
-        colorScheme: ColorScheme.fromSeed(
+        scaffoldBackgroundColor:
+            const Color(0xFFF8FAFC),
+        colorScheme:
+            ColorScheme.fromSeed(
           seedColor: AppColors.primary,
           primary: AppColors.primary,
           secondary: AppColors.secondary,
         ),
       ),
-
-      debugShowCheckedModeBanner: false,
 
       home: const NetworkMonitor(
         child: SplashScreen(),
