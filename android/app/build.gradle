@@ -7,7 +7,7 @@ plugins {
 
 android {
     namespace "com.dojo.dojo_owner_app"
-    compileSdk 34
+    compileSdk 36
 
     defaultConfig {
         applicationId "com.dojo.dojo_owner_app"
