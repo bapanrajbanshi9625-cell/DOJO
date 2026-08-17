@@ -1,25 +1,16 @@
-import 'package:flutter/material.dart';
-
-import 'core/constants/app_colors.dart';
-import 'core/network/network_monitor.dart';
-import 'screens/splash_screen.dart';
-
-class DojoApp extends StatelessWidget {
-  const DojoApp({super.key});
+class DojoWalk extends StatelessWidget {
+  const DojoWalk({super.key});
 
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'Dojo Walk',
-
+      title: 'Dojo',
       debugShowCheckedModeBanner: false,
 
       theme: ThemeData(
         primarySwatch: Colors.orange,
-        scaffoldBackgroundColor:
-            const Color(0xFFF8FAFC),
-        colorScheme:
-            ColorScheme.fromSeed(
+        scaffoldBackgroundColor: const Color(0xFFF8FAFC),
+        colorScheme: ColorScheme.fromSeed(
           seedColor: AppColors.primary,
           primary: AppColors.primary,
           secondary: AppColors.secondary,
