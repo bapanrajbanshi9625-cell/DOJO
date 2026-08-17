@@ -1,7 +1,12 @@
 import 'package:flutter/material.dart';
 
 class NoNetworkScreen extends StatelessWidget {
-  const NoNetworkScreen({super.key});
+  final VoidCallback onRetry;
+
+  const NoNetworkScreen({
+    super.key,
+    required this.onRetry,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -25,6 +30,10 @@ class NoNetworkScreen extends StatelessWidget {
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
+              // ==================================================
+              // OFFLINE ICON
+              // ==================================================
+
               Container(
                 width: 230,
                 height: 230,
@@ -33,7 +42,8 @@ class NoNetworkScreen extends StatelessWidget {
                   color: Colors.white.withOpacity(0.88),
                   boxShadow: [
                     BoxShadow(
-                      color: const Color(0xFFF26A21).withOpacity(0.10),
+                      color: const Color(0xFFF26A21)
+                          .withOpacity(0.10),
                       blurRadius: 45,
                       spreadRadius: 5,
                       offset: const Offset(0, 18),
@@ -55,6 +65,7 @@ class NoNetworkScreen extends StatelessWidget {
                         ),
                       ),
                     ),
+
                     Positioned(
                       bottom: 30,
                       left: 28,
@@ -67,6 +78,7 @@ class NoNetworkScreen extends StatelessWidget {
                         ),
                       ),
                     ),
+
                     const Icon(
                       Icons.wifi_off_rounded,
                       size: 105,
@@ -75,7 +87,13 @@ class NoNetworkScreen extends StatelessWidget {
                   ],
                 ),
               ),
+
               const SizedBox(height: 42),
+
+              // ==================================================
+              // TITLE
+              // ==================================================
+
               const Text(
                 'No Internet Connection',
                 textAlign: TextAlign.center,
@@ -86,7 +104,13 @@ class NoNetworkScreen extends StatelessWidget {
                   letterSpacing: -0.5,
                 ),
               ),
+
               const SizedBox(height: 14),
+
+              // ==================================================
+              // DESCRIPTION
+              // ==================================================
+
               const Padding(
                 padding: EdgeInsets.symmetric(horizontal: 35),
                 child: Text(
@@ -100,7 +124,48 @@ class NoNetworkScreen extends StatelessWidget {
                   ),
                 ),
               ),
+
+              const SizedBox(height: 26),
+
+              // ==================================================
+              // RETRY BUTTON
+              // ==================================================
+
+              ElevatedButton.icon(
+                onPressed: onRetry,
+                icon: const Icon(
+                  Icons.refresh_rounded,
+                  size: 21,
+                ),
+                label: const Text(
+                  'Retry',
+                  style: TextStyle(
+                    fontSize: 15,
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.black,
+                  foregroundColor: Colors.white,
+                  elevation: 4,
+                  shadowColor:
+                      Colors.black.withOpacity(0.20),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 28,
+                    vertical: 13,
+                  ),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(14),
+                  ),
+                ),
+              ),
+
               const SizedBox(height: 28),
+
+              // ==================================================
+              // ORANGE ACCENT
+              // ==================================================
+
               Container(
                 width: 46,
                 height: 4,
