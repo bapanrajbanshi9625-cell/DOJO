@@ -3,6 +3,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 
 import '../models/pet_data.dart';
 import '../services/profile_setup_service.dart';
+import '../screens/main_navigation_screen.dart';
 
 import '../features/profile_setup/profile_setup_data.dart';
 
@@ -29,6 +30,10 @@ class ProfileSetupScreen extends StatefulWidget {
 
 class _ProfileSetupScreenState
     extends State<ProfileSetupScreen> {
+  // ============================================================
+  // COLORS
+  // ============================================================
+
   static const Color orange =
       Color(0xFFF4511E);
 
@@ -38,17 +43,27 @@ class _ProfileSetupScreenState
   static const Color textGrey =
       Color(0xFF707070);
 
-  final TextEditingController
-      ownerController =
+  // ============================================================
+  // CONTROLLERS
+  // ============================================================
+
+  final TextEditingController ownerController =
       TextEditingController();
 
-  final TextEditingController
-      addressController =
+  final TextEditingController addressController =
       TextEditingController();
+
+  // ============================================================
+  // PETS
+  // ============================================================
 
   final List<PetData> pets = [
     PetData(),
   ];
+
+  // ============================================================
+  // STATE
+  // ============================================================
 
   bool _isSaving = false;
 
@@ -97,7 +112,8 @@ class _ProfileSetupScreenState
       return;
     }
 
-    final pet = pets.removeAt(index);
+    final PetData pet =
+        pets.removeAt(index);
 
     pet.dispose();
 
@@ -109,6 +125,10 @@ class _ProfileSetupScreenState
   // ============================================================
 
   bool _validateProfile() {
+    // ----------------------------------------------------------
+    // OWNER NAME
+    // ----------------------------------------------------------
+
     if (ownerController.text.trim().isEmpty) {
       _showError(
         'Please enter owner name.',
@@ -116,10 +136,15 @@ class _ProfileSetupScreenState
       return false;
     }
 
-    for (int i = 0; i < pets.length; i++) {
-      final pet = pets[i];
-      final number = i + 1;
+    // ----------------------------------------------------------
+    // PET VALIDATION
+    // ----------------------------------------------------------
 
+    for (int i = 0; i < pets.length; i++) {
+      final PetData pet = pets[i];
+      final int number = i + 1;
+
+      // Pet name
       if (pet.nameController.text
           .trim()
           .isEmpty) {
@@ -129,6 +154,7 @@ class _ProfileSetupScreenState
         return false;
       }
 
+      // Pet age
       if (pet.age == null) {
         _showError(
           'Please choose Pet $number age.',
@@ -136,6 +162,7 @@ class _ProfileSetupScreenState
         return false;
       }
 
+      // Pet breed
       if (pet.breed == null) {
         _showError(
           'Please choose Pet $number breed.',
@@ -143,6 +170,7 @@ class _ProfileSetupScreenState
         return false;
       }
 
+      // Pet behaviour
       if (pet.behaviour == null) {
         _showError(
           'Please choose Pet $number behaviour.',
@@ -155,13 +183,26 @@ class _ProfileSetupScreenState
   }
 
   // ============================================================
-  // SAVE PROFILE
+  // SAVE PROFILE + CONTINUE
   // ============================================================
 
   Future<void> _saveProfile() async {
+    // Prevent double tap
+    if (_isSaving) {
+      return;
+    }
+
+    // ----------------------------------------------------------
+    // VALIDATE
+    // ----------------------------------------------------------
+
     if (!_validateProfile()) {
       return;
     }
+
+    // ----------------------------------------------------------
+    // CURRENT USER
+    // ----------------------------------------------------------
 
     final User? user =
         FirebaseAuth.instance.currentUser;
@@ -173,19 +214,33 @@ class _ProfileSetupScreenState
       return;
     }
 
-    if (user.phoneNumber == null ||
-        user.phoneNumber!.isEmpty) {
+    // ----------------------------------------------------------
+    // VERIFIED PHONE
+    // ----------------------------------------------------------
+
+    final String phone =
+        user.phoneNumber?.trim() ?? '';
+
+    if (phone.isEmpty) {
       _showError(
         'Verified mobile number was not found.',
       );
       return;
     }
 
+    // ----------------------------------------------------------
+    // START SAVING
+    // ----------------------------------------------------------
+
     setState(() {
       _isSaving = true;
     });
 
     try {
+      // ========================================================
+      // SAVE TO FIRESTORE
+      // ========================================================
+
       await ProfileSetupService.saveProfile(
         ownerName:
             ownerController.text.trim(),
@@ -194,12 +249,23 @@ class _ProfileSetupScreenState
         pets: pets,
       );
 
-      if (!mounted) return;
+      if (!mounted) {
+        return;
+      }
+
+      // ========================================================
+      // SUCCESS MESSAGE
+      // ========================================================
 
       ScaffoldMessenger.of(context)
           .showSnackBar(
         SnackBar(
-          backgroundColor: Colors.green,
+          backgroundColor:
+              Colors.green,
+          duration:
+              const Duration(
+            seconds: 1,
+          ),
           content: Text(
             'Profile saved successfully with '
             '${pets.length} '
@@ -209,26 +275,59 @@ class _ProfileSetupScreenState
       );
 
       // ========================================================
-      // NEXT SCREEN
+      // SMALL DELAY
+      // ========================================================
+
+      await Future.delayed(
+        const Duration(
+          milliseconds: 500,
+        ),
+      );
+
+      if (!mounted) {
+        return;
+      }
+
+      // ========================================================
+      // GO TO MAIN NAVIGATION
       // ========================================================
       //
-      // Yahan baad mein aap:
+      // MainNavigationScreen contains:
       //
-      // Navigator.pushReplacement(...)
+      // Home
+      // Walks
+      // Menu
       //
-      // laga sakte ho.
+      // pushAndRemoveUntil ensures that the user
+      // cannot press back and return to Profile Setup.
       //
-      // Abhi intentionally koi next screen nahi lagayi.
-      //
+      // ========================================================
+
+      Navigator.of(context)
+          .pushAndRemoveUntil(
+        MaterialPageRoute(
+          builder: (_) =>
+              const MainNavigationScreen(),
+        ),
+        (route) => false,
+      );
     } on FirebaseException catch (e) {
-      if (!mounted) return;
+      if (!mounted) {
+        return;
+      }
 
       _showError(
         e.message ??
             'Could not save profile. Please try again.',
       );
     } catch (e) {
-      if (!mounted) return;
+      debugPrint(
+        'Profile Save Error: $e',
+      );
+
+      if (!mounted) {
+        return;
+      }
 
       _showError(
         'Something went wrong. Please try again.',
@@ -243,22 +342,32 @@ class _ProfileSetupScreenState
   }
 
   // ============================================================
-  // ERROR
+  // ERROR MESSAGE
   // ============================================================
 
-  void _showError(String message) {
+  void _showError(
+    String message,
+  ) {
+    if (!mounted) {
+      return;
+    }
+
     ScaffoldMessenger.of(context)
         .showSnackBar(
       SnackBar(
         backgroundColor:
             Colors.red.shade700,
-        content: Text(message),
+        behavior:
+            SnackBarBehavior.floating,
+        content: Text(
+          message,
+        ),
       ),
     );
   }
 
   // ============================================================
-  // PICKER HELPER
+  // COMMON PICKER
   // ============================================================
 
   void _openPicker({
@@ -270,7 +379,8 @@ class _ProfileSetupScreenState
   }) {
     showModalBottomSheet(
       context: context,
-      backgroundColor: Colors.white,
+      backgroundColor:
+          Colors.white,
       isScrollControlled: true,
       shape:
           const RoundedRectangleBorder(
@@ -295,18 +405,26 @@ class _ProfileSetupScreenState
   // AGE PICKER
   // ============================================================
 
-  void _showAgePicker(PetData pet) {
+  void _showAgePicker(
+    PetData pet,
+  ) {
     _openPicker(
       title: 'Choose Pet Age',
-      icon: Icons.cake_outlined,
-      items: ProfileSetupData.ages,
-      selected: pet.age,
-      onSelected: (value) {
+      icon:
+          Icons.cake_outlined,
+      items:
+          ProfileSetupData.ages,
+      selected:
+          pet.age,
+      onSelected:
+          (value) {
         setState(() {
           pet.age = value;
         });
 
-        Navigator.pop(context);
+        Navigator.pop(
+          context,
+        );
       },
     );
   }
@@ -315,10 +433,13 @@ class _ProfileSetupScreenState
   // BREED PICKER
   // ============================================================
 
-  void _showBreedPicker(PetData pet) {
+  void _showBreedPicker(
+    PetData pet,
+  ) {
     showModalBottomSheet(
       context: context,
-      backgroundColor: Colors.white,
+      backgroundColor:
+          Colors.white,
       isScrollControlled: true,
       shape:
           const RoundedRectangleBorder(
@@ -329,14 +450,19 @@ class _ProfileSetupScreenState
       ),
       builder: (_) {
         return BreedPicker(
-          breeds: ProfileSetupData.breeds,
-          selectedBreed: pet.breed,
-          onSelected: (breed) {
+          breeds:
+              ProfileSetupData.breeds,
+          selectedBreed:
+              pet.breed,
+          onSelected:
+              (breed) {
             setState(() {
               pet.breed = breed;
             });
 
-            Navigator.pop(context);
+            Navigator.pop(
+              context,
+            );
           },
         );
       },
@@ -348,19 +474,26 @@ class _ProfileSetupScreenState
   // ============================================================
 
   void _showBehaviourPicker(
-      PetData pet) {
+    PetData pet,
+  ) {
     _openPicker(
-      title: 'Choose Behaviour',
+      title:
+          'Choose Behaviour',
       icon:
           Icons.favorite_border_rounded,
-      items: ProfileSetupData.behaviours,
-      selected: pet.behaviour,
-      onSelected: (value) {
+      items:
+          ProfileSetupData.behaviours,
+      selected:
+          pet.behaviour,
+      onSelected:
+          (value) {
         setState(() {
           pet.behaviour = value;
         });
 
-        Navigator.pop(context);
+        Navigator.pop(
+          context,
+        );
       },
     );
   }
@@ -370,7 +503,9 @@ class _ProfileSetupScreenState
   // ============================================================
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(
+    BuildContext context,
+  ) {
     return Scaffold(
       backgroundColor:
           const Color(0xFFF8F8F8),
@@ -380,20 +515,29 @@ class _ProfileSetupScreenState
       // ========================================================
 
       appBar: AppBar(
-        backgroundColor: orange,
-        foregroundColor: Colors.white,
+        backgroundColor:
+            orange,
+        foregroundColor:
+            Colors.white,
         elevation: 0,
-        automaticallyImplyLeading: false,
-        title: const Row(
+        automaticallyImplyLeading:
+            false,
+
+        title:
+            const Row(
           children: [
             Icon(
-              Icons.person_add_alt_1_rounded,
+              Icons
+                  .person_add_alt_1_rounded,
               size: 26,
             ),
-            SizedBox(width: 10),
+            SizedBox(
+              width: 10,
+            ),
             Text(
               'Profile Setup',
-              style: TextStyle(
+              style:
+                  TextStyle(
                 fontSize: 22,
                 fontWeight:
                     FontWeight.w700,
@@ -408,9 +552,11 @@ class _ProfileSetupScreenState
       // ========================================================
 
       body: SafeArea(
-        child: SingleChildScrollView(
+        child:
+            SingleChildScrollView(
           physics:
               const BouncingScrollPhysics(),
+
           padding:
               const EdgeInsets.fromLTRB(
             16,
@@ -418,9 +564,12 @@ class _ProfileSetupScreenState
             16,
             35,
           ),
-          child: Column(
+
+          child:
+              Column(
             crossAxisAlignment:
                 CrossAxisAlignment.start,
+
             children: [
               // ==================================================
               // WELCOME
@@ -428,46 +577,59 @@ class _ProfileSetupScreenState
 
               const ProfileWelcomeCard(),
 
-              const SizedBox(height: 24),
+              const SizedBox(
+                height: 24,
+              ),
 
               // ==================================================
-              // OWNER
+              // OWNER INFORMATION
               // ==================================================
 
               const Text(
                 'Owner Information',
-                style: TextStyle(
+                style:
+                    TextStyle(
                   fontSize: 22,
                   fontWeight:
                       FontWeight.bold,
                 ),
               ),
 
-              const SizedBox(height: 14),
+              const SizedBox(
+                height: 14,
+              ),
 
               ProfileSectionCard(
-                child: ProfileTextField(
+                child:
+                    ProfileTextField(
                   controller:
                       ownerController,
-                  label: 'Owner Name',
-                  hint: 'Enter owner name',
+                  label:
+                      'Owner Name',
+                  hint:
+                      'Enter owner name',
                   icon:
-                      Icons.person_outline_rounded,
+                      Icons
+                          .person_outline_rounded,
                 ),
               ),
 
-              const SizedBox(height: 24),
+              const SizedBox(
+                height: 24,
+              ),
 
               // ==================================================
-              // PET TITLE
+              // PET INFORMATION TITLE
               // ==================================================
 
               Row(
                 children: [
                   const Expanded(
-                    child: Text(
+                    child:
+                        Text(
                       'Pet Information',
-                      style: TextStyle(
+                      style:
+                          TextStyle(
                         fontSize: 22,
                         fontWeight:
                             FontWeight.bold,
@@ -479,35 +641,45 @@ class _ProfileSetupScreenState
                     padding:
                         const EdgeInsets
                             .symmetric(
-                      horizontal: 10,
-                      vertical: 5,
+                      horizontal:
+                          10,
+                      vertical:
+                          5,
                     ),
                     decoration:
                         BoxDecoration(
-                      color: lightOrange,
+                      color:
+                          lightOrange,
                       borderRadius:
-                          BorderRadius.circular(
+                          BorderRadius
+                              .circular(
                         20,
                       ),
                     ),
-                    child: Text(
+                    child:
+                        Text(
                       '${pets.length}/3 Pets',
                       style:
                           const TextStyle(
-                        color: orange,
-                        fontSize: 12,
+                        color:
+                            orange,
+                        fontSize:
+                            12,
                         fontWeight:
-                            FontWeight.w700,
+                            FontWeight
+                                .w700,
                       ),
                     ),
                   ),
                 ],
               ),
 
-              const SizedBox(height: 14),
+              const SizedBox(
+                height: 14,
+              ),
 
               // ==================================================
-              // PETS
+              // PET CARDS
               // ==================================================
 
               ...List.generate(
@@ -515,27 +687,39 @@ class _ProfileSetupScreenState
                 (index) {
                   return Padding(
                     padding:
-                        const EdgeInsets.only(
-                      bottom: 16,
+                        const EdgeInsets
+                            .only(
+                      bottom:
+                          16,
                     ),
-                    child: PetCard(
-                      pet: pets[index],
-                      index: index,
-                      totalPets: pets.length,
-                      onRemove: () =>
-                          _removePet(index),
-                      onAgeTap: () =>
-                          _showAgePicker(
-                        pets[index],
-                      ),
-                      onBreedTap: () =>
-                          _showBreedPicker(
-                        pets[index],
-                      ),
-                      onBehaviourTap: () =>
-                          _showBehaviourPicker(
-                        pets[index],
-                      ),
+                    child:
+                        PetCard(
+                      pet:
+                          pets[index],
+                      index:
+                          index,
+                      totalPets:
+                          pets.length,
+                      onRemove:
+                          () =>
+                              _removePet(
+                            index,
+                          ),
+                      onAgeTap:
+                          () =>
+                              _showAgePicker(
+                            pets[index],
+                          ),
+                      onBreedTap:
+                          () =>
+                              _showBreedPicker(
+                            pets[index],
+                          ),
+                      onBehaviourTap:
+                          () =>
+                              _showBehaviourPicker(
+                            pets[index],
+                          ),
                     ),
                   );
                 },
@@ -547,10 +731,13 @@ class _ProfileSetupScreenState
 
               if (pets.length < 3)
                 AddPetButton(
-                  onPressed: _addPet,
+                  onPressed:
+                      _addPet,
                 ),
 
-              const SizedBox(height: 24),
+              const SizedBox(
+                height: 24,
+              ),
 
               // ==================================================
               // ADDRESS
@@ -558,41 +745,54 @@ class _ProfileSetupScreenState
 
               const Text(
                 'Address',
-                style: TextStyle(
+                style:
+                    TextStyle(
                   fontSize: 22,
                   fontWeight:
                       FontWeight.bold,
                 ),
               ),
 
-              const SizedBox(height: 5),
+              const SizedBox(
+                height: 5,
+              ),
 
               const Text(
                 'Optional',
-                style: TextStyle(
-                  color: textGrey,
-                  fontSize: 13,
+                style:
+                    TextStyle(
+                  color:
+                      textGrey,
+                  fontSize:
+                      13,
                 ),
               ),
 
-              const SizedBox(height: 14),
+              const SizedBox(
+                height: 14,
+              ),
 
               ProfileSectionCard(
-                child: AddressField(
+                child:
+                    AddressField(
                   controller:
                       addressController,
                 ),
               ),
 
-              const SizedBox(height: 28),
+              const SizedBox(
+                height: 28,
+              ),
 
               // ==================================================
-              // SAVE
+              // SAVE & CONTINUE
               // ==================================================
 
               SaveProfileButton(
-                isSaving: _isSaving,
-                onPressed: _saveProfile,
+                isSaving:
+                    _isSaving,
+                onPressed:
+                    _saveProfile,
               ),
             ],
           ),
