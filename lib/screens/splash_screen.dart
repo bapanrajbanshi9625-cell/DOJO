@@ -14,8 +14,6 @@ class SplashScreen extends StatefulWidget {
 }
 
 class _SplashScreenState extends State<SplashScreen> {
-  bool _checking = true;
-
   @override
   void initState() {
     super.initState();
@@ -58,8 +56,8 @@ class _SplashScreenState extends State<SplashScreen> {
       // 2. GET PHONE ACCOUNT
       // =========================================================
 
-      final DocumentSnapshot<
-          Map<String, dynamic>> accountSnapshot =
+      final DocumentSnapshot<Map<String, dynamic>>
+          accountSnapshot =
           await FirebaseFirestore.instance
               .collection('phoneAccounts')
               .doc(uid)
@@ -68,10 +66,6 @@ class _SplashScreenState extends State<SplashScreen> {
       // =========================================================
       // PHONE ACCOUNT NOT FOUND
       // =========================================================
-      //
-      // Auth login मौजूद है लेकिन backend account नहीं है.
-      // Profile setup शुरू करेंगे.
-      //
 
       if (!accountSnapshot.exists) {
         debugPrint(
@@ -119,8 +113,8 @@ class _SplashScreenState extends State<SplashScreen> {
       // 4. GET OWNER PROFILE
       // =========================================================
 
-      final DocumentSnapshot<
-          Map<String, dynamic>> ownerSnapshot =
+      final DocumentSnapshot<Map<String, dynamic>>
+          ownerSnapshot =
           await FirebaseFirestore.instance
               .collection('ownerProfiles')
               .doc(ownerId)
@@ -203,9 +197,6 @@ class _SplashScreenState extends State<SplashScreen> {
         'Splash Firebase error: ${e.code}',
       );
 
-      // NetworkMonitor normally catches network problems.
-      // इसलिए यहाँ गलत तरीके से Profile Setup नहीं खोलेंगे.
-
       if (!mounted) return;
 
       _showFirebaseError(
@@ -233,10 +224,6 @@ class _SplashScreenState extends State<SplashScreen> {
 
   void _showFirebaseError(String message) {
     if (!mounted) return;
-
-    setState(() {
-      _checking = false;
-    });
 
     ScaffoldMessenger.of(context)
         .showSnackBar(
