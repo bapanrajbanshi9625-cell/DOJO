@@ -1,7 +1,7 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:firebase_auth/firebase_auth.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
 
 import '../features/profile/profile_features.dart';
 
@@ -9,8 +9,7 @@ class ProfileScreen extends StatefulWidget {
   const ProfileScreen({super.key});
 
   @override
-  State<ProfileScreen> createState() =>
-      _ProfileScreenState();
+  State<ProfileScreen> createState() => _ProfileScreenState();
 }
 
 class _ProfileScreenState extends State<ProfileScreen> {
@@ -18,14 +17,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
   // COLORS
   // ============================================================
 
-  static const Color orange =
-      Color(0xFFF4511E);
-
-  static const Color navy =
-      Color(0xFF263746);
-
-  static const Color background =
-      Color(0xFFEDEFF2);
+  static const Color orange = Color(0xFFF4511E);
+  static const Color navy = Color(0xFF263746);
+  static const Color background = Color(0xFFEDEFF2);
 
   // ============================================================
   // OWNER DATA
@@ -65,8 +59,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
   Future<void> _loadOwnerProfile() async {
     try {
-      final User? user =
-          FirebaseAuth.instance.currentUser;
+      final User? user = FirebaseAuth.instance.currentUser;
 
       if (user == null) {
         if (!mounted) return;
@@ -85,8 +78,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
       // phoneAccounts/{UID}
       // ========================================================
 
-      final DocumentSnapshot<
-          Map<String, dynamic>> accountSnapshot =
+      final DocumentSnapshot<Map<String, dynamic>> accountSnapshot =
           await FirebaseFirestore.instance
               .collection('phoneAccounts')
               .doc(uid)
@@ -95,8 +87,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
       final Map<String, dynamic>? accountData =
           accountSnapshot.data();
 
-      final dynamic savedOwnerId =
-          accountData?['ownerId'];
+      final dynamic savedOwnerId = accountData?['ownerId'];
 
       if (savedOwnerId is! String ||
           savedOwnerId.trim().isEmpty) {
@@ -111,16 +102,14 @@ class _ProfileScreenState extends State<ProfileScreen> {
         return;
       }
 
-      final String cleanOwnerId =
-          savedOwnerId.trim();
+      final String cleanOwnerId = savedOwnerId.trim();
 
       // ========================================================
       // 2. GET OWNER PROFILE
       // ownerProfiles/{OWNER_ID}
       // ========================================================
 
-      final DocumentSnapshot<
-          Map<String, dynamic>> profileSnapshot =
+      final DocumentSnapshot<Map<String, dynamic>> profileSnapshot =
           await FirebaseFirestore.instance
               .collection('ownerProfiles')
               .doc(cleanOwnerId)
@@ -138,8 +127,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
         return;
       }
 
-      final Map<String, dynamic>? data =
-          profileSnapshot.data();
+      final Map<String, dynamic>? data = profileSnapshot.data();
 
       // ========================================================
       // OWNER NAME
@@ -163,15 +151,13 @@ class _ProfileScreenState extends State<ProfileScreen> {
       // OPTIONAL AGE
       // ========================================================
 
-      final String age =
-          data?['age']?.toString() ?? '-';
+      final String age = data?['age']?.toString() ?? '-';
 
       // ========================================================
       // OPTIONAL GENDER
       // ========================================================
 
-      final String gender =
-          data?['gender']?.toString() ?? '-';
+      final String gender = data?['gender']?.toString() ?? '-';
 
       // ========================================================
       // ACTIVE STATUS
@@ -188,28 +174,24 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
       String joinedDate = '-';
 
-      final dynamic createdAt =
-          data?['createdAt'];
+      final dynamic createdAt = data?['createdAt'];
 
       if (createdAt is Timestamp) {
-        final DateTime date =
-            createdAt.toDate();
+        final DateTime date = createdAt.toDate();
 
         joinedDate =
             '${_monthName(date.month)} '
             '${date.day}, '
             '${date.year}';
       } else if (data?['memberSince'] != null) {
-        joinedDate =
-            data!['memberSince'].toString();
+        joinedDate = data!['memberSince'].toString();
       }
 
       // ========================================================
       // PETS
       // ========================================================
 
-      final List<Map<String, dynamic>>
-          loadedPets = _readPets(
+      final List<Map<String, dynamic>> loadedPets = _readPets(
         data?['pets'],
       );
 
@@ -223,8 +205,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
         ownerUid = uid;
         ownerId = cleanOwnerId;
 
-        mobileNumber =
-            _formatIndianNumber(phone);
+        mobileNumber = _formatIndianNumber(phone);
 
         ownerName = name;
         ownerAge = age;
@@ -238,9 +219,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
         isLoading = false;
       });
     } catch (e) {
-      debugPrint(
-        'Owner Profile Error: $e',
-      );
+      debugPrint('Owner Profile Error: $e');
 
       if (!mounted) return;
 
@@ -254,9 +233,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
   // READ PETS SAFELY
   // ============================================================
 
-  List<Map<String, dynamic>> _readPets(
-    dynamic value,
-  ) {
+  List<Map<String, dynamic>> _readPets(dynamic value) {
     if (value is! List) {
       return [];
     }
@@ -275,41 +252,17 @@ class _ProfileScreenState extends State<ProfileScreen> {
   }
 
   // ============================================================
-  // PET VALUE HELPER
-  // ============================================================
-
-  String _petValue(
-    Map<String, dynamic> pet,
-    List<String> keys,
-  ) {
-    for (final String key in keys) {
-      final dynamic value = pet[key];
-
-      if (value != null &&
-          value.toString().trim().isNotEmpty) {
-        return value.toString().trim();
-      }
-    }
-
-    return '-';
-  }
-
-  // ============================================================
   // FORMAT MOBILE NUMBER
   // ============================================================
 
-  String _formatIndianNumber(
-    String number,
-  ) {
-    final String clean =
-        number.replaceAll(
+  String _formatIndianNumber(String number) {
+    final String clean = number.replaceAll(
       RegExp(r'[^0-9]'),
       '',
     );
 
     if (clean.length >= 10) {
-      final String last10 =
-          clean.substring(
+      final String last10 = clean.substring(
         clean.length - 10,
       );
 
@@ -318,9 +271,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
           '${last10.substring(5)}';
     }
 
-    return number.isEmpty
-        ? '-'
-        : number;
+    return number.isEmpty ? '-' : number;
   }
 
   // ============================================================
@@ -352,10 +303,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
   // ============================================================
 
   void _openChangeMobile() {
-    if (mobileNumber.isEmpty ||
-        mobileNumber == '-') {
-      ScaffoldMessenger.of(context)
-          .showSnackBar(
+    if (mobileNumber.isEmpty || mobileNumber == '-') {
+      ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text(
             'Current mobile number is not available.',
@@ -370,24 +319,19 @@ class _ProfileScreenState extends State<ProfileScreen> {
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.white,
-      shape:
-          const RoundedRectangleBorder(
-        borderRadius:
-            BorderRadius.vertical(
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(
           top: Radius.circular(24),
         ),
       ),
       builder: (_) {
         return ChangeMobileFlow(
-          currentNumber:
-              mobileNumber,
-          onChanged:
-              (String newNumber) {
+          currentNumber: mobileNumber,
+          onChanged: (String newNumber) {
             if (!mounted) return;
 
             setState(() {
-              mobileNumber =
-                  newNumber;
+              mobileNumber = newNumber;
             });
           },
         );
@@ -410,11 +354,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
     if (!mounted) return;
 
-    ScaffoldMessenger.of(context)
-        .showSnackBar(
+    ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(
-        backgroundColor:
-            Color(0xFF303030),
+        backgroundColor: Color(0xFF303030),
         content: Text(
           'Owner ID copied.',
         ),
@@ -429,21 +371,17 @@ class _ProfileScreenState extends State<ProfileScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor:
-          background,
+      backgroundColor: background,
 
       // ========================================================
       // APP BAR
       // ========================================================
 
       appBar: AppBar(
-        backgroundColor:
-            orange,
-        foregroundColor:
-            Colors.white,
+        backgroundColor: orange,
+        foregroundColor: Colors.white,
         elevation: 0,
         toolbarHeight: 52,
-
         leading: IconButton(
           icon: const Icon(
             Icons.arrow_back_ios_new_rounded,
@@ -453,9 +391,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
             Navigator.pop(context);
           },
         ),
-
         titleSpacing: 0,
-
         title: const Row(
           children: [
             Icon(
@@ -467,8 +403,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
               'Profile',
               style: TextStyle(
                 fontSize: 18,
-                fontWeight:
-                    FontWeight.w800,
+                fontWeight: FontWeight.w800,
               ),
             ),
           ],
@@ -482,48 +417,36 @@ class _ProfileScreenState extends State<ProfileScreen> {
       body: SafeArea(
         child: isLoading
             ? const Center(
-                child:
-                    CircularProgressIndicator(
+                child: CircularProgressIndicator(
                   color: orange,
                   strokeWidth: 2.5,
                 ),
               )
             : RefreshIndicator(
                 color: orange,
-                onRefresh:
-                    _loadOwnerProfile,
-
-                child:
-                    SingleChildScrollView(
+                onRefresh: _loadOwnerProfile,
+                child: SingleChildScrollView(
                   physics:
                       const AlwaysScrollableScrollPhysics(),
-
-                  padding:
-                      const EdgeInsets.fromLTRB(
+                  padding: const EdgeInsets.fromLTRB(
                     15,
                     12,
                     15,
                     30,
                   ),
-
                   child: Column(
                     crossAxisAlignment:
-                        CrossAxisAlignment
-                            .start,
-
+                        CrossAxisAlignment.start,
                     children: [
                       // ==================================================
                       // PROFILE CARD
                       // ==================================================
 
                       ProfileCard(
-                        ownerName:
-                            ownerName,
+                        ownerName: ownerName,
                       ),
 
-                      const SizedBox(
-                        height: 14,
-                      ),
+                      const SizedBox(height: 14),
 
                       // ==================================================
                       // OWNER INFORMATION TITLE
@@ -534,70 +457,45 @@ class _ProfileScreenState extends State<ProfileScreen> {
                           Container(
                             height: 19,
                             width: 4,
-                            decoration:
-                                BoxDecoration(
-                              color:
-                                  orange,
+                            decoration: BoxDecoration(
+                              color: orange,
                               borderRadius:
-                                  BorderRadius
-                                      .circular(
-                                5,
-                              ),
+                                  BorderRadius.circular(5),
                             ),
                           ),
-
-                          const SizedBox(
-                            width: 8,
-                          ),
-
+                          const SizedBox(width: 8),
                           const Text(
                             'Owner Information',
-                            style:
-                                TextStyle(
-                              color:
-                                  navy,
-                              fontSize:
-                                  16,
-                              fontWeight:
-                                  FontWeight
-                                      .w900,
+                            style: TextStyle(
+                              color: navy,
+                              fontSize: 16,
+                              fontWeight: FontWeight.w900,
                             ),
                           ),
                         ],
                       ),
 
-                      const SizedBox(
-                        height: 8,
-                      ),
+                      const SizedBox(height: 8),
 
                       // ==================================================
                       // OWNER INFORMATION CARD
                       // ==================================================
 
                       _OwnerInfoCard(
-                        ownerId:
-                            ownerId,
-                        mobileNumber:
-                            mobileNumber,
-                        ownerName:
-                            ownerName,
-                        ownerAge:
-                            ownerAge,
-                        ownerGender:
-                            ownerGender,
-                        memberSince:
-                            memberSince,
-                        isActive:
-                            isActive,
+                        ownerId: ownerId,
+                        mobileNumber: mobileNumber,
+                        ownerName: ownerName,
+                        ownerAge: ownerAge,
+                        ownerGender: ownerGender,
+                        memberSince: memberSince,
+                        isActive: isActive,
                         onChangeMobile:
                             _openChangeMobile,
                         onCopyOwnerId:
                             _copyOwnerId,
                       ),
 
-                      const SizedBox(
-                        height: 20,
-                      ),
+                      const SizedBox(height: 20),
 
                       // ==================================================
                       // PET DETAILS TITLE
@@ -608,82 +506,56 @@ class _ProfileScreenState extends State<ProfileScreen> {
                           Container(
                             height: 19,
                             width: 4,
-                            decoration:
-                                BoxDecoration(
-                              color:
-                                  orange,
+                            decoration: BoxDecoration(
+                              color: orange,
                               borderRadius:
-                                  BorderRadius
-                                      .circular(
-                                5,
-                              ),
+                                  BorderRadius.circular(5),
                             ),
                           ),
-
-                          const SizedBox(
-                            width: 8,
-                          ),
-
+                          const SizedBox(width: 8),
                           const Text(
                             'Pet Details',
-                            style:
-                                TextStyle(
-                              color:
-                                  navy,
-                              fontSize:
-                                  16,
-                              fontWeight:
-                                  FontWeight
-                                      .w900,
+                            style: TextStyle(
+                              color: navy,
+                              fontSize: 16,
+                              fontWeight: FontWeight.w900,
                             ),
                           ),
-
                           const Spacer(),
-
                           if (pets.isNotEmpty)
                             Text(
                               '${pets.length} '
                               '${pets.length == 1 ? 'Pet' : 'Pets'}',
-                              style:
-                                  const TextStyle(
-                                color:
-                                    orange,
-                                fontSize:
-                                    12,
+                              style: const TextStyle(
+                                color: orange,
+                                fontSize: 12,
                                 fontWeight:
-                                    FontWeight
-                                        .w700,
+                                    FontWeight.w700,
                               ),
                             ),
                         ],
                       ),
 
-                      const SizedBox(
-                        height: 8,
-                      ),
+                      const SizedBox(height: 8),
 
                       // ==================================================
                       // PET DETAILS
                       // ==================================================
 
                       if (pets.isEmpty)
-                        _EmptyPetCard()
+                        const _EmptyPetCard()
                       else
                         ...List.generate(
                           pets.length,
                           (index) {
                             return Padding(
                               padding:
-                                  const EdgeInsets
-                                      .only(
+                                  const EdgeInsets.only(
                                 bottom: 12,
                               ),
-                              child:
-                                  _PetDetailsCard(
-                                pet:
-                                    pets[index],
-                                index:
-                                    index,
+                              child: _PetDetailsCard(
+                                pet: pets[index],
+                                index: index,
                               ),
                             );
                           },
@@ -729,147 +601,84 @@ class _OwnerInfoCard extends StatelessWidget {
   Widget build(BuildContext context) {
     return Container(
       width: double.infinity,
-      padding:
-          const EdgeInsets.all(16),
+      padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius:
-            BorderRadius.circular(16),
+        borderRadius: BorderRadius.circular(16),
         boxShadow: [
           BoxShadow(
-            color:
-                Colors.black.withOpacity(
-              0.05,
-            ),
+            color: Colors.black.withValues(alpha: 0.05),
             blurRadius: 10,
-            offset:
-                const Offset(0, 3),
+            offset: const Offset(0, 3),
           ),
         ],
       ),
       child: Column(
         children: [
           _InfoRow(
-            icon:
-                Icons.badge_outlined,
-            label:
-                'Owner ID',
-            value:
-                ownerId.isEmpty
-                    ? '-'
-                    : ownerId,
-            trailing:
-                ownerId.isEmpty
-                    ? null
-                    : IconButton(
-                        icon: const Icon(
-                          Icons.copy_rounded,
-                          size: 18,
-                          color:
-                              Color(0xFFF4511E),
-                        ),
-                        onPressed:
-                            onCopyOwnerId,
-                      ),
+            icon: Icons.badge_outlined,
+            label: 'Owner ID',
+            value: ownerId.isEmpty ? '-' : ownerId,
+            trailing: ownerId.isEmpty
+                ? null
+                : IconButton(
+                    icon: const Icon(
+                      Icons.copy_rounded,
+                      size: 18,
+                      color: Color(0xFFF4511E),
+                    ),
+                    onPressed: onCopyOwnerId,
+                  ),
           ),
-
-          const Divider(
-            height: 20,
-          ),
-
+          const Divider(height: 20),
           _InfoRow(
-            icon:
-                Icons.person_outline_rounded,
-            label:
-                'Owner Name',
-            value:
-                ownerName,
+            icon: Icons.person_outline_rounded,
+            label: 'Owner Name',
+            value: ownerName,
           ),
-
-          const Divider(
-            height: 20,
-          ),
-
+          const Divider(height: 20),
           _InfoRow(
-            icon:
-                Icons.phone_outlined,
-            label:
-                'Mobile Number',
-            value:
-                mobileNumber.isEmpty
-                    ? '-'
-                    : mobileNumber,
-            trailing:
-                IconButton(
+            icon: Icons.phone_outlined,
+            label: 'Mobile Number',
+            value: mobileNumber.isEmpty
+                ? '-'
+                : mobileNumber,
+            trailing: IconButton(
               icon: const Icon(
                 Icons.edit_outlined,
                 size: 19,
-                color:
-                    Color(0xFFF4511E),
+                color: Color(0xFFF4511E),
               ),
-              onPressed:
-                  onChangeMobile,
+              onPressed: onChangeMobile,
             ),
           ),
-
-          const Divider(
-            height: 20,
-          ),
-
+          const Divider(height: 20),
           _InfoRow(
-            icon:
-                Icons.cake_outlined,
-            label:
-                'Age',
-            value:
-                ownerAge,
+            icon: Icons.cake_outlined,
+            label: 'Age',
+            value: ownerAge,
           ),
-
-          const Divider(
-            height: 20,
-          ),
-
+          const Divider(height: 20),
           _InfoRow(
-            icon:
-                Icons.wc_outlined,
-            label:
-                'Gender',
-            value:
-                ownerGender,
+            icon: Icons.wc_outlined,
+            label: 'Gender',
+            value: ownerGender,
           ),
-
-          const Divider(
-            height: 20,
-          ),
-
+          const Divider(height: 20),
           _InfoRow(
-            icon:
-                Icons.calendar_month_outlined,
-            label:
-                'Member Since',
-            value:
-                memberSince,
+            icon: Icons.calendar_month_outlined,
+            label: 'Member Since',
+            value: memberSince,
           ),
-
-          const Divider(
-            height: 20,
-          ),
-
+          const Divider(height: 20),
           _InfoRow(
-            icon:
-                isActive
-                    ? Icons.check_circle_outline
-                    : Icons.block_outlined,
-            label:
-                'Account Status',
-            value:
-                isActive
-                    ? 'Active'
-                    : 'Inactive',
+            icon: isActive
+                ? Icons.check_circle_outline
+                : Icons.block_outlined,
+            label: 'Account Status',
+            value: isActive ? 'Active' : 'Inactive',
             valueColor:
-                isActive
-                    ? Colors.green
-                    : Colors.red,
+                isActive ? Colors.green : Colors.red,
           ),
         ],
       ),
@@ -903,27 +712,17 @@ class _InfoRow extends StatelessWidget {
         Container(
           width: 36,
           height: 36,
-          decoration:
-              BoxDecoration(
-            color:
-                const Color(0xFFFFF1E8),
-            borderRadius:
-                BorderRadius.circular(
-              10,
-            ),
+          decoration: BoxDecoration(
+            color: const Color(0xFFFFF1E8),
+            borderRadius: BorderRadius.circular(10),
           ),
           child: Icon(
             icon,
-            color:
-                const Color(0xFFF4511E),
+            color: const Color(0xFFF4511E),
             size: 19,
           ),
         ),
-
-        const SizedBox(
-          width: 12,
-        ),
-
+        const SizedBox(width: 12),
         Expanded(
           child: Column(
             crossAxisAlignment:
@@ -931,38 +730,26 @@ class _InfoRow extends StatelessWidget {
             children: [
               Text(
                 label,
-                style:
-                    const TextStyle(
+                style: const TextStyle(
                   fontSize: 11,
-                  color:
-                      Colors.grey,
-                  fontWeight:
-                      FontWeight.w600,
+                  color: Colors.grey,
+                  fontWeight: FontWeight.w600,
                 ),
               ),
-              const SizedBox(
-                height: 3,
-              ),
+              const SizedBox(height: 3),
               Text(
                 value,
-                style:
-                    TextStyle(
+                style: TextStyle(
                   fontSize: 14,
-                  color:
-                      valueColor ??
-                          const Color(
-                            0xFF263746,
-                          ),
-                  fontWeight:
-                      FontWeight.w700,
+                  color: valueColor ??
+                      const Color(0xFF263746),
+                  fontWeight: FontWeight.w700,
                 ),
               ),
             ],
           ),
         ),
-
-        if (trailing != null)
-          trailing!,
+        if (trailing != null) trailing!,
       ],
     );
   }
@@ -972,8 +759,7 @@ class _InfoRow extends StatelessWidget {
 // PET DETAILS CARD
 // ==================================================================
 
-class _PetDetailsCard
-    extends StatelessWidget {
+class _PetDetailsCard extends StatelessWidget {
   final Map<String, dynamic> pet;
   final int index;
 
@@ -982,21 +768,13 @@ class _PetDetailsCard
     required this.index,
   });
 
-  String _value(
-    List<String> keys,
-  ) {
+  String _value(List<String> keys) {
     for (final String key in keys) {
-      final dynamic value =
-          pet[key];
+      final dynamic value = pet[key];
 
       if (value != null &&
-          value
-              .toString()
-              .trim()
-              .isNotEmpty) {
-        return value
-            .toString()
-            .trim();
+          value.toString().trim().isNotEmpty) {
+        return value.toString().trim();
       }
     }
 
@@ -1005,27 +783,23 @@ class _PetDetailsCard
 
   @override
   Widget build(BuildContext context) {
-    final String petName =
-        _value([
+    final String petName = _value([
       'name',
       'petName',
       'pet_name',
     ]);
 
-    final String age =
-        _value([
+    final String age = _value([
       'age',
       'petAge',
     ]);
 
-    final String breed =
-        _value([
+    final String breed = _value([
       'breed',
       'petBreed',
     ]);
 
-    final String behaviour =
-        _value([
+    final String behaviour = _value([
       'behaviour',
       'behavior',
       'petBehaviour',
@@ -1033,21 +807,15 @@ class _PetDetailsCard
 
     return Container(
       width: double.infinity,
-      padding:
-          const EdgeInsets.all(16),
+      padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius:
-            BorderRadius.circular(16),
+        borderRadius: BorderRadius.circular(16),
         boxShadow: [
           BoxShadow(
-            color:
-                Colors.black.withOpacity(
-              0.05,
-            ),
+            color: Colors.black.withValues(alpha: 0.05),
             blurRadius: 10,
-            offset:
-                const Offset(0, 3),
+            offset: const Offset(0, 3),
           ),
         ],
       ),
@@ -1058,64 +826,42 @@ class _PetDetailsCard
               Container(
                 width: 46,
                 height: 46,
-                decoration:
-                    BoxDecoration(
-                  color:
-                      const Color(
-                    0xFFFFF1E8,
-                  ),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFFFF1E8),
                   borderRadius:
-                      BorderRadius.circular(
-                    14,
-                  ),
+                      BorderRadius.circular(14),
                 ),
                 child: const Icon(
                   Icons.pets_rounded,
-                  color:
-                      Color(0xFFF4511E),
+                  color: Color(0xFFF4511E),
                   size: 25,
                 ),
               ),
-
-              const SizedBox(
-                width: 12,
-              ),
-
+              const SizedBox(width: 12),
               Expanded(
                 child: Column(
                   crossAxisAlignment:
-                      CrossAxisAlignment
-                          .start,
+                      CrossAxisAlignment.start,
                   children: [
                     Text(
                       'Pet ${index + 1}',
-                      style:
-                          const TextStyle(
+                      style: const TextStyle(
                         fontSize: 11,
-                        color:
-                            Colors.grey,
+                        color: Colors.grey,
                         fontWeight:
-                            FontWeight
-                                .w600,
+                            FontWeight.w600,
                       ),
                     ),
-                    const SizedBox(
-                      height: 3,
-                    ),
+                    const SizedBox(height: 3),
                     Text(
                       petName == '-'
                           ? 'Pet Name'
                           : petName,
-                      style:
-                          const TextStyle(
+                      style: const TextStyle(
                         fontSize: 17,
-                        color:
-                            Color(
-                          0xFF263746,
-                        ),
+                        color: Color(0xFF263746),
                         fontWeight:
-                            FontWeight
-                                .w800,
+                            FontWeight.w800,
                       ),
                     ),
                   ],
@@ -1123,52 +869,25 @@ class _PetDetailsCard
               ),
             ],
           ),
-
-          const SizedBox(
-            height: 15,
-          ),
-
-          const Divider(
-            height: 1,
-          ),
-
-          const SizedBox(
-            height: 13,
-          ),
-
+          const SizedBox(height: 15),
+          const Divider(height: 1),
+          const SizedBox(height: 13),
           _PetRow(
-            icon:
-                Icons.cake_outlined,
-            label:
-                'Age',
-            value:
-                age,
+            icon: Icons.cake_outlined,
+            label: 'Age',
+            value: age,
           ),
-
-          const SizedBox(
-            height: 12,
-          ),
-
+          const SizedBox(height: 12),
           _PetRow(
-            icon:
-                Icons.pets_outlined,
-            label:
-                'Breed',
-            value:
-                breed,
+            icon: Icons.pets_outlined,
+            label: 'Breed',
+            value: breed,
           ),
-
-          const SizedBox(
-            height: 12,
-          ),
-
+          const SizedBox(height: 12),
           _PetRow(
-            icon:
-                Icons.favorite_border_rounded,
-            label:
-                'Behaviour',
-            value:
-                behaviour,
+            icon: Icons.favorite_border_rounded,
+            label: 'Behaviour',
+            value: behaviour,
           ),
         ],
       ),
@@ -1180,8 +899,7 @@ class _PetDetailsCard
 // PET ROW
 // ==================================================================
 
-class _PetRow
-    extends StatelessWidget {
+class _PetRow extends StatelessWidget {
   final IconData icon;
   final String label;
   final String value;
@@ -1196,42 +914,31 @@ class _PetRow
   Widget build(BuildContext context) {
     return Row(
       children: [
+        const SizedBox(width: 0),
         Icon(
           icon,
           size: 18,
-          color:
-              const Color(0xFFF4511E),
+          color: Color(0xFFF4511E),
         ),
-
-        const SizedBox(
-          width: 10,
-        ),
-
+        const SizedBox(width: 10),
         SizedBox(
           width: 75,
           child: Text(
             label,
-            style:
-                const TextStyle(
+            style: const TextStyle(
               fontSize: 12,
-              color:
-                  Colors.grey,
-              fontWeight:
-                  FontWeight.w600,
+              color: Colors.grey,
+              fontWeight: FontWeight.w600,
             ),
           ),
         ),
-
         Expanded(
           child: Text(
             value,
-            style:
-                const TextStyle(
+            style: const TextStyle(
               fontSize: 13,
-              color:
-                  Color(0xFF263746),
-              fontWeight:
-                  FontWeight.w700,
+              color: Color(0xFF263746),
+              fontWeight: FontWeight.w700,
             ),
           ),
         ),
@@ -1244,18 +951,17 @@ class _PetRow
 // EMPTY PET CARD
 // ==================================================================
 
-class _EmptyPetCard
-    extends StatelessWidget {
+class _EmptyPetCard extends StatelessWidget {
+  const _EmptyPetCard();
+
   @override
   Widget build(BuildContext context) {
     return Container(
       width: double.infinity,
-      padding:
-          const EdgeInsets.all(20),
+      padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius:
-            BorderRadius.circular(16),
+        borderRadius: BorderRadius.circular(16),
       ),
       child: const Column(
         children: [
@@ -1264,15 +970,12 @@ class _EmptyPetCard
             size: 34,
             color: Colors.grey,
           ),
-          SizedBox(
-            height: 8,
-          ),
+          SizedBox(height: 8),
           Text(
             'No pet details available.',
             style: TextStyle(
               color: Colors.grey,
-              fontWeight:
-                  FontWeight.w600,
+              fontWeight: FontWeight.w600,
             ),
           ),
         ],
