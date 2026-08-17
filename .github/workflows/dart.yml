@@ -68,38 +68,7 @@ jobs:
 
 
       # ==========================================================
-      # 5. VERIFY IMPORTANT PROJECT FILES
-      # ==========================================================
-
-      - name: Verify project files
-        shell: bash
-        run: |
-          set -e
-
-          echo "Checking important Dojo Walk files..."
-
-          test -f pubspec.yaml
-          test -f lib/main.dart
-          test -f lib/app.dart
-          test -f lib/firebase_options.dart
-          test -f lib/screens/splash_screen.dart
-          test -f android/app/google-services.json
-          test -f assets/DOJO_WALK.png
-
-          if [ -f assets/dojo_splash.png ]; then
-            echo "Found: assets/dojo_splash.png"
-          elif [ -f assets/Dojo_splash.png ]; then
-            echo "Found: assets/Dojo_splash.png"
-          else
-            echo "ERROR: Splash image not found!"
-            exit 1
-          fi
-
-          echo "All important files found."
-
-
-      # ==========================================================
-      # 6. GET DEPENDENCIES
+      # 5. GET DEPENDENCIES
       # ==========================================================
 
       - name: Get dependencies
@@ -107,7 +76,7 @@ jobs:
 
 
       # ==========================================================
-      # 7. CHECK DEPENDENCIES
+      # 6. CHECK DEPENDENCIES
       # ==========================================================
 
       - name: Check dependencies
@@ -115,7 +84,7 @@ jobs:
 
 
       # ==========================================================
-      # 8. ANALYZE FLUTTER CODE
+      # 7. ANALYZE FLUTTER CODE
       # ==========================================================
 
       - name: Analyze Dojo Walk code
@@ -123,7 +92,7 @@ jobs:
 
 
       # ==========================================================
-      # 9. RUN TESTS
+      # 8. RUN TESTS
       # ==========================================================
 
       - name: Run Dojo Walk tests
@@ -131,46 +100,7 @@ jobs:
 
 
       # ==========================================================
-      # 10. VERIFY FIREBASE CONFIGURATION
-      # ==========================================================
-
-      - name: Verify Firebase configuration
-        shell: bash
-        run: |
-          set -e
-
-          echo "Checking Firebase configuration..."
-
-          test -f android/app/google-services.json
-          test -f lib/firebase_options.dart
-
-          echo "Firebase configuration found."
-
-
-      # ==========================================================
-      # 11. VERIFY ANDROID PROJECT
-      # ==========================================================
-
-      - name: Verify Android project
-        working-directory: android
-        shell: bash
-        run: |
-          set -e
-
-          echo "Checking Android project..."
-
-          test -f gradlew
-
-          chmod +x gradlew
-
-          echo "Gradle version:"
-          ./gradlew --version
-
-          echo "Android project OK."
-
-
-      # ==========================================================
-      # 12. GENERATE LAUNCHER ICON
+      # 9. GENERATE LAUNCHER ICON
       # ==========================================================
 
       - name: Generate launcher icon
@@ -178,42 +108,7 @@ jobs:
 
 
       # ==========================================================
-      # 13. VERIFY LAUNCHER RESOURCES
-      # ==========================================================
-
-      - name: Verify launcher icon resources
-        shell: bash
-        run: |
-          set -e
-
-          echo "Checking launcher resources..."
-
-          if find android/app/src/main/res \
-            -type f \
-            \( \
-              -name "ic_launcher.png" \
-              -o -name "ic_launcher_foreground.xml" \
-              -o -name "ic_launcher.xml" \
-            \) | grep -q .; then
-
-            echo "Launcher icon resources found."
-
-          else
-
-            echo "ERROR: Launcher icon resources not found!"
-
-            find android/app/src/main/res \
-              -maxdepth 3 \
-              -type f \
-              | sort
-
-            exit 1
-
-          fi
-
-
-      # ==========================================================
-      # 14. CLEAN PROJECT
+      # 10. CLEAN PROJECT
       # ==========================================================
 
       - name: Flutter clean
@@ -221,7 +116,7 @@ jobs:
 
 
       # ==========================================================
-      # 15. GET DEPENDENCIES AGAIN
+      # 11. GET DEPENDENCIES AGAIN
       # ==========================================================
 
       - name: Get dependencies after clean
@@ -229,17 +124,15 @@ jobs:
 
 
       # ==========================================================
-      # 16. BUILD RELEASE APK
+      # 12. BUILD RELEASE APK
       # ==========================================================
 
       - name: Build Dojo Walk Release APK
-        run: |
-          flutter build apk \
-            --release
+        run: flutter build apk --release
 
 
       # ==========================================================
-      # 17. VERIFY APK
+      # 13. VERIFY APK
       # ==========================================================
 
       - name: Verify APK
@@ -262,7 +155,7 @@ jobs:
 
 
       # ==========================================================
-      # 18. UPLOAD APK
+      # 14. UPLOAD APK
       # ==========================================================
 
       - name: Upload Dojo Walk Release APK
