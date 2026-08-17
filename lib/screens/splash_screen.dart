@@ -4,118 +4,288 @@ import 'package:flutter/material.dart';
 
 import 'main_navigation_screen.dart';
 import 'login_screen.dart';
-import 'profile_screen.dart';
+import 'profile_setup_screen.dart';
 
 class SplashScreen extends StatefulWidget {
   const SplashScreen({super.key});
 
   @override
-  State<SplashScreen> createState() => _SplashScreenState();
+  State<SplashScreen> createState() =>
+      _SplashScreenState();
 }
 
-class _SplashScreenState extends State<SplashScreen> {
+class _SplashScreenState
+    extends State<SplashScreen> {
+
+  // ============================================================
+  // INIT
+  // ============================================================
+
   @override
   void initState() {
     super.initState();
 
-    // Firebase check immediately start hoga.
     _checkLoginAndNavigate();
   }
 
-  Future<void> _checkLoginAndNavigate() async {
-    final user = FirebaseAuth.instance.currentUser;
+  // ============================================================
+  // CHECK LOGIN + PROFILE
+  // ============================================================
 
-    // Firebase session nahi hai
+  Future<void> _checkLoginAndNavigate() async {
+    final User? user =
+        FirebaseAuth.instance.currentUser;
+
+    // ------------------------------------------------------------
+    // NO AUTH SESSION
+    // ------------------------------------------------------------
+
     if (user == null) {
-      _goTo(const LoginScreen());
+      _goTo(
+        const LoginScreen(),
+      );
       return;
     }
 
     try {
-      // Firebase Auth session ke baad
-      // Owner profile Firestore se fetch hoga.
-      final doc = await FirebaseFirestore.instance
-          .collection('users')
-          .doc(user.uid)
-          .get();
+      final String uid =
+          user.uid.trim();
 
-      if (!mounted) return;
-
-      if (doc.exists) {
-        final data = doc.data();
-
-        // Owner profile complete hai
-        if (data != null && data['role'] == 'owner') {
-          _goTo(const MainNavigationScreen());
-          return;
-        }
+      if (uid.isEmpty) {
+        _goTo(
+          const LoginScreen(),
+        );
+        return;
       }
 
-      // Login hai lekin owner profile nahi hai
-      _goTo(const ProfileScreen());
-    } on FirebaseException {
+      // ==========================================================
+      // 1. GET PHONE ACCOUNT
+      // ==========================================================
+
+      final DocumentSnapshot<
+          Map<String, dynamic>> accountSnapshot =
+          await FirebaseFirestore.instance
+              .collection('phoneAccounts')
+              .doc(uid)
+              .get();
+
+      // ----------------------------------------------------------
+      // PHONE ACCOUNT NOT FOUND
+      // ----------------------------------------------------------
+
+      if (!accountSnapshot.exists) {
+        if (!mounted) return;
+
+        _goTo(
+          const ProfileSetupScreen(),
+        );
+
+        return;
+      }
+
+      final Map<String, dynamic>? accountData =
+          accountSnapshot.data();
+
+      // ==========================================================
+      // 2. GET OWNER ID
+      // ==========================================================
+
+      final dynamic ownerIdValue =
+          accountData?['ownerId'];
+
+      if (ownerIdValue is! String ||
+          ownerIdValue.trim().isEmpty) {
+        if (!mounted) return;
+
+        _goTo(
+          const ProfileSetupScreen(),
+        );
+
+        return;
+      }
+
+      final String ownerId =
+          ownerIdValue.trim();
+
+      // ==========================================================
+      // 3. GET OWNER PROFILE
+      // ==========================================================
+
+      final DocumentSnapshot<
+          Map<String, dynamic>> ownerSnapshot =
+          await FirebaseFirestore.instance
+              .collection('ownerProfiles')
+              .doc(ownerId)
+              .get();
+
+      // ----------------------------------------------------------
+      // OWNER PROFILE DOES NOT EXIST
+      // ----------------------------------------------------------
+
+      if (!ownerSnapshot.exists) {
+        if (!mounted) return;
+
+        _goTo(
+          const ProfileSetupScreen(),
+        );
+
+        return;
+      }
+
+      final Map<String, dynamic>? ownerData =
+          ownerSnapshot.data();
+
+      // ==========================================================
+      // 4. CHECK PROFILE COMPLETED
+      // ==========================================================
+
+      final bool profileCompleted =
+          ownerData?['profileCompleted'] == true;
+
+      // ==========================================================
+      // PROFILE COMPLETE
+      // ==========================================================
+
+      if (profileCompleted) {
+        if (!mounted) return;
+
+        _goTo(
+          const MainNavigationScreen(),
+        );
+
+        return;
+      }
+
+      // ==========================================================
+      // PROFILE NOT COMPLETE
+      // ==========================================================
+
       if (!mounted) return;
 
-      // Firebase temporary error:
-      // session available hai, isliye app ke andar bhejenge.
-      _goTo(const MainNavigationScreen());
-    } catch (_) {
+      _goTo(
+        const ProfileSetupScreen(),
+      );
+    }
+
+    // ============================================================
+    // FIREBASE ERROR
+    // ============================================================
+
+    on FirebaseException catch (e) {
+      debugPrint(
+        'Splash Firebase error: ${e.code}',
+      );
+
       if (!mounted) return;
 
-      _goTo(const MainNavigationScreen());
+      // ----------------------------------------------------------
+      // IMPORTANT
+      // ----------------------------------------------------------
+      //
+      // Firebase error ke time blindly MainNavigation
+      // open nahi karenge.
+      //
+      // Agar user authenticated hai aur profile status
+      // verify nahi hua, Profile Setup par bhejna safer hai.
+      //
+
+      _goTo(
+        const ProfileSetupScreen(),
+      );
+    }
+
+    // ============================================================
+    // UNKNOWN ERROR
+    // ============================================================
+
+    catch (e) {
+      debugPrint(
+        'Splash error: $e',
+      );
+
+      if (!mounted) return;
+
+      _goTo(
+        const ProfileSetupScreen(),
+      );
     }
   }
 
-  void _goTo(Widget screen) {
+  // ============================================================
+  // NAVIGATION
+  // ============================================================
+
+  void _goTo(
+    Widget screen,
+  ) {
     if (!mounted) return;
 
-    Navigator.pushReplacement(
-      context,
+    Navigator.of(context).pushReplacement(
       MaterialPageRoute(
         builder: (_) => screen,
       ),
     );
   }
 
+  // ============================================================
+  // BUILD
+  // ============================================================
+
   @override
-  Widget build(BuildContext context) {
+  Widget build(
+    BuildContext context,
+  ) {
     return Scaffold(
       body: Stack(
         fit: StackFit.expand,
         children: [
-          // Splash background
+          // ======================================================
+          // SPLASH IMAGE
+          // ======================================================
+
           Image.asset(
             'assets/dojo_splash.png',
             fit: BoxFit.cover,
           ),
 
-          // Simple circular loading
+          // ======================================================
+          // LOADING
+          // ======================================================
+
           Positioned(
             left: 0,
             right: 0,
             bottom: 65,
             child: Column(
-              mainAxisSize: MainAxisSize.min,
+              mainAxisSize:
+                  MainAxisSize.min,
               children: [
                 const Text(
                   'Getting things ready...',
-                  textAlign: TextAlign.center,
+                  textAlign:
+                      TextAlign.center,
                   style: TextStyle(
-                    color: Colors.white,
+                    color:
+                        Colors.white,
                     fontSize: 17,
-                    fontWeight: FontWeight.w500,
+                    fontWeight:
+                        FontWeight.w500,
                   ),
                 ),
 
-                const SizedBox(height: 18),
+                const SizedBox(
+                  height: 18,
+                ),
 
-                SizedBox(
+                const SizedBox(
                   width: 30,
                   height: 30,
-                  child: CircularProgressIndicator(
+                  child:
+                      CircularProgressIndicator(
                     strokeWidth: 3,
                     valueColor:
-                        const AlwaysStoppedAnimation<Color>(
+                        AlwaysStoppedAnimation<
+                            Color>(
                       Colors.white,
                     ),
                   ),
