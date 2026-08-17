@@ -8,14 +8,26 @@ class AssignedWalkerService {
   static final FirebaseFirestore _firestore =
       FirebaseFirestore.instance;
 
+  /// Watches the accepted walker assigned to an owner.
+  ///
+  /// IMPORTANT:
+  /// The value passed here is the application's ownerId,
+  /// NOT Firebase Authentication UID.
   static Stream<AssignedWalker?> watchAssignedWalker(
-    String ownerUid,
+    String ownerId,
   ) {
+    final String normalizedOwnerId =
+        ownerId.trim();
+
+    if (normalizedOwnerId.isEmpty) {
+      return Stream<AssignedWalker?>.value(null);
+    }
+
     return _firestore
         .collection('walk_requests')
         .where(
-          'ownerUid',
-          isEqualTo: ownerUid,
+          'ownerId',
+          isEqualTo: normalizedOwnerId,
         )
         .where(
           'status',
@@ -28,10 +40,11 @@ class AssignedWalkerService {
         return null;
       }
 
-      final doc = snapshot.docs.first;
+      final DocumentSnapshot<Map<String, dynamic>> doc =
+          snapshot.docs.first;
 
       final Map<String, dynamic> data =
-          doc.data();
+          doc.data() ?? <String, dynamic>{};
 
       return AssignedWalker.fromFirestore(
         doc.id,
