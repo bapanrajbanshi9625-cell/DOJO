@@ -6,44 +6,109 @@ class WalkRequestService {
   static final FirebaseFirestore _firestore =
       FirebaseFirestore.instance;
 
+  // ============================================================
+  // WALKER ON WAY
+  // ============================================================
+
   static Future<void> updateWalkerOnWay(
     String requestId,
   ) async {
+    final String id = requestId.trim();
+
+    if (id.isEmpty) {
+      throw ArgumentError(
+        'requestId cannot be empty.',
+      );
+    }
+
     await _firestore
         .collection('walk_requests')
-        .doc(requestId)
+        .doc(id)
         .update({
       'status': 'walker_on_way',
-      'updatedAt': FieldValue.serverTimestamp(),
+      'updatedAt':
+          FieldValue.serverTimestamp(),
     });
   }
+
+  // ============================================================
+  // SEND MESSAGE
+  // ============================================================
 
   static Future<void> sendMessage({
     required String requestId,
-    required String ownerUid,
-    required String walkerUid,
+    required String ownerId,
+    required String walkerId,
     required String message,
   }) async {
+    final String request =
+        requestId.trim();
+
+    final String owner =
+        ownerId.trim();
+
+    final String walker =
+        walkerId.trim();
+
+    final String text =
+        message.trim();
+
+    if (request.isEmpty) {
+      throw ArgumentError(
+        'requestId cannot be empty.',
+      );
+    }
+
+    if (owner.isEmpty) {
+      throw ArgumentError(
+        'ownerId cannot be empty.',
+      );
+    }
+
+    if (walker.isEmpty) {
+      throw ArgumentError(
+        'walkerId cannot be empty.',
+      );
+    }
+
+    if (text.isEmpty) {
+      throw ArgumentError(
+        'message cannot be empty.',
+      );
+    }
+
     await _firestore
         .collection('walk_requests')
-        .doc(requestId)
+        .doc(request)
         .collection('messages')
         .add({
-      'senderUid': ownerUid,
-      'receiverUid': walkerUid,
-      'message': message,
+      'senderId': owner,
+      'receiverId': walker,
+      'message': text,
       'type': 'text',
-      'createdAt': FieldValue.serverTimestamp(),
+      'createdAt':
+          FieldValue.serverTimestamp(),
     });
   }
 
-  static Stream<QuerySnapshot<Map<String, dynamic>>>
-      watchMessages(
+  // ============================================================
+  // WATCH MESSAGES
+  // ============================================================
+
+  static Stream<
+      QuerySnapshot<Map<String, dynamic>>> watchMessages(
     String requestId,
   ) {
+    final String id = requestId.trim();
+
+    if (id.isEmpty) {
+      return const Stream<
+          QuerySnapshot<Map<String, dynamic>>>.empty();
+    }
+
     return _firestore
         .collection('walk_requests')
-        .doc(requestId)
+        .doc(id)
         .collection('messages')
         .orderBy(
           'createdAt',
