@@ -4,7 +4,7 @@ import 'package:flutter/material.dart';
 
 import 'main_navigation_screen.dart';
 import 'login_screen.dart';
-import 'profile_setup_screen.dart';
+import 'profile_setup.dart';
 
 class SplashScreen extends StatefulWidget {
   const SplashScreen({super.key});
@@ -14,9 +14,7 @@ class SplashScreen extends StatefulWidget {
       _SplashScreenState();
 }
 
-class _SplashScreenState
-    extends State<SplashScreen> {
-
+class _SplashScreenState extends State<SplashScreen> {
   // ============================================================
   // INIT
   // ============================================================
@@ -48,6 +46,10 @@ class _SplashScreenState
     }
 
     try {
+      // ==========================================================
+      // FIREBASE UID
+      // ==========================================================
+
       final String uid =
           user.uid.trim();
 
@@ -179,15 +181,9 @@ class _SplashScreenState
       if (!mounted) return;
 
       // ----------------------------------------------------------
-      // IMPORTANT
+      // Firebase error होने पर authenticated user को
+      // blindly MainNavigation पर नहीं भेजेंगे.
       // ----------------------------------------------------------
-      //
-      // Firebase error ke time blindly MainNavigation
-      // open nahi karenge.
-      //
-      // Agar user authenticated hai aur profile status
-      // verify nahi hua, Profile Setup par bhejna safer hai.
-      //
 
       _goTo(
         const ProfileSetupScreen(),
