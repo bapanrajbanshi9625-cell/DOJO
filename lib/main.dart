@@ -25,7 +25,7 @@ Future<void> main() async {
     // ==========================================================
 
     runApp(
-      const DojoApp(),
+      const DojoWalk(),
     );
   } catch (e, stackTrace) {
     // ==========================================================
@@ -65,7 +65,7 @@ class FirebaseStartupErrorApp extends StatelessWidget {
   Widget build(BuildContext context) {
     return MaterialApp(
       debugShowCheckedModeBanner: false,
-      title: 'Dojo Walk',
+      title: 'Dojo',
 
       theme: ThemeData(
         colorScheme: ColorScheme.fromSeed(
@@ -91,7 +91,7 @@ class FirebaseStartupErrorApp extends StatelessWidget {
                   const SizedBox(height: 20),
 
                   const Text(
-                    'Unable to start Dojo Walk',
+                    'Unable to start Dojo',
                     textAlign: TextAlign.center,
                     style: TextStyle(
                       fontSize: 22,
