@@ -13,11 +13,24 @@ class WalkChatService {
   final FirebaseAuth _auth =
       FirebaseAuth.instance;
 
+  // ============================================================
+  // MESSAGES STREAM
+  // ============================================================
+
   Stream<QuerySnapshot<Map<String, dynamic>>>
-      messagesStream(String walkId) {
+      messagesStream(
+    String walkId,
+  ) {
+    final String id = walkId.trim();
+
+    if (id.isEmpty) {
+      return const Stream<
+          QuerySnapshot<Map<String, dynamic>>>.empty();
+    }
+
     return _firestore
         .collection('walk_requests')
-        .doc(walkId)
+        .doc(id)
         .collection('messages')
         .orderBy(
           'createdAt',
@@ -26,17 +39,54 @@ class WalkChatService {
         .snapshots();
   }
 
+  // ============================================================
+  // SEND TEXT MESSAGE
+  // ============================================================
+
   Future<void> sendTextMessage({
     required String walkId,
+    required String ownerId,
+    required String walkerId,
     required String text,
   }) async {
-    final User? user = _auth.currentUser;
+    final User? user =
+        _auth.currentUser;
 
     if (user == null) {
-      return;
+      throw Exception(
+        'User is not authenticated.',
+      );
     }
 
-    final String cleanText = text.trim();
+    final String requestId =
+        walkId.trim();
+
+    final String senderId =
+        ownerId.trim();
+
+    final String receiverId =
+        walkerId.trim();
+
+    final String cleanText =
+        text.trim();
+
+    if (requestId.isEmpty) {
+      throw ArgumentError(
+        'walkId cannot be empty.',
+      );
+    }
+
+    if (senderId.isEmpty) {
+      throw ArgumentError(
+        'ownerId cannot be empty.',
+      );
+    }
+
+    if (receiverId.isEmpty) {
+      throw ArgumentError(
+        'walkerId cannot be empty.',
+      );
+    }
 
     if (cleanText.isEmpty) {
       return;
@@ -44,10 +94,11 @@ class WalkChatService {
 
     await _firestore
         .collection('walk_requests')
-        .doc(walkId)
+        .doc(requestId)
         .collection('messages')
         .add({
-      'senderUid': user.uid,
+      'senderId': senderId,
+      'receiverId': receiverId,
       'senderRole': 'owner',
       'type': 'text',
       'text': cleanText,
@@ -56,25 +107,71 @@ class WalkChatService {
     });
   }
 
+  // ============================================================
+  // SEND VOICE MESSAGE
+  // ============================================================
+
   Future<void> sendVoiceMessage({
     required String walkId,
+    required String ownerId,
+    required String walkerId,
     required String audioUrl,
   }) async {
-    final User? user = _auth.currentUser;
+    final User? user =
+        _auth.currentUser;
 
     if (user == null) {
-      return;
+      throw Exception(
+        'User is not authenticated.',
+      );
+    }
+
+    final String requestId =
+        walkId.trim();
+
+    final String senderId =
+        ownerId.trim();
+
+    final String receiverId =
+        walkerId.trim();
+
+    final String cleanAudioUrl =
+        audioUrl.trim();
+
+    if (requestId.isEmpty) {
+      throw ArgumentError(
+        'walkId cannot be empty.',
+      );
+    }
+
+    if (senderId.isEmpty) {
+      throw ArgumentError(
+        'ownerId cannot be empty.',
+      );
+    }
+
+    if (receiverId.isEmpty) {
+      throw ArgumentError(
+        'walkerId cannot be empty.',
+      );
+    }
+
+    if (cleanAudioUrl.isEmpty) {
+      throw ArgumentError(
+        'audioUrl cannot be empty.',
+      );
     }
 
     await _firestore
         .collection('walk_requests')
-        .doc(walkId)
+        .doc(requestId)
         .collection('messages')
         .add({
-      'senderUid': user.uid,
+      'senderId': senderId,
+      'receiverId': receiverId,
       'senderRole': 'owner',
       'type': 'voice',
-      'audioUrl': audioUrl,
+      'audioUrl': cleanAudioUrl,
       'createdAt':
           FieldValue.serverTimestamp(),
     });
