@@ -37,6 +37,18 @@ class _InstaWalkContainerState
   final FirebaseFirestore _firestore =
       FirebaseFirestore.instance;
 
+  static const String _ownerProfilesCollection =
+      'ownerProfiles';
+
+  static const String _walkRequestsCollection =
+      'walk_requests';
+
+  static const double _searchDistanceKm = 3.0;
+
+  // =========================================================
+  // DISPOSE
+  // =========================================================
+
   @override
   void dispose() {
     _timer?.cancel();
@@ -61,24 +73,51 @@ class _InstaWalkContainerState
       return;
     }
 
+    if (!mounted) {
+      return;
+    }
+
     setState(() {
       _checkingAddress = true;
+      _searchFinished = false;
     });
 
     try {
       // =====================================================
-      // OWNER PROFILE
-      // Firebase UID -> ownerProfiles/{UID} -> ownerId
+      // IMPORTANT
+      //
+      // ownerProfiles document ID is:
+      // OWN26GM0001
+      //
+      // Firebase UID is stored inside:
+      // authUid
+      //
+      // Therefore DON'T use:
+      //
+      // .doc(user.uid)
+      //
+      // We search using authUid field.
       // =====================================================
 
-      final ownerDoc = await _firestore
-          .collection('ownerProfiles')
-          .doc(user.uid)
-          .get();
+      final QuerySnapshot<Map<String, dynamic>>
+          ownerQuery = await _firestore
+              .collection(_ownerProfilesCollection)
+              .where(
+                'authUid',
+                isEqualTo: user.uid,
+              )
+              .limit(1)
+              .get();
 
-      if (!ownerDoc.exists) {
-        if (!mounted) return;
+      if (!mounted) {
+        return;
+      }
 
+      // =====================================================
+      // OWNER PROFILE NOT FOUND
+      // =====================================================
+
+      if (ownerQuery.docs.isEmpty) {
         setState(() {
           _checkingAddress = false;
         });
@@ -90,20 +129,36 @@ class _InstaWalkContainerState
         return;
       }
 
-      final ownerData = ownerDoc.data();
+      // =====================================================
+      // OWNER DOCUMENT
+      // =====================================================
+
+      final QueryDocumentSnapshot<Map<String, dynamic>>
+          ownerDoc = ownerQuery.docs.first;
+
+      final Map<String, dynamic> ownerData =
+          ownerDoc.data();
+
+      // =====================================================
+      // OWNER ID
+      //
+      // Example:
+      // ownerId = OWN26GM0001
+      //
+      // Document ID is also OWN26GM0001,
+      // but we intentionally use the field.
+      // =====================================================
 
       final String ownerId =
-          ownerData?['ownerId']?.toString().trim() ?? '';
+          ownerData['ownerId']?.toString().trim() ?? '';
 
       if (ownerId.isEmpty) {
-        if (!mounted) return;
-
         setState(() {
           _checkingAddress = false;
         });
 
         _showMessage(
-          'Owner ID not found. Please complete your profile.',
+          'Owner ID not found. Please complete your owner profile.',
         );
 
         return;
@@ -114,9 +169,11 @@ class _InstaWalkContainerState
       // =====================================================
 
       final String address =
-          ownerData?['address']?.toString().trim() ?? '';
+          ownerData['address']?.toString().trim() ?? '';
 
-      if (!mounted) return;
+      // =====================================================
+      // ADDRESS EMPTY
+      // =====================================================
 
       if (address.isEmpty) {
         setState(() {
@@ -130,6 +187,17 @@ class _InstaWalkContainerState
           ),
         );
 
+        if (!mounted) {
+          return;
+        }
+
+        // ===================================================
+        // ADDRESS SCREEN SE RETURN KE BAAD
+        // PROFILE DOBARA CHECK KARO
+        // ===================================================
+
+        await _findWalker();
+
         return;
       }
 
@@ -137,28 +205,38 @@ class _InstaWalkContainerState
       // OWNER NAME
       // =====================================================
 
-      final String ownerName =
-          ownerData?['fullName']?.toString().trim() ??
-              'Dog Owner';
+      String ownerName =
+          ownerData['fullName']?.toString().trim() ?? '';
+
+      if (ownerName.isEmpty) {
+        ownerName = 'Dog Owner';
+      }
 
       // =====================================================
-      // START SEARCH
+      // START WALKER SEARCH
       // =====================================================
 
       await _startSearch(
         ownerId: ownerId,
+        ownerAuthUid: user.uid,
         ownerName: ownerName,
         address: address,
       );
     } catch (e) {
-      if (!mounted) return;
+      debugPrint(
+        'Insta Walk owner profile error: $e',
+      );
+
+      if (!mounted) {
+        return;
+      }
 
       setState(() {
         _checkingAddress = false;
       });
 
       _showMessage(
-        'Unable to start search. Please try again.',
+        'Unable to check owner profile. Please try again.',
       );
     }
   }
@@ -169,36 +247,59 @@ class _InstaWalkContainerState
 
   Future<void> _startSearch({
     required String ownerId,
+    required String ownerAuthUid,
     required String ownerName,
     required String address,
   }) async {
     _timer?.cancel();
+
     await _requestSubscription?.cancel();
 
     final DateTime now = DateTime.now();
 
     final DateTime expiresAt =
-        now.add(const Duration(minutes: 2));
+        now.add(
+      const Duration(minutes: 2),
+    );
 
     try {
-      final DocumentReference<Map<String, dynamic>>
-          requestRef = _firestore
-              .collection('walk_requests')
-              .doc();
-
       // =====================================================
       // CREATE WALK REQUEST
       // =====================================================
 
+      final DocumentReference<Map<String, dynamic>>
+          requestRef = _firestore
+              .collection(_walkRequestsCollection)
+              .doc();
+
       await requestRef.set({
+        // ===================================================
+        // OWNER
+        // ===================================================
+
         'ownerId': ownerId,
+
+        'ownerAuthUid': ownerAuthUid,
+
         'ownerName': ownerName,
+
+        // ===================================================
+        // ADDRESS
+        // ===================================================
 
         'address': address,
 
+        // ===================================================
+        // SEARCH
+        // ===================================================
+
         'status': 'searching',
 
-        'distanceKm': 3.0,
+        'distanceKm': _searchDistanceKm,
+
+        // ===================================================
+        // TIMESTAMP
+        // ===================================================
 
         'createdAt':
             FieldValue.serverTimestamp(),
@@ -206,12 +307,18 @@ class _InstaWalkContainerState
         'expiresAt':
             Timestamp.fromDate(expiresAt),
 
+        // ===================================================
+        // ACCEPTANCE
+        // ===================================================
+
         'acceptedBy': null,
 
         'walkerId': null,
       });
 
-      if (!mounted) return;
+      if (!mounted) {
+        return;
+      }
 
       setState(() {
         _checkingAddress = false;
@@ -221,18 +328,33 @@ class _InstaWalkContainerState
         _requestId = requestRef.id;
       });
 
+      // =====================================================
+      // LISTEN
+      // =====================================================
+
       _listenForRequest(requestRef);
+
+      // =====================================================
+      // TIMER
+      // =====================================================
 
       _startTimer();
     } catch (e) {
-      if (!mounted) return;
+      debugPrint(
+        'Create walk request error: $e',
+      );
+
+      if (!mounted) {
+        return;
+      }
 
       setState(() {
         _checkingAddress = false;
+        _searching = false;
       });
 
       _showMessage(
-        'Unable to create walk request.',
+        'Unable to create walk request. Please try again.',
       );
     }
   }
@@ -245,33 +367,57 @@ class _InstaWalkContainerState
     DocumentReference<Map<String, dynamic>>
         requestRef,
   ) {
+    _requestSubscription?.cancel();
+
     _requestSubscription =
         requestRef.snapshots().listen(
-      (snapshot) {
+      (DocumentSnapshot<Map<String, dynamic>>
+          snapshot) {
         if (!mounted || !snapshot.exists) {
           return;
         }
 
-        final data = snapshot.data();
+        final Map<String, dynamic>? data =
+            snapshot.data();
 
         if (data == null) {
           return;
         }
 
         final String status =
-            data['status']?.toString() ?? '';
+            data['status']?.toString().trim() ?? '';
+
+        // ===================================================
+        // ACCEPTED
+        // ===================================================
 
         if (status == 'accepted') {
           _handleWalkerAccepted(data);
+          return;
         }
+
+        // ===================================================
+        // CANCELLED
+        // ===================================================
 
         if (status == 'cancelled') {
           _handleRequestCancelled();
+          return;
         }
+
+        // ===================================================
+        // EXPIRED
+        // ===================================================
 
         if (status == 'expired') {
           _finishSearch();
+          return;
         }
+      },
+      onError: (Object error) {
+        debugPrint(
+          'Walk request listener error: $error',
+        );
       },
     );
   }
@@ -284,7 +430,9 @@ class _InstaWalkContainerState
     _timer?.cancel();
     _requestSubscription?.cancel();
 
-    if (!mounted) return;
+    if (!mounted) {
+      return;
+    }
 
     setState(() {
       _searching = false;
@@ -303,7 +451,9 @@ class _InstaWalkContainerState
     _timer?.cancel();
     _requestSubscription?.cancel();
 
-    if (!mounted) return;
+    if (!mounted) {
+      return;
+    }
 
     setState(() {
       _searching = false;
@@ -326,12 +476,19 @@ class _InstaWalkContainerState
     _timer?.cancel();
     _requestSubscription?.cancel();
 
-    if (!mounted) return;
+    if (!mounted) {
+      return;
+    }
 
     setState(() {
       _searching = false;
       _searchFinished = true;
+      _secondsLeft = 0;
     });
+
+    _showMessage(
+      'Walk request was cancelled.',
+    );
   }
 
   // =========================================================
@@ -343,8 +500,13 @@ class _InstaWalkContainerState
 
     _timer = Timer.periodic(
       const Duration(seconds: 1),
-      (timer) async {
+      (Timer timer) async {
         if (!mounted) {
+          timer.cancel();
+          return;
+        }
+
+        if (!_searching) {
           timer.cancel();
           return;
         }
@@ -354,7 +516,9 @@ class _InstaWalkContainerState
 
           await _expireRequest();
 
-          if (!mounted) return;
+          if (!mounted) {
+            return;
+          }
 
           setState(() {
             _searching = false;
@@ -379,28 +543,36 @@ class _InstaWalkContainerState
   Future<void> _expireRequest() async {
     final String? requestId = _requestId;
 
-    if (requestId == null) {
+    if (requestId == null ||
+        requestId.trim().isEmpty) {
       return;
     }
 
     try {
-      final requestRef = _firestore
-          .collection('walk_requests')
-          .doc(requestId);
+      final DocumentReference<Map<String, dynamic>>
+          requestRef = _firestore
+              .collection(_walkRequestsCollection)
+              .doc(requestId);
 
-      final snapshot =
-          await requestRef.get();
+      final DocumentSnapshot<Map<String, dynamic>>
+          snapshot = await requestRef.get();
 
       if (!snapshot.exists) {
         return;
       }
 
-      final data = snapshot.data();
+      final Map<String, dynamic>? data =
+          snapshot.data();
 
       final String status =
-          data?['status']?.toString() ?? '';
+          data?['status']?.toString().trim() ?? '';
 
-      // Accepted request ko overwrite nahi karna.
+      // =====================================================
+      // IMPORTANT
+      //
+      // Accepted request ko expired nahi karna.
+      // =====================================================
+
       if (status == 'searching') {
         await requestRef.update({
           'status': 'expired',
@@ -408,8 +580,10 @@ class _InstaWalkContainerState
               FieldValue.serverTimestamp(),
         });
       }
-    } catch (_) {
-      // Request may already have been updated.
+    } catch (e) {
+      debugPrint(
+        'Expire walk request error: $e',
+      );
     }
   }
 
@@ -425,6 +599,14 @@ class _InstaWalkContainerState
       _showMessage('Please login first.');
       return;
     }
+
+    if (!mounted) {
+      return;
+    }
+
+    setState(() {
+      _searchFinished = false;
+    });
 
     await _findWalker();
   }
@@ -452,13 +634,23 @@ class _InstaWalkContainerState
   // =========================================================
 
   void _showMessage(String message) {
-    if (!mounted) return;
+    if (!mounted) {
+      return;
+    }
 
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(message),
-      ),
-    );
+    ScaffoldMessenger.of(context)
+      ..hideCurrentSnackBar()
+      ..showSnackBar(
+        SnackBar(
+          content: Text(message),
+          behavior: SnackBarBehavior.floating,
+          margin: const EdgeInsets.all(16),
+          shape: RoundedRectangleBorder(
+            borderRadius:
+                BorderRadius.circular(14),
+          ),
+        ),
+      );
   }
 
   // =========================================================
@@ -486,10 +678,12 @@ class _InstaWalkContainerState
             begin: Alignment.topLeft,
             end: Alignment.bottomRight,
           ),
-          borderRadius: BorderRadius.circular(24),
+          borderRadius:
+              BorderRadius.circular(24),
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withOpacity(.08),
+              color:
+                  Colors.black.withOpacity(.08),
               blurRadius: 18,
               offset: const Offset(0, 7),
             ),
@@ -499,6 +693,10 @@ class _InstaWalkContainerState
           crossAxisAlignment:
               CrossAxisAlignment.start,
           children: [
+            // =================================================
+            // HEADER
+            // =================================================
+
             Row(
               children: [
                 Container(
@@ -547,6 +745,10 @@ class _InstaWalkContainerState
 
             const SizedBox(height: 16),
 
+            // =================================================
+            // DESCRIPTION
+            // =================================================
+
             const Text(
               'We search for an online and available walker within 3 km.',
               style: TextStyle(
@@ -558,11 +760,24 @@ class _InstaWalkContainerState
 
             const SizedBox(height: 16),
 
-            if (!_searching && !_searchFinished)
+            // =================================================
+            // FIND
+            // =================================================
+
+            if (!_searching &&
+                !_searchFinished)
               _findButton(),
+
+            // =================================================
+            // SEARCHING
+            // =================================================
 
             if (_searching)
               _searchingContainer(),
+
+            // =================================================
+            // FINISHED
+            // =================================================
 
             if (_searchFinished)
               _retryContainer(),
@@ -581,8 +796,9 @@ class _InstaWalkContainerState
       width: double.infinity,
       height: 50,
       child: ElevatedButton.icon(
-        onPressed:
-            _checkingAddress ? null : _findWalker,
+        onPressed: _checkingAddress
+            ? null
+            : _findWalker,
         icon: _checkingAddress
             ? const SizedBox(
                 height: 18,
@@ -591,7 +807,8 @@ class _InstaWalkContainerState
                     CircularProgressIndicator(
                   strokeWidth: 2,
                   valueColor:
-                      AlwaysStoppedAnimation<Color>(
+                      AlwaysStoppedAnimation<
+                          Color>(
                     Color(0xFFE45D32),
                   ),
                 ),
@@ -626,7 +843,7 @@ class _InstaWalkContainerState
   }
 
   // =========================================================
-  // SEARCHING
+  // SEARCHING UI
   // =========================================================
 
   Widget _searchingContainer() {
@@ -641,7 +858,8 @@ class _InstaWalkContainerState
                   CircularProgressIndicator(
                 strokeWidth: 2.5,
                 valueColor:
-                    AlwaysStoppedAnimation<Color>(
+                    AlwaysStoppedAnimation<
+                        Color>(
                   Colors.white,
                 ),
               ),
@@ -652,7 +870,8 @@ class _InstaWalkContainerState
                 'Searching for a walker...',
                 style: TextStyle(
                   color: Colors.white,
-                  fontWeight: FontWeight.w800,
+                  fontWeight:
+                      FontWeight.w800,
                 ),
               ),
             ),
@@ -661,7 +880,8 @@ class _InstaWalkContainerState
               style: const TextStyle(
                 color: Colors.white,
                 fontSize: 18,
-                fontWeight: FontWeight.w800,
+                fontWeight:
+                    FontWeight.w800,
               ),
             ),
           ],
@@ -671,7 +891,8 @@ class _InstaWalkContainerState
 
         Container(
           width: double.infinity,
-          padding: const EdgeInsets.all(13),
+          padding:
+              const EdgeInsets.all(13),
           decoration: BoxDecoration(
             color:
                 Colors.white.withOpacity(.13),
@@ -715,7 +936,7 @@ class _InstaWalkContainerState
   }
 
   // =========================================================
-  // SEARCH FINISHED
+  // SEARCH FINISHED UI
   // =========================================================
 
   Widget _retryContainer() {
@@ -747,7 +968,8 @@ class _InstaWalkContainerState
         SizedBox(
           width: double.infinity,
           height: 50,
-          child: ElevatedButton.icon(
+          child:
+              ElevatedButton.icon(
             onPressed: _retrySearch,
             icon: const Icon(
               Icons.refresh_rounded,
@@ -755,14 +977,19 @@ class _InstaWalkContainerState
             label: const Text(
               'Re-search',
               style: TextStyle(
-                fontWeight: FontWeight.w800,
+                fontWeight:
+                    FontWeight.w800,
               ),
             ),
-            style: ElevatedButton.styleFrom(
-              backgroundColor: Colors.black,
-              foregroundColor: Colors.white,
+            style:
+                ElevatedButton.styleFrom(
+              backgroundColor:
+                  Colors.black,
+              foregroundColor:
+                  Colors.white,
               elevation: 0,
-              shape: RoundedRectangleBorder(
+              shape:
+                  RoundedRectangleBorder(
                 borderRadius:
                     BorderRadius.circular(15),
               ),
