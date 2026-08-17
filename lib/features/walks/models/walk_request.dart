@@ -1,6 +1,6 @@
 class WalkRequest {
   final String id;
-  final String ownerUid;
+  final String ownerId;
   final String ownerName;
   final String dogName;
   final String pickupAddress;
@@ -9,12 +9,12 @@ class WalkRequest {
   final double? pickupLatitude;
   final double? pickupLongitude;
   final String status;
-  final String? walkerUid;
+  final String? walkerId;
   final String? acceptedBy;
 
   const WalkRequest({
     required this.id,
-    required this.ownerUid,
+    required this.ownerId,
     required this.ownerName,
     required this.dogName,
     required this.pickupAddress,
@@ -23,7 +23,7 @@ class WalkRequest {
     required this.status,
     this.pickupLatitude,
     this.pickupLongitude,
-    this.walkerUid,
+    this.walkerId,
     this.acceptedBy,
   });
 
@@ -33,27 +33,47 @@ class WalkRequest {
   ) {
     return WalkRequest(
       id: id,
-      ownerUid: data['ownerUid']?.toString() ?? '',
+
+      ownerId:
+          data['ownerId']?.toString() ?? '',
+
       ownerName:
-          data['ownerName']?.toString() ?? 'Dog Owner',
+          data['ownerName']?.toString() ??
+          'Dog Owner',
+
       dogName:
-          data['dogName']?.toString() ?? 'Dog',
+          data['dogName']?.toString() ??
+          'Dog',
+
       pickupAddress:
           data['address']?.toString() ??
           data['pickupAddress']?.toString() ??
           'Pickup location unavailable',
+
       distanceKm:
           _doubleValue(data['distanceKm']),
+
       estimatedTime:
-          data['estimatedTime']?.toString() ?? 'Nearby',
+          data['estimatedTime']?.toString() ??
+          'Nearby',
+
       status:
-          data['status']?.toString() ?? 'searching',
+          data['status']?.toString() ??
+          'searching',
+
       pickupLatitude:
-          _nullableDouble(data['pickupLatitude']),
+          _nullableDouble(
+            data['pickupLatitude'],
+          ),
+
       pickupLongitude:
-          _nullableDouble(data['pickupLongitude']),
-      walkerUid:
-          data['walkerUid']?.toString(),
+          _nullableDouble(
+            data['pickupLongitude'],
+          ),
+
+      walkerId:
+          data['walkerId']?.toString(),
+
       acceptedBy:
           data['acceptedBy']?.toString(),
     );
@@ -70,7 +90,9 @@ class WalkRequest {
         999;
   }
 
-  static double? _nullableDouble(dynamic value) {
+  static double? _nullableDouble(
+    dynamic value,
+  ) {
     if (value is num) {
       return value.toDouble();
     }
