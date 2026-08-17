@@ -19,22 +19,23 @@ class WalksFirestoreService {
     }
 
     try {
-      // Firebase UID सिर्फ identity mapping के लिए।
-      final userDoc = await _firestore
-          .collection('users')
+      // Firebase UID से Owner Profile खोजें
+      final ownerDoc = await _firestore
+          .collection('ownerProfiles')
           .doc(user.uid)
           .get();
 
-      final data = userDoc.data();
+      final data = ownerDoc.data();
 
       final String ownerId =
-          data?['Owner ID']?.toString().trim() ?? '';
+          data?['ownerId']?.toString().trim() ?? '';
 
       if (ownerId.isEmpty) {
         yield [];
         return;
       }
 
+      // अब Walks में Owner ID से search होगा
       await for (final snapshot in _firestore
           .collection('walks')
           .where(
