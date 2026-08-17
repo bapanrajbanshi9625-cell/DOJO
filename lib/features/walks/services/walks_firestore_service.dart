@@ -10,35 +10,50 @@ class WalksFirestoreService {
   final FirebaseAuth _auth =
       FirebaseAuth.instance;
 
-  Stream<List<WalkModel>> watchOwnerWalks() {
+  Stream<List<WalkModel>> watchOwnerWalks() async* {
     final user = _auth.currentUser;
 
     if (user == null) {
-      return Stream.value([]);
+      yield [];
+      return;
     }
 
-    return _firestore
-        .collection('walks')
-        .where(
-          'ownerUid',
-          isEqualTo: user.uid,
-        )
-        .snapshots()
-        .map(
-          (snapshot) {
-            final walks = snapshot.docs
-                .map(
-                  WalkModel.fromFirestore,
-                )
-                .toList();
+    try {
+      // Firebase UID सिर्फ identity mapping के लिए।
+      final userDoc = await _firestore
+          .collection('users')
+          .doc(user.uid)
+          .get();
 
-            walks.sort(
-              (a, b) =>
-                  b.date.compareTo(a.date),
-            );
+      final data = userDoc.data();
 
-            return walks;
-          },
+      final String ownerId =
+          data?['Owner ID']?.toString().trim() ?? '';
+
+      if (ownerId.isEmpty) {
+        yield [];
+        return;
+      }
+
+      await for (final snapshot in _firestore
+          .collection('walks')
+          .where(
+            'ownerId',
+            isEqualTo: ownerId,
+          )
+          .snapshots()) {
+        final walks = snapshot.docs
+            .map(WalkModel.fromFirestore)
+            .toList();
+
+        walks.sort(
+          (a, b) => b.date.compareTo(a.date),
         );
+
+        yield walks;
+      }
+    } catch (_) {
+      yield [];
+    }
   }
 }
