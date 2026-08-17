@@ -28,7 +28,7 @@ jobs:
       # ==========================================================
 
       - name: Checkout repository
-        uses: actions/checkout@v6
+        uses: actions/checkout@v4
 
 
       # ==========================================================
@@ -46,12 +46,6 @@ jobs:
       # ==========================================================
       # 3. FLUTTER
       # ==========================================================
-      #
-      # Latest stable Flutter currently available:
-      # Flutter 3.44.8
-      #
-      # Do NOT use beta 3.47 here.
-      #
 
       - name: Set up Flutter
         uses: subosito/flutter-action@v2
@@ -74,7 +68,7 @@ jobs:
 
 
       # ==========================================================
-      # 5. CHECK IMPORTANT FILES
+      # 5. VERIFY IMPORTANT PROJECT FILES
       # ==========================================================
 
       - name: Verify project files
@@ -85,17 +79,11 @@ jobs:
           echo "Checking important Dojo Walk files..."
 
           test -f pubspec.yaml
-
           test -f lib/main.dart
-
           test -f lib/app.dart
-
           test -f lib/firebase_options.dart
-
           test -f lib/screens/splash_screen.dart
-
           test -f android/app/google-services.json
-
           test -f assets/DOJO_WALK.png
 
           if [ -f assets/dojo_splash.png ]; then
@@ -119,7 +107,7 @@ jobs:
 
 
       # ==========================================================
-      # 7. CHECK DEPENDENCY TREE
+      # 7. CHECK DEPENDENCIES
       # ==========================================================
 
       - name: Check dependencies
@@ -127,7 +115,7 @@ jobs:
 
 
       # ==========================================================
-      # 8. ANALYZE
+      # 8. ANALYZE FLUTTER CODE
       # ==========================================================
 
       - name: Analyze Dojo Walk code
@@ -135,7 +123,7 @@ jobs:
 
 
       # ==========================================================
-      # 9. TEST
+      # 9. RUN TESTS
       # ==========================================================
 
       - name: Run Dojo Walk tests
@@ -160,7 +148,7 @@ jobs:
 
 
       # ==========================================================
-      # 11. VERIFY ANDROID CONFIGURATION
+      # 11. VERIFY ANDROID PROJECT
       # ==========================================================
 
       - name: Verify Android project
@@ -182,7 +170,7 @@ jobs:
 
 
       # ==========================================================
-      # 12. VERIFY LAUNCHER ICON
+      # 12. GENERATE LAUNCHER ICON
       # ==========================================================
 
       - name: Generate launcher icon
@@ -225,7 +213,7 @@ jobs:
 
 
       # ==========================================================
-      # 14. CLEAN BUILD
+      # 14. CLEAN PROJECT
       # ==========================================================
 
       - name: Flutter clean
