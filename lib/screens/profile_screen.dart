@@ -5,12 +5,14 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 
 import '../features/profile/profile_features.dart';
+import '../services/profile_setup_service.dart';
 
 class ProfileScreen extends StatefulWidget {
   const ProfileScreen({super.key});
 
   @override
-  State<ProfileScreen> createState() => _ProfileScreenState();
+  State<ProfileScreen> createState() =>
+      _ProfileScreenState();
 }
 
 class _ProfileScreenState extends State<ProfileScreen> {
@@ -18,22 +20,33 @@ class _ProfileScreenState extends State<ProfileScreen> {
   // COLORS
   // ============================================================
 
-  static const Color orange = Color(0xFFF4511E);
-  static const Color navy = Color(0xFF263746);
-  static const Color background = Color(0xFFEDEFF2);
+  static const Color orange =
+      Color(0xFFF4511E);
+
+  static const Color navy =
+      Color(0xFF263746);
+
+  static const Color background =
+      Color(0xFFEDEFF2);
 
   // ============================================================
   // PROFILE DATA
   // ============================================================
 
   String mobileNumber = '';
-  String ownerUid = '';
+
+  // BUSINESS ID
+  String ownerId = '';
+
+  // BACKEND UID
+  String authUid = '';
 
   String ownerName = 'Owner';
   String ownerAge = '-';
   String ownerGender = '-';
   String memberSince = '-';
 
+  bool isActive = true;
   bool isLoading = true;
 
   // ============================================================
@@ -43,15 +56,20 @@ class _ProfileScreenState extends State<ProfileScreen> {
   @override
   void initState() {
     super.initState();
+
     _loadOwnerProfile();
   }
 
   // ============================================================
-  // LOAD PROFILE FROM FIREBASE
+  // LOAD OWNER PROFILE
   // ============================================================
 
   Future<void> _loadOwnerProfile() async {
     try {
+      // ========================================================
+      // CURRENT FIREBASE USER
+      // ========================================================
+
       final User? user =
           FirebaseAuth.instance.currentUser;
 
@@ -65,29 +83,106 @@ class _ProfileScreenState extends State<ProfileScreen> {
         return;
       }
 
-      final String uid = user.uid;
-      final String phone = user.phoneNumber ?? '';
+      // ========================================================
+      // GET OWNER PROFILE
+      // ========================================================
+      //
+      // IMPORTANT:
+      //
+      // This now reads:
+      //
+      // ownerProfiles/{ownerId}
+      //
+      // NOT:
+      //
+      // users/{uid}
+      //
+      // ========================================================
 
       final DocumentSnapshot<Map<String, dynamic>>
           snapshot =
-          await FirebaseFirestore.instance
-              .collection('users')
-              .doc(uid)
-              .get();
+          await ProfileSetupService
+              .getCurrentOwnerProfile();
+
+      if (!snapshot.exists) {
+        if (!mounted) return;
+
+        setState(() {
+          authUid = user.uid;
+
+          mobileNumber =
+              _formatIndianNumber(
+            user.phoneNumber ?? '',
+          );
+
+          isLoading = false;
+        });
+
+        return;
+      }
 
       final Map<String, dynamic>? data =
           snapshot.data();
 
+      // ========================================================
+      // OWNER ID
+      // ========================================================
+
+      final String loadedOwnerId =
+          data?['ownerId']?.toString() ??
+              snapshot.id;
+
+      // ========================================================
+      // AUTH UID
+      // ========================================================
+
+      final String loadedAuthUid =
+          data?['authUid']?.toString() ??
+              user.uid;
+
+      // ========================================================
+      // PHONE
+      // ========================================================
+
+      final String phone =
+          data?['phone']?.toString() ??
+              user.phoneNumber ??
+              '';
+
+      // ========================================================
+      // FULL NAME
+      // ========================================================
+
       final String name =
-          data?['name']?.toString() ??
-              data?['fullName']?.toString() ??
+          data?['fullName']?.toString() ??
               'Owner';
 
+      // ========================================================
+      // AGE
+      // ========================================================
+
       final String age =
-          data?['age']?.toString() ?? '-';
+          data?['age']?.toString() ??
+              '-';
+
+      // ========================================================
+      // GENDER
+      // ========================================================
 
       final String gender =
-          data?['gender']?.toString() ?? '-';
+          data?['gender']?.toString() ??
+              '-';
+
+      // ========================================================
+      // ACTIVE STATUS
+      // ========================================================
+
+      final bool active =
+          data?['isActive'] == true;
+
+      // ========================================================
+      // MEMBER SINCE
+      // ========================================================
 
       String joinedDate = '-';
 
@@ -102,29 +197,37 @@ class _ProfileScreenState extends State<ProfileScreen> {
             '${_monthName(date.month)} '
             '${date.day}, '
             '${date.year}';
-      } else if (data?['memberSince'] != null) {
-        joinedDate =
-            data!['memberSince'].toString();
       }
+
+      // ========================================================
+      // UPDATE UI
+      // ========================================================
 
       if (!mounted) return;
 
       setState(() {
-        ownerUid = uid;
+        ownerId = loadedOwnerId;
+
+        authUid = loadedAuthUid;
 
         mobileNumber =
             _formatIndianNumber(phone);
 
         ownerName = name;
+
         ownerAge = age;
+
         ownerGender = gender;
+
         memberSince = joinedDate;
+
+        isActive = active;
 
         isLoading = false;
       });
     } catch (e) {
       debugPrint(
-        'Profile Firebase Error: $e',
+        'Owner Profile Firebase Error: $e',
       );
 
       if (!mounted) return;
@@ -132,6 +235,14 @@ class _ProfileScreenState extends State<ProfileScreen> {
       setState(() {
         isLoading = false;
       });
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text(
+            'Unable to load owner profile.',
+          ),
+        ),
+      );
     }
   }
 
@@ -139,7 +250,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
   // FORMAT MOBILE NUMBER
   // ============================================================
 
-  String _formatIndianNumber(String number) {
+  String _formatIndianNumber(
+    String number,
+  ) {
     final String clean =
         number.replaceAll(
       RegExp(r'[^0-9]'),
@@ -157,7 +270,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
           '${last10.substring(5)}';
     }
 
-    return number.isEmpty ? '-' : number;
+    return number.isEmpty
+        ? '-'
+        : number;
   }
 
   // ============================================================
@@ -181,6 +296,11 @@ class _ProfileScreenState extends State<ProfileScreen> {
       'Dec',
     ];
 
+    if (month < 1 ||
+        month > 12) {
+      return '';
+    }
+
     return months[month];
   }
 
@@ -191,7 +311,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
   void _openChangeMobile() {
     if (mobileNumber.isEmpty ||
         mobileNumber == '-') {
-      ScaffoldMessenger.of(context).showSnackBar(
+      ScaffoldMessenger.of(context)
+          .showSnackBar(
         const SnackBar(
           content: Text(
             'Current mobile number is not available.',
@@ -206,15 +327,19 @@ class _ProfileScreenState extends State<ProfileScreen> {
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.white,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(
+      shape:
+          const RoundedRectangleBorder(
+        borderRadius:
+            BorderRadius.vertical(
           top: Radius.circular(24),
         ),
       ),
       builder: (_) {
         return ChangeMobileFlow(
           currentNumber: mobileNumber,
-          onChanged: (String newNumber) {
+          onChanged: (
+            String newNumber,
+          ) {
             if (!mounted) return;
 
             setState(() {
@@ -227,25 +352,27 @@ class _ProfileScreenState extends State<ProfileScreen> {
   }
 
   // ============================================================
-  // COPY UID
+  // COPY OWNER ID
   // ============================================================
 
-  Future<void> _copyOwnerUid() async {
-    if (ownerUid.isEmpty) return;
+  Future<void> _copyOwnerId() async {
+    if (ownerId.isEmpty) return;
 
     await Clipboard.setData(
       ClipboardData(
-        text: ownerUid,
+        text: ownerId,
       ),
     );
 
     if (!mounted) return;
 
-    ScaffoldMessenger.of(context).showSnackBar(
+    ScaffoldMessenger.of(context)
+        .showSnackBar(
       const SnackBar(
-        backgroundColor: Color(0xFF303030),
+        backgroundColor:
+            Color(0xFF303030),
         content: Text(
-          'Owner UID copied.',
+          'Owner ID copied.',
         ),
       ),
     );
@@ -256,7 +383,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
   // ============================================================
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(
+    BuildContext context,
+  ) {
     return Scaffold(
       backgroundColor: background,
 
@@ -268,7 +397,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
         backgroundColor: orange,
         foregroundColor: Colors.white,
         elevation: 0,
-
         toolbarHeight: 52,
 
         leading: IconButton(
@@ -296,7 +424,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
               'Profile',
               style: TextStyle(
                 fontSize: 18,
-                fontWeight: FontWeight.w800,
+                fontWeight:
+                    FontWeight.w800,
               ),
             ),
           ],
@@ -310,21 +439,25 @@ class _ProfileScreenState extends State<ProfileScreen> {
       body: SafeArea(
         child: isLoading
             ? const Center(
-                child: CircularProgressIndicator(
+                child:
+                    CircularProgressIndicator(
                   color: orange,
                   strokeWidth: 2.5,
                 ),
               )
             : RefreshIndicator(
                 color: orange,
-                onRefresh: _loadOwnerProfile,
+                onRefresh:
+                    _loadOwnerProfile,
 
-                child: SingleChildScrollView(
+                child:
+                    SingleChildScrollView(
                   physics:
                       const AlwaysScrollableScrollPhysics(),
 
                   padding:
-                      const EdgeInsets.fromLTRB(
+                      const EdgeInsets
+                          .fromLTRB(
                     15,
                     12,
                     15,
@@ -333,7 +466,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
                   child: Column(
                     crossAxisAlignment:
-                        CrossAxisAlignment.start,
+                        CrossAxisAlignment
+                            .start,
 
                     children: [
                       // ==================================================
@@ -341,7 +475,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
                       // ==================================================
 
                       ProfileCard(
-                        ownerName: ownerName,
+                        ownerName:
+                            ownerName,
                       ),
 
                       const SizedBox(
@@ -362,7 +497,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
                               color: orange,
                               borderRadius:
                                   BorderRadius
-                                      .circular(5),
+                                      .circular(
+                                5,
+                              ),
                             ),
                           ),
 
@@ -376,7 +513,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
                               color: navy,
                               fontSize: 16,
                               fontWeight:
-                                  FontWeight.w900,
+                                  FontWeight
+                                      .w900,
                             ),
                           ),
                         ],
@@ -393,25 +531,129 @@ class _ProfileScreenState extends State<ProfileScreen> {
                       OwnerInformationCard(
                         mobileNumber:
                             mobileNumber,
+
                         ownerName:
                             ownerName,
+
                         ownerAge:
                             ownerAge,
+
                         ownerGender:
                             ownerGender,
+
+                        // IMPORTANT:
+                        // Owner UID replaced by Owner ID.
                         ownerUid:
-                            ownerUid,
+                            ownerId,
+
                         memberSince:
                             memberSince,
+
                         onChangeMobile:
                             _openChangeMobile,
+
                         onCopyUid:
-                            _copyOwnerUid,
+                            _copyOwnerId,
+                      ),
+
+                      const SizedBox(
+                        height: 12,
+                      ),
+
+                      // ==================================================
+                      // ACTIVE STATUS
+                      // ==================================================
+
+                      _OwnerStatusCard(
+                        isActive:
+                            isActive,
                       ),
                     ],
                   ),
                 ),
               ),
+      ),
+    );
+  }
+}
+
+// ============================================================
+// OWNER STATUS CARD
+// ============================================================
+
+class _OwnerStatusCard
+    extends StatelessWidget {
+  final bool isActive;
+
+  const _OwnerStatusCard({
+    required this.isActive,
+  });
+
+  @override
+  Widget build(
+    BuildContext context,
+  ) {
+    return Container(
+      width: double.infinity,
+      padding:
+          const EdgeInsets.symmetric(
+        horizontal: 16,
+        vertical: 14,
+      ),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius:
+            BorderRadius.circular(14),
+      ),
+      child: Row(
+        children: [
+          Icon(
+            isActive
+                ? Icons.check_circle_rounded
+                : Icons.block_rounded,
+            color: isActive
+                ? Colors.green
+                : Colors.red,
+            size: 24,
+          ),
+
+          const SizedBox(width: 10),
+
+          Expanded(
+            child: Column(
+              crossAxisAlignment:
+                  CrossAxisAlignment.start,
+              children: [
+                const Text(
+                  'Account Status',
+                  style: TextStyle(
+                    fontWeight:
+                        FontWeight.w700,
+                    color:
+                        Color(0xFF263746),
+                  ),
+                ),
+
+                const SizedBox(
+                  height: 3,
+                ),
+
+                Text(
+                  isActive
+                      ? 'Active'
+                      : 'Inactive',
+                  style: TextStyle(
+                    color: isActive
+                        ? Colors.green
+                        : Colors.red,
+                    fontWeight:
+                        FontWeight.w600,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
       ),
     );
   }
