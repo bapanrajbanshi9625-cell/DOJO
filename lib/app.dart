@@ -1,3 +1,9 @@
+import 'package:flutter/material.dart';
+
+import 'core/constants/app_colors.dart';
+import 'core/network/network_monitor.dart';
+import 'screens/splash_screen.dart';
+
 class DojoWalk extends StatelessWidget {
   const DojoWalk({super.key});
 
@@ -5,6 +11,7 @@ class DojoWalk extends StatelessWidget {
   Widget build(BuildContext context) {
     return MaterialApp(
       title: 'Dojo',
+
       debugShowCheckedModeBanner: false,
 
       theme: ThemeData(
