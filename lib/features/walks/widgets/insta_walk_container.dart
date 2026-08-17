@@ -66,18 +66,55 @@ class _InstaWalkContainerState
     });
 
     try {
-      final userDoc = await _firestore
-          .collection('users')
+      // =====================================================
+      // OWNER PROFILE
+      // Firebase UID -> ownerProfiles/{UID} -> ownerId
+      // =====================================================
+
+      final ownerDoc = await _firestore
+          .collection('ownerProfiles')
           .doc(user.uid)
           .get();
 
-      final data = userDoc.data();
+      if (!ownerDoc.exists) {
+        if (!mounted) return;
 
-      final dynamic addressValue =
-          data?['address'];
+        setState(() {
+          _checkingAddress = false;
+        });
+
+        _showMessage(
+          'Owner profile not found. Please complete your profile.',
+        );
+
+        return;
+      }
+
+      final ownerData = ownerDoc.data();
+
+      final String ownerId =
+          ownerData?['ownerId']?.toString().trim() ?? '';
+
+      if (ownerId.isEmpty) {
+        if (!mounted) return;
+
+        setState(() {
+          _checkingAddress = false;
+        });
+
+        _showMessage(
+          'Owner ID not found. Please complete your profile.',
+        );
+
+        return;
+      }
+
+      // =====================================================
+      // OWNER ADDRESS
+      // =====================================================
 
       final String address =
-          addressValue?.toString().trim() ?? '';
+          ownerData?['address']?.toString().trim() ?? '';
 
       if (!mounted) return;
 
@@ -96,8 +133,21 @@ class _InstaWalkContainerState
         return;
       }
 
+      // =====================================================
+      // OWNER NAME
+      // =====================================================
+
+      final String ownerName =
+          ownerData?['fullName']?.toString().trim() ??
+              'Dog Owner';
+
+      // =====================================================
+      // START SEARCH
+      // =====================================================
+
       await _startSearch(
-        ownerUid: user.uid,
+        ownerId: ownerId,
+        ownerName: ownerName,
         address: address,
       );
     } catch (e) {
@@ -118,7 +168,8 @@ class _InstaWalkContainerState
   // =========================================================
 
   Future<void> _startSearch({
-    required String ownerUid,
+    required String ownerId,
+    required String ownerName,
     required String address,
   }) async {
     _timer?.cancel();
@@ -135,17 +186,29 @@ class _InstaWalkContainerState
               .collection('walk_requests')
               .doc();
 
+      // =====================================================
+      // CREATE WALK REQUEST
+      // =====================================================
+
       await requestRef.set({
-        'ownerUid': ownerUid,
+        'ownerId': ownerId,
+        'ownerName': ownerName,
+
         'address': address,
+
         'status': 'searching',
-        'distanceKm': 3,
+
+        'distanceKm': 3.0,
+
         'createdAt':
             FieldValue.serverTimestamp(),
+
         'expiresAt':
             Timestamp.fromDate(expiresAt),
+
         'acceptedBy': null,
-        'walkerUid': null,
+
+        'walkerId': null,
       });
 
       if (!mounted) return;
@@ -391,8 +454,7 @@ class _InstaWalkContainerState
   void _showMessage(String message) {
     if (!mounted) return;
 
-    ScaffoldMessenger.of(context)
-        .showSnackBar(
+    ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Text(message),
       ),
@@ -424,15 +486,12 @@ class _InstaWalkContainerState
             begin: Alignment.topLeft,
             end: Alignment.bottomRight,
           ),
-          borderRadius:
-              BorderRadius.circular(24),
+          borderRadius: BorderRadius.circular(24),
           boxShadow: [
             BoxShadow(
-              color:
-                  Colors.black.withOpacity(.08),
+              color: Colors.black.withOpacity(.08),
               blurRadius: 18,
-              offset:
-                  const Offset(0, 7),
+              offset: const Offset(0, 7),
             ),
           ],
         ),
@@ -499,8 +558,7 @@ class _InstaWalkContainerState
 
             const SizedBox(height: 16),
 
-            if (!_searching &&
-                !_searchFinished)
+            if (!_searching && !_searchFinished)
               _findButton(),
 
             if (_searching)
@@ -524,9 +582,7 @@ class _InstaWalkContainerState
       height: 50,
       child: ElevatedButton.icon(
         onPressed:
-            _checkingAddress
-                ? null
-                : _findWalker,
+            _checkingAddress ? null : _findWalker,
         icon: _checkingAddress
             ? const SizedBox(
                 height: 18,
@@ -535,8 +591,7 @@ class _InstaWalkContainerState
                     CircularProgressIndicator(
                   strokeWidth: 2,
                   valueColor:
-                      AlwaysStoppedAnimation<
-                          Color>(
+                      AlwaysStoppedAnimation<Color>(
                     Color(0xFFE45D32),
                   ),
                 ),
@@ -561,8 +616,7 @@ class _InstaWalkContainerState
           disabledForegroundColor:
               const Color(0xFFE45D32),
           elevation: 0,
-          shape:
-              RoundedRectangleBorder(
+          shape: RoundedRectangleBorder(
             borderRadius:
                 BorderRadius.circular(15),
           ),
@@ -587,8 +641,7 @@ class _InstaWalkContainerState
                   CircularProgressIndicator(
                 strokeWidth: 2.5,
                 valueColor:
-                    AlwaysStoppedAnimation<
-                        Color>(
+                    AlwaysStoppedAnimation<Color>(
                   Colors.white,
                 ),
               ),
@@ -599,8 +652,7 @@ class _InstaWalkContainerState
                 'Searching for a walker...',
                 style: TextStyle(
                   color: Colors.white,
-                  fontWeight:
-                      FontWeight.w800,
+                  fontWeight: FontWeight.w800,
                 ),
               ),
             ),
@@ -609,8 +661,7 @@ class _InstaWalkContainerState
               style: const TextStyle(
                 color: Colors.white,
                 fontSize: 18,
-                fontWeight:
-                    FontWeight.w800,
+                fontWeight: FontWeight.w800,
               ),
             ),
           ],
@@ -620,8 +671,7 @@ class _InstaWalkContainerState
 
         Container(
           width: double.infinity,
-          padding:
-              const EdgeInsets.all(13),
+          padding: const EdgeInsets.all(13),
           decoration: BoxDecoration(
             color:
                 Colors.white.withOpacity(.13),
@@ -705,18 +755,14 @@ class _InstaWalkContainerState
             label: const Text(
               'Re-search',
               style: TextStyle(
-                fontWeight:
-                    FontWeight.w800,
+                fontWeight: FontWeight.w800,
               ),
             ),
             style: ElevatedButton.styleFrom(
-              backgroundColor:
-                  Colors.black,
-              foregroundColor:
-                  Colors.white,
+              backgroundColor: Colors.black,
+              foregroundColor: Colors.white,
               elevation: 0,
-              shape:
-                  RoundedRectangleBorder(
+              shape: RoundedRectangleBorder(
                 borderRadius:
                     BorderRadius.circular(15),
               ),
