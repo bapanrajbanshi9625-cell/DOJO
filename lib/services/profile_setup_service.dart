@@ -38,12 +38,12 @@ class ProfileSetupService {
     }
 
     // ==========================================================
-    // 2. FIREBASE UID
+    // 2. FIREBASE AUTH UID
     // ==========================================================
 
-    final String uid = user.uid.trim();
+    final String authUid = user.uid.trim();
 
-    if (uid.isEmpty) {
+    if (authUid.isEmpty) {
       throw FirebaseException(
         plugin: 'firebase_auth',
         code: 'uid-missing',
@@ -68,25 +68,40 @@ class ProfileSetupService {
     }
 
     // ==========================================================
-    // 4. OWNER BUSINESS ID
+    // 4. GET / CREATE BUSINESS OWNER ID
+    // ==========================================================
+    //
+    // Example:
+    //
+    // Firebase UID:
+    // abc123xyz...
+    //
+    // Business Owner ID:
+    // OWN26GM0001
+    //
+    // Firebase UID = backend authentication identity
+    // Owner ID    = business identity
+    //
     // ==========================================================
 
     final String ownerId =
-        await OwnerIdService.instance.getOrCreateOwnerId(
-      uid: uid,
+        (await OwnerIdService.instance.getOrCreateOwnerId(
+      uid: authUid,
       phoneNumber: mobileNumber,
-    );
+    ))
+        .trim();
 
-    if (ownerId.trim().isEmpty) {
+    if (ownerId.isEmpty) {
       throw FirebaseException(
         plugin: 'cloud_firestore',
         code: 'owner-id-missing',
-        message: 'Owner ID could not be created.',
+        message:
+            'Business Owner ID could not be created.',
       );
     }
 
     // ==========================================================
-    // 5. PET DATA
+    // 5. CONVERT PET DATA
     // ==========================================================
 
     final List<Map<String, dynamic>> petData =
@@ -95,7 +110,7 @@ class ProfileSetupService {
     }).toList();
 
     // ==========================================================
-    // 6. OWNER PROFILE REFERENCE
+    // 6. OWNER PROFILE DOCUMENT
     // ==========================================================
 
     final DocumentReference<Map<String, dynamic>>
@@ -105,134 +120,123 @@ class ProfileSetupService {
             .doc(ownerId);
 
     // ==========================================================
-    // 7. GET EXISTING OWNER PROFILE
+    // 7. CHECK EXISTING PROFILE
     // ==========================================================
 
     final DocumentSnapshot<Map<String, dynamic>>
         existingProfile =
         await ownerProfileRef.get();
 
+    final Map<String, dynamic>? existingData =
+        existingProfile.data();
+
     // ==========================================================
     // 8. SAVE OWNER PROFILE
     // ==========================================================
 
+    final Map<String, dynamic> profileData =
+        <String, dynamic>{
+      // --------------------------------------------------------
+      // BUSINESS OWNER ID
+      // --------------------------------------------------------
+
+      'ownerId': ownerId,
+
+      // --------------------------------------------------------
+      // FIREBASE AUTH UID
+      // --------------------------------------------------------
+
+      'authUid': authUid,
+
+      // --------------------------------------------------------
+      // MOBILE
+      // --------------------------------------------------------
+
+      'phone': mobileNumber,
+
+      // --------------------------------------------------------
+      // OWNER NAME
+      // --------------------------------------------------------
+
+      'fullName': ownerName.trim(),
+
+      // --------------------------------------------------------
+      // ADDRESS
+      // --------------------------------------------------------
+
+      'address': address.trim(),
+
+      // --------------------------------------------------------
+      // PETS
+      // --------------------------------------------------------
+
+      'pets': petData,
+
+      // --------------------------------------------------------
+      // ROLE
+      // --------------------------------------------------------
+
+      'role': 'owner',
+
+      // --------------------------------------------------------
+      // PROFILE COMPLETED
+      // --------------------------------------------------------
+
+      'profileCompleted': true,
+
+      // --------------------------------------------------------
+      // UPDATED
+      // --------------------------------------------------------
+
+      'updatedAt':
+          FieldValue.serverTimestamp(),
+    };
+
+    // ==========================================================
+    // 9. PROFILE PHOTO
+    // ==========================================================
+    //
+    // Existing photo must never be accidentally deleted.
+    //
+    // ==========================================================
+
+    final dynamic existingPhoto =
+        existingData?['profilePhoto'];
+
+    if (!existingProfile.exists ||
+        existingPhoto == null) {
+      profileData['profilePhoto'] = '';
+    }
+
+    // ==========================================================
+    // 10. ACTIVE STATUS
+    // ==========================================================
+
+    if (!existingProfile.exists) {
+      profileData['isActive'] = true;
+    }
+
+    // ==========================================================
+    // 11. CREATED AT
+    // ==========================================================
+
+    if (!existingProfile.exists) {
+      profileData['createdAt'] =
+          FieldValue.serverTimestamp();
+    }
+
+    // ==========================================================
+    // 12. WRITE
+    // ==========================================================
+
     await ownerProfileRef.set(
-      {
-        // ------------------------------------------------------
-        // BUSINESS OWNER ID
-        // ------------------------------------------------------
-
-        'ownerId': ownerId,
-
-        // ------------------------------------------------------
-        // FIREBASE AUTH UID
-        // ------------------------------------------------------
-
-        'authUid': uid,
-
-        // ------------------------------------------------------
-        // MOBILE
-        // ------------------------------------------------------
-
-        'phone': mobileNumber,
-
-        // ------------------------------------------------------
-        // OWNER NAME
-        // ------------------------------------------------------
-
-        'fullName': ownerName.trim(),
-
-        // ------------------------------------------------------
-        // ADDRESS
-        // ------------------------------------------------------
-
-        'address': address.trim(),
-
-        // ------------------------------------------------------
-        // PETS
-        // ------------------------------------------------------
-
-        'pets': petData,
-
-        // ------------------------------------------------------
-        // PROFILE PHOTO
-        // ------------------------------------------------------
-
-        if (!existingProfile.exists ||
-            existingProfile.data()?['profilePhoto'] == null)
-          'profilePhoto': '',
-
-        // ------------------------------------------------------
-        // ROLE
-        // ------------------------------------------------------
-
-        'role': 'owner',
-
-        // ------------------------------------------------------
-        // ACTIVE STATUS
-        // ------------------------------------------------------
-
-        if (!existingProfile.exists)
-          'isActive': true,
-
-        // ------------------------------------------------------
-        // PROFILE COMPLETED
-        // ------------------------------------------------------
-
-        'profileCompleted': true,
-
-        // ------------------------------------------------------
-        // UPDATED
-        // ------------------------------------------------------
-
-        'updatedAt':
-            FieldValue.serverTimestamp(),
-
-        // ------------------------------------------------------
-        // CREATED
-        // ------------------------------------------------------
-
-        if (!existingProfile.exists)
-          'createdAt':
-              FieldValue.serverTimestamp(),
-      },
-      SetOptions(merge: true),
-    );
-
-    // ==========================================================
-    // 9. SYNC USERS/{UID}
-    // ==========================================================
-    //
-    // SplashScreen currently checks:
-    //
-    // users/{Firebase UID}
-    //
-    // Therefore keep this document synchronized with the
-    // ownerProfiles document.
-    //
-    // ==========================================================
-
-    await _firestore
-        .collection('users')
-        .doc(uid)
-        .set(
-      {
-        'uid': uid,
-        'ownerId': ownerId,
-        'phone': mobileNumber,
-        'fullName': ownerName.trim(),
-        'address': address.trim(),
-        'role': 'owner',
-        'profileCompleted': true,
-        'updatedAt':
-            FieldValue.serverTimestamp(),
-      },
+      profileData,
       SetOptions(merge: true),
     );
   }
 
   // ============================================================
-  // GET OWNER PROFILE
+  // GET OWNER PROFILE BY BUSINESS OWNER ID
   // ============================================================
 
   static Future<
@@ -247,7 +251,8 @@ class ProfileSetupService {
       throw FirebaseException(
         plugin: 'cloud_firestore',
         code: 'owner-id-missing',
-        message: 'Owner ID was not found.',
+        message:
+            'Owner ID was not found.',
       );
     }
 
@@ -255,6 +260,39 @@ class ProfileSetupService {
         .collection('ownerProfiles')
         .doc(cleanOwnerId)
         .get();
+  }
+
+  // ============================================================
+  // GET CURRENT BUSINESS OWNER ID
+  // ============================================================
+
+  static Future<String?> getCurrentOwnerId() async {
+    final User? user =
+        _auth.currentUser;
+
+    if (user == null) {
+      return null;
+    }
+
+    final String authUid =
+        user.uid.trim();
+
+    if (authUid.isEmpty) {
+      return null;
+    }
+
+    final String? ownerId =
+        await OwnerIdService.instance
+            .getExistingOwnerId(
+      uid: authUid,
+    );
+
+    if (ownerId == null ||
+        ownerId.trim().isEmpty) {
+      return null;
+    }
+
+    return ownerId.trim();
   }
 
   // ============================================================
@@ -271,22 +309,21 @@ class ProfileSetupService {
       throw FirebaseException(
         plugin: 'firebase_auth',
         code: 'user-not-logged-in',
-        message: 'User is not logged in.',
+        message:
+            'User is not logged in.',
       );
     }
 
     final String? ownerId =
-        await OwnerIdService.instance
-            .getExistingOwnerId(
-      uid: user.uid,
-    );
+        await getCurrentOwnerId();
 
     if (ownerId == null ||
-        ownerId.trim().isEmpty) {
+        ownerId.isEmpty) {
       throw FirebaseException(
         plugin: 'cloud_firestore',
         code: 'owner-id-not-found',
-        message: 'Owner ID was not found.',
+        message:
+            'Owner ID was not found.',
       );
     }
 
@@ -297,17 +334,44 @@ class ProfileSetupService {
   }
 
   // ============================================================
+  // CHECK OWNER PROFILE COMPLETED
+  // ============================================================
+
+  static Future<bool> isOwnerProfileCompleted() async {
+    try {
+      final DocumentSnapshot<
+          Map<String, dynamic>> snapshot =
+          await getCurrentOwnerProfile();
+
+      if (!snapshot.exists) {
+        return false;
+      }
+
+      return snapshot.data()?['profileCompleted'] == true;
+    } catch (_) {
+      return false;
+    }
+  }
+
+  // ============================================================
   // CHECK OWNER ACTIVE STATUS
   // ============================================================
 
   static Future<bool> isOwnerActive({
     required String ownerId,
   }) async {
-    final DocumentSnapshot<Map<String, dynamic>>
-        snapshot =
+    final String cleanOwnerId =
+        ownerId.trim();
+
+    if (cleanOwnerId.isEmpty) {
+      return false;
+    }
+
+    final DocumentSnapshot<
+        Map<String, dynamic>> snapshot =
         await _firestore
             .collection('ownerProfiles')
-            .doc(ownerId)
+            .doc(cleanOwnerId)
             .get();
 
     if (!snapshot.exists) {
