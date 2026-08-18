@@ -37,6 +37,10 @@ class _AddressScreenState extends State<AddressScreen> {
   final TextEditingController _pinCodeController =
       TextEditingController();
 
+  // =========================================================
+  // FIREBASE
+  // =========================================================
+
   final FirebaseFirestore _firestore =
       FirebaseFirestore.instance;
 
@@ -50,9 +54,6 @@ class _AddressScreenState extends State<AddressScreen> {
   DocumentReference<Map<String, dynamic>>?
       _ownerProfileRef;
 
-  // Temporary UI saved addresses.
-  //
-  // Backend functionality can be connected later.
   final List<Map<String, String>> _savedAddresses = [];
 
   // =========================================================
@@ -78,21 +79,30 @@ class _AddressScreenState extends State<AddressScreen> {
       return null;
     }
 
-    final QuerySnapshot<Map<String, dynamic>>
-        query = await _firestore
-            .collection('ownerProfiles')
-            .where(
-              'authUid',
-              isEqualTo: user.uid,
-            )
-            .limit(1)
-            .get();
+    try {
+      final QuerySnapshot<Map<String, dynamic>>
+          query = await _firestore
+              .collection('ownerProfiles')
+              .where(
+                'authUid',
+                isEqualTo: user.uid,
+              )
+              .limit(1)
+              .get();
 
-    if (query.docs.isEmpty) {
-      return null;
+      if (query.docs.isEmpty) {
+        return null;
+      }
+
+      return query.docs.first.reference;
+    } on FirebaseException catch (e) {
+      debugPrint(
+        'FIND OWNER PROFILE ERROR: '
+        '${e.code} - ${e.message}',
+      );
+
+      rethrow;
     }
-
-    return query.docs.first.reference;
   }
 
   // =========================================================
@@ -104,11 +114,14 @@ class _AddressScreenState extends State<AddressScreen> {
         FirebaseAuth.instance.currentUser;
 
     if (user == null) {
-      if (mounted) {
-        setState(() {
-          _loading = false;
-        });
+      if (!mounted) {
+        return;
       }
+
+      setState(() {
+        _loading = false;
+      });
+
       return;
     }
 
@@ -124,6 +137,7 @@ class _AddressScreenState extends State<AddressScreen> {
         setState(() {
           _loading = false;
         });
+
         return;
       }
 
@@ -132,23 +146,32 @@ class _AddressScreenState extends State<AddressScreen> {
       final DocumentSnapshot<Map<String, dynamic>>
           snapshot = await ownerRef.get();
 
+      if (!snapshot.exists) {
+        setState(() {
+          _loading = false;
+        });
+
+        return;
+      }
+
       final Map<String, dynamic> data =
-          snapshot.data() ?? {};
+          snapshot.data() ?? <String, dynamic>{};
 
       // =====================================================
-      // EXISTING ADDRESS
+      // ADDRESS
       // =====================================================
 
       String address =
           data['address']?.toString().trim() ?? '';
 
+      // Backward compatibility with old spelling.
       if (address.isEmpty) {
         address =
             data['Adress']?.toString().trim() ?? '';
       }
 
       // =====================================================
-      // LOAD SEPARATE FIELDS IF AVAILABLE
+      // INDIVIDUAL FIELDS
       // =====================================================
 
       _flatController.text =
@@ -170,7 +193,9 @@ class _AddressScreenState extends State<AddressScreen> {
           data['state']?.toString() ?? '';
 
       _pinCodeController.text =
-          data['pincode']?.toString() ?? '';
+          data['pincode']?.toString() ??
+          data['Pincode']?.toString() ??
+          '';
 
       // =====================================================
       // OLD ADDRESS COMPATIBILITY
@@ -182,16 +207,18 @@ class _AddressScreenState extends State<AddressScreen> {
       }
 
       // =====================================================
-      // ADD EXISTING ADDRESS TO UI
+      // SAVED ADDRESS UI
       // =====================================================
 
-      if (address.isNotEmpty) {
-        _savedAddresses.clear();
+      _savedAddresses.clear();
 
-        _savedAddresses.add({
-          'title': 'Address 1',
-          'address': address,
-        });
+      if (address.isNotEmpty) {
+        _savedAddresses.add(
+          <String, String>{
+            'title': 'Address 1',
+            'address': address,
+          },
+        );
       }
 
       setState(() {
@@ -199,7 +226,8 @@ class _AddressScreenState extends State<AddressScreen> {
       });
     } on FirebaseException catch (e) {
       debugPrint(
-        'ADDRESS LOAD ERROR: ${e.code} - ${e.message}',
+        'ADDRESS LOAD FIREBASE ERROR: '
+        '${e.code} - ${e.message}',
       );
 
       if (!mounted) {
@@ -211,7 +239,9 @@ class _AddressScreenState extends State<AddressScreen> {
       });
 
       _showMessage(
-        'Unable to load address. Please try again.',
+        e.code == 'permission-denied'
+            ? 'You do not have permission to read this address.'
+            : 'Unable to load address. Please try again.',
       );
     } catch (e) {
       debugPrint(
@@ -225,6 +255,10 @@ class _AddressScreenState extends State<AddressScreen> {
       setState(() {
         _loading = false;
       });
+
+      _showMessage(
+        'Unable to load address. Please try again.',
+      );
     }
   }
 
@@ -233,6 +267,10 @@ class _AddressScreenState extends State<AddressScreen> {
   // =========================================================
 
   Future<void> _saveAddress() async {
+    if (_saving) {
+      return;
+    }
+
     final String flat =
         _flatController.text.trim();
 
@@ -253,6 +291,10 @@ class _AddressScreenState extends State<AddressScreen> {
 
     final String pin =
         _pinCodeController.text.trim();
+
+    // =====================================================
+    // VALIDATION
+    // =====================================================
 
     if (line1.isEmpty) {
       _showMessage(
@@ -282,7 +324,7 @@ class _AddressScreenState extends State<AddressScreen> {
       return;
     }
 
-    if (pin.length != 6) {
+    if (!RegExp(r'^\d{6}$').hasMatch(pin)) {
       _showMessage(
         'Please enter a valid 6-digit PIN code.',
       );
@@ -296,6 +338,10 @@ class _AddressScreenState extends State<AddressScreen> {
       _showMessage(
         'Please login first.',
       );
+      return;
+    }
+
+    if (!mounted) {
       return;
     }
 
@@ -333,7 +379,8 @@ class _AddressScreenState extends State<AddressScreen> {
       // BUILD FULL ADDRESS
       // =====================================================
 
-      final List<String> parts = [];
+      final List<String> parts =
+          <String>[];
 
       if (flat.isNotEmpty) {
         parts.add(flat);
@@ -367,41 +414,35 @@ class _AddressScreenState extends State<AddressScreen> {
           parts.join(', ');
 
       // =====================================================
-      // SAVE
+      // SAVE OWNER PROFILE
       // =====================================================
 
       await ownerRef.set(
-        {
+        <String, dynamic>{
           'authUid': user.uid,
-
           'address': fullAddress,
-
           'flatNumber': flat,
-
           'addressLine1': line1,
-
           'addressLine2': line2,
-
           'area': area,
-
           'city': city,
-
           'state': state,
-
           'pincode': pin,
-
           'updatedAt':
               FieldValue.serverTimestamp(),
         },
         SetOptions(merge: true),
       );
 
-      // Keep users collection synchronized.
+      // =====================================================
+      // KEEP USERS COLLECTION SYNCHRONIZED
+      // =====================================================
+
       await _firestore
           .collection('users')
           .doc(user.uid)
           .set(
-        {
+        <String, dynamic>{
           'address': fullAddress,
           'updatedAt':
               FieldValue.serverTimestamp(),
@@ -413,44 +454,50 @@ class _AddressScreenState extends State<AddressScreen> {
         return;
       }
 
+      // =====================================================
+      // UPDATE UI
+      // =====================================================
+
       setState(() {
         _saving = false;
+
+        if (_savedAddresses.isEmpty) {
+          _savedAddresses.add(
+            <String, String>{
+              'title': 'Address 1',
+              'address': fullAddress,
+            },
+          );
+        } else {
+          _savedAddresses[0] =
+              <String, String>{
+            'title': 'Address 1',
+            'address': fullAddress,
+          };
+        }
       });
-
-      // =====================================================
-      // UI ADDRESS CARD
-      // =====================================================
-
-      if (_savedAddresses.isEmpty) {
-        _savedAddresses.add({
-          'title': 'Address 1',
-          'address': fullAddress,
-        });
-      } else {
-        _savedAddresses[0] = {
-          'title': 'Address 1',
-          'address': fullAddress,
-        };
-      }
-
-      setState(() {});
 
       _showMessage(
         'Address saved successfully.',
       );
 
-      await Future.delayed(
-        const Duration(milliseconds: 500),
+      await Future<void>.delayed(
+        const Duration(
+          milliseconds: 500,
+        ),
       );
 
       if (!mounted) {
         return;
       }
 
-      Navigator.pop(context, true);
+      Navigator.pop(
+        context,
+        true,
+      );
     } on FirebaseException catch (e) {
       debugPrint(
-        'ADDRESS SAVE FIRESTORE ERROR: '
+        'ADDRESS SAVE FIREBASE ERROR: '
         '${e.code} - ${e.message}',
       );
 
@@ -462,11 +509,15 @@ class _AddressScreenState extends State<AddressScreen> {
         _saving = false;
       });
 
-      _showMessage(
-        e.code == 'permission-denied'
-            ? 'You do not have permission to save this address.'
-            : 'Unable to save address. Please try again.',
-      );
+      if (e.code == 'permission-denied') {
+        _showMessage(
+          'You do not have permission to save this address.',
+        );
+      } else {
+        _showMessage(
+          'Unable to save address. Please try again.',
+        );
+      }
     } catch (e) {
       debugPrint(
         'ADDRESS SAVE ERROR: $e',
@@ -497,13 +548,13 @@ class _AddressScreenState extends State<AddressScreen> {
         address['address'] ?? '';
 
     if (fullAddress.isNotEmpty &&
-        _addressLine1Controller.text.isEmpty) {
+        _addressLine1Controller.text.trim().isEmpty) {
       _addressLine1Controller.text =
           fullAddress;
     }
 
     _showMessage(
-      'Edit mode enabled. Update the fields above.',
+      'Edit mode enabled. Update the fields above and save.',
     );
   }
 
@@ -512,18 +563,25 @@ class _AddressScreenState extends State<AddressScreen> {
   // =========================================================
 
   void _deleteAddress(int index) {
+    if (index < 0 ||
+        index >= _savedAddresses.length) {
+      return;
+    }
+
     showDialog<void>(
       context: context,
-      builder: (BuildContext context) {
+      builder: (BuildContext dialogContext) {
         return AlertDialog(
-          shape: RoundedRectangleBorder(
+          shape:
+              RoundedRectangleBorder(
             borderRadius:
                 BorderRadius.circular(20),
           ),
           title: const Text(
             'Delete Address?',
             style: TextStyle(
-              fontWeight: FontWeight.w800,
+              fontWeight:
+                  FontWeight.w800,
             ),
           ),
           content: const Text(
@@ -532,7 +590,9 @@ class _AddressScreenState extends State<AddressScreen> {
           actions: [
             TextButton(
               onPressed: () {
-                Navigator.pop(context);
+                Navigator.pop(
+                  dialogContext,
+                );
               },
               child: const Text(
                 'Cancel',
@@ -540,10 +600,17 @@ class _AddressScreenState extends State<AddressScreen> {
             ),
             TextButton(
               onPressed: () {
-                Navigator.pop(context);
+                Navigator.pop(
+                  dialogContext,
+                );
+
+                if (!mounted) {
+                  return;
+                }
 
                 setState(() {
-                  _savedAddresses.removeAt(index);
+                  _savedAddresses
+                      .removeAt(index);
                 });
 
                 _showMessage(
@@ -554,7 +621,8 @@ class _AddressScreenState extends State<AddressScreen> {
                 'Delete',
                 style: TextStyle(
                   color: Colors.red,
-                  fontWeight: FontWeight.bold,
+                  fontWeight:
+                      FontWeight.bold,
                 ),
               ),
             ),
@@ -583,7 +651,10 @@ class _AddressScreenState extends State<AddressScreen> {
       return;
     }
 
-    ScaffoldMessenger.of(context)
+    final ScaffoldMessengerState messenger =
+        ScaffoldMessenger.of(context);
+
+    messenger
       ..hideCurrentSnackBar()
       ..showSnackBar(
         SnackBar(
@@ -677,19 +748,11 @@ class _AddressScreenState extends State<AddressScreen> {
                 crossAxisAlignment:
                     CrossAxisAlignment.start,
                 children: [
-                  // =================================================
-                  // TOP CARD
-                  // =================================================
-
                   _buildIntroCard(),
 
                   const SizedBox(
                     height: 24,
                   ),
-
-                  // =================================================
-                  // FORM TITLE
-                  // =================================================
 
                   const Text(
                     'Add New Address',
@@ -710,7 +773,9 @@ class _AddressScreenState extends State<AddressScreen> {
                     'Enter your complete walking location.',
                     style: TextStyle(
                       color: AppColors.slate
-                          .withOpacity(.8),
+                          .withValues(
+                        alpha: .8,
+                      ),
                       fontSize: 13,
                     ),
                   ),
@@ -719,10 +784,7 @@ class _AddressScreenState extends State<AddressScreen> {
                     height: 18,
                   ),
 
-                  // =================================================
-                  // FLAT / HOUSE
-                  // =================================================
-
+                  // FLAT
                   _buildField(
                     controller:
                         _flatController,
@@ -732,16 +794,14 @@ class _AddressScreenState extends State<AddressScreen> {
                         'e.g. Flat 204, House No. 12',
                     icon:
                         Icons.home_outlined,
+                    requiredField: false,
                   ),
 
                   const SizedBox(
                     height: 14,
                   ),
 
-                  // =================================================
                   // ADDRESS LINE 1
-                  // =================================================
-
                   _buildField(
                     controller:
                         _addressLine1Controller,
@@ -758,10 +818,7 @@ class _AddressScreenState extends State<AddressScreen> {
                     height: 14,
                   ),
 
-                  // =================================================
                   // ADDRESS LINE 2
-                  // =================================================
-
                   _buildField(
                     controller:
                         _addressLine2Controller,
@@ -779,10 +836,7 @@ class _AddressScreenState extends State<AddressScreen> {
                     height: 14,
                   ),
 
-                  // =================================================
                   // AREA
-                  // =================================================
-
                   _buildField(
                     controller:
                         _areaController,
@@ -798,10 +852,7 @@ class _AddressScreenState extends State<AddressScreen> {
                     height: 14,
                   ),
 
-                  // =================================================
                   // CITY + STATE
-                  // =================================================
-
                   Row(
                     crossAxisAlignment:
                         CrossAxisAlignment.start,
@@ -816,7 +867,8 @@ class _AddressScreenState extends State<AddressScreen> {
                           hint:
                               'City',
                           icon:
-                              Icons.location_city_outlined,
+                              Icons
+                                  .location_city_outlined,
                         ),
                       ),
                       const SizedBox(
@@ -832,8 +884,7 @@ class _AddressScreenState extends State<AddressScreen> {
                           hint:
                               'State',
                           icon:
-                              Icons
-                                  .map_outlined,
+                              Icons.map_outlined,
                         ),
                       ),
                     ],
@@ -843,10 +894,7 @@ class _AddressScreenState extends State<AddressScreen> {
                     height: 14,
                   ),
 
-                  // =================================================
-                  // PIN CODE
-                  // =================================================
-
+                  // PIN
                   _buildField(
                     controller:
                         _pinCodeController,
@@ -865,10 +913,7 @@ class _AddressScreenState extends State<AddressScreen> {
                     height: 18,
                   ),
 
-                  // =================================================
                   // CURRENT LOCATION
-                  // =================================================
-
                   SizedBox(
                     width:
                         double.infinity,
@@ -903,8 +948,8 @@ class _AddressScreenState extends State<AddressScreen> {
                             BorderSide(
                           color: AppColors
                               .primary
-                              .withOpacity(
-                            .35,
+                              .withValues(
+                            alpha: .35,
                           ),
                         ),
                         shape:
@@ -923,10 +968,7 @@ class _AddressScreenState extends State<AddressScreen> {
                     height: 12,
                   ),
 
-                  // =================================================
-                  // SAVE BUTTON
-                  // =================================================
-
+                  // SAVE
                   SizedBox(
                     width:
                         double.infinity,
@@ -972,6 +1014,11 @@ class _AddressScreenState extends State<AddressScreen> {
                             AppColors.primary,
                         foregroundColor:
                             Colors.white,
+                        disabledBackgroundColor:
+                            AppColors.primary
+                                .withValues(
+                              alpha: .55,
+                            ),
                         elevation: 0,
                         shape:
                             RoundedRectangleBorder(
@@ -985,10 +1032,7 @@ class _AddressScreenState extends State<AddressScreen> {
                     ),
                   ),
 
-                  // =================================================
                   // SAVED ADDRESSES
-                  // =================================================
-
                   if (_savedAddresses
                       .isNotEmpty) ...[
                     const SizedBox(
@@ -1015,7 +1059,9 @@ class _AddressScreenState extends State<AddressScreen> {
                       style: TextStyle(
                         color: AppColors
                             .slate
-                            .withOpacity(.8),
+                            .withValues(
+                          alpha: .8,
+                        ),
                         fontSize: 13,
                       ),
                     ),
@@ -1025,9 +1071,8 @@ class _AddressScreenState extends State<AddressScreen> {
                     ),
 
                     ...List.generate(
-                      _savedAddresses
-                          .length,
-                      (index) {
+                      _savedAddresses.length,
+                      (int index) {
                         return Padding(
                           padding:
                               const EdgeInsets
@@ -1076,7 +1121,9 @@ class _AddressScreenState extends State<AddressScreen> {
         boxShadow: [
           BoxShadow(
             color: AppColors.primary
-                .withOpacity(.20),
+                .withValues(
+              alpha: .20,
+            ),
             blurRadius: 18,
             offset:
                 const Offset(0, 8),
@@ -1091,7 +1138,9 @@ class _AddressScreenState extends State<AddressScreen> {
             decoration:
                 BoxDecoration(
               color: Colors.white
-                  .withOpacity(.18),
+                  .withValues(
+                alpha: .18,
+              ),
               borderRadius:
                   BorderRadius.circular(
                 16,
@@ -1131,10 +1180,7 @@ class _AddressScreenState extends State<AddressScreen> {
                   'Save your exact location so walkers can find you easily.',
                   style: TextStyle(
                     color:
-                        Colors.white
-                            .withOpacity(
-                      .88,
-                    ),
+                        Colors.white70,
                     fontSize: 12,
                     height: 1.4,
                   ),
@@ -1205,6 +1251,8 @@ class _AddressScreenState extends State<AddressScreen> {
           maxLength: maxLength,
           keyboardType:
               keyboardType,
+          textCapitalization:
+              TextCapitalization.sentences,
           style:
               const TextStyle(
             color:
@@ -1220,8 +1268,8 @@ class _AddressScreenState extends State<AddressScreen> {
                 TextStyle(
               color: AppColors
                   .slate
-                  .withOpacity(
-                .55,
+                  .withValues(
+                alpha: .55,
               ),
               fontSize: 13,
             ),
@@ -1277,8 +1325,8 @@ class _AddressScreenState extends State<AddressScreen> {
               borderSide:
                   BorderSide(
                 color: Colors.black
-                    .withOpacity(
-                  .05,
+                    .withValues(
+                  alpha: .05,
                 ),
               ),
             ),
@@ -1324,12 +1372,16 @@ class _AddressScreenState extends State<AddressScreen> {
         border:
             Border.all(
           color: AppColors.primary
-              .withOpacity(.10),
+              .withValues(
+            alpha: .10,
+          ),
         ),
         boxShadow: [
           BoxShadow(
             color: Colors.black
-                .withOpacity(.035),
+                .withValues(
+              alpha: .035,
+            ),
             blurRadius: 12,
             offset:
                 const Offset(0, 4),
@@ -1348,8 +1400,8 @@ class _AddressScreenState extends State<AddressScreen> {
                 BoxDecoration(
               color: AppColors
                   .primary
-                  .withOpacity(
-                .10,
+                  .withValues(
+                alpha: .10,
               ),
               borderRadius:
                   BorderRadius
@@ -1429,9 +1481,7 @@ class _AddressScreenState extends State<AddressScreen> {
                 _editAddress(
                   address,
                 );
-              }
-
-              if (value ==
+              } else if (value ==
                   'delete') {
                 _deleteAddress(
                   index,
