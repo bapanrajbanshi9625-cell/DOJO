@@ -4,14 +4,18 @@ class HomeWelcomeCard extends StatelessWidget {
   const HomeWelcomeCard({super.key});
 
   static const Color orange = Color(0xFFF4511E);
+  static const String dogAsset = 'assets/dog_welcome.png';
 
   @override
   Widget build(BuildContext context) {
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.symmetric(
-        horizontal: 15,
-        vertical: 14,
+      height: 88,
+      padding: const EdgeInsets.only(
+        left: 15,
+        right: 8,
+        top: 10,
+        bottom: 10,
       ),
       decoration: BoxDecoration(
         gradient: const LinearGradient(
@@ -33,6 +37,10 @@ class HomeWelcomeCard extends StatelessWidget {
       ),
       child: Row(
         children: [
+          // =================================================
+          // DOJO PAW
+          // =================================================
+
           Container(
             height: 46,
             width: 46,
@@ -52,32 +60,63 @@ class HomeWelcomeCard extends StatelessWidget {
 
           const SizedBox(width: 12),
 
+          // =================================================
+          // WELCOME OFFER MESSAGE
+          // =================================================
+
           const Expanded(
             child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  'Welcome back 👋',
+                  'Welcome to Dojo! 🐾',
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   style: TextStyle(
                     color: Colors.white,
-                    fontSize: 18,
+                    fontSize: 17,
                     fontWeight: FontWeight.w900,
                   ),
                 ),
-                SizedBox(height: 3),
+
+                SizedBox(height: 4),
+
                 Text(
-                  'Your walking activity is on track.',
-                  maxLines: 1,
+                  'Enjoy 30% OFF on your first week! 🎉',
+                  maxLines: 2,
                   overflow: TextOverflow.ellipsis,
                   style: TextStyle(
                     color: Colors.white70,
-                    fontSize: 11,
-                    fontWeight: FontWeight.w500,
+                    fontSize: 10.5,
+                    fontWeight: FontWeight.w600,
                   ),
                 ),
               ],
+            ),
+          ),
+
+          // =================================================
+          // DOG
+          //
+          // Transparent PNG.
+          // Keep the dog inside THIS file as requested.
+          // =================================================
+
+          SizedBox(
+            width: 82,
+            height: 82,
+            child: Image.asset(
+              dogAsset,
+              fit: BoxFit.contain,
+              alignment: Alignment.bottomCenter,
+              errorBuilder: (
+                context,
+                error,
+                stackTrace,
+              ) {
+                return const SizedBox.shrink();
+              },
             ),
           ),
         ],
