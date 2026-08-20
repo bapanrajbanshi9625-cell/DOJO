@@ -53,34 +53,28 @@ class _HomeScreenState extends State<HomeScreen> {
   // =====================================================
 
   Future<void> _openMyQRCode() async {
-    final User? user =
-        FirebaseAuth.instance.currentUser;
+    final User? user = FirebaseAuth.instance.currentUser;
 
     if (user == null) {
       if (!mounted) return;
 
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text(
-            'Please login first.',
-          ),
+          content: Text('Please login first.'),
         ),
       );
 
       return;
     }
 
-    final String ownerUid =
-        user.uid.trim();
+    final String ownerUid = user.uid.trim();
 
     if (ownerUid.isEmpty) {
       if (!mounted) return;
 
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text(
-            'Owner UID is missing.',
-          ),
+          content: Text('Owner UID is missing.'),
         ),
       );
 
@@ -112,8 +106,7 @@ class _HomeScreenState extends State<HomeScreen> {
       'phoneNumber': ownerPhone,
     };
 
-    final String qrPayload =
-        jsonEncode(qrData);
+    final String qrPayload = jsonEncode(qrData);
 
     try {
       await FirebaseFirestore.instance
@@ -134,12 +127,9 @@ class _HomeScreenState extends State<HomeScreen> {
           'scanned': false,
           'scannedBy': null,
           'scannedAt': null,
-          'updatedAt':
-              FieldValue.serverTimestamp(),
+          'updatedAt': FieldValue.serverTimestamp(),
         },
-        SetOptions(
-          merge: true,
-        ),
+        SetOptions(merge: true),
       );
 
       debugPrint(
@@ -180,44 +170,40 @@ class _HomeScreenState extends State<HomeScreen> {
   ) {
     if (!mounted) return;
 
-    final String walkId =
-        _readString(
-          data,
-          const [
-            'walkId',
-            'walkID',
-            'id',
-          ],
-        );
+    final String walkId = _readString(
+      data,
+      const [
+        'walkId',
+        'walkID',
+        'id',
+      ],
+    );
 
-    final String walkerUid =
-        _readString(
-          data,
-          const [
-            'walkerUid',
-            'walkerUID',
-            'walkerId',
-          ],
-        );
+    final String walkerUid = _readString(
+      data,
+      const [
+        'walkerUid',
+        'walkerUID',
+        'walkerId',
+      ],
+    );
 
-    final String walkerName =
-        _readString(
-          data,
-          const [
-            'walkerName',
-            'name',
-          ],
-        );
+    final String walkerName = _readString(
+      data,
+      const [
+        'walkerName',
+        'name',
+      ],
+    );
 
-    final String walkerPhone =
-        _readString(
-          data,
-          const [
-            'walkerPhone',
-            'phone',
-            'phoneNumber',
-          ],
-        );
+    final String walkerPhone = _readString(
+      data,
+      const [
+        'walkerPhone',
+        'phone',
+        'phoneNumber',
+      ],
+    );
 
     if (walkId.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -238,13 +224,9 @@ class _HomeScreenState extends State<HomeScreen> {
           walkId: walkId,
           walkerUid: walkerUid,
           walkerName:
-              walkerName.isEmpty
-                  ? 'Walker'
-                  : walkerName,
+              walkerName.isEmpty ? 'Walker' : walkerName,
           walkerPhone:
-              walkerPhone.isEmpty
-                  ? null
-                  : walkerPhone,
+              walkerPhone.isEmpty ? null : walkerPhone,
         ),
       ),
     );
@@ -262,8 +244,7 @@ class _HomeScreenState extends State<HomeScreen> {
       final value = data[key];
 
       if (value != null) {
-        final result =
-            value.toString().trim();
+        final result = value.toString().trim();
 
         if (result.isNotEmpty) {
           return result;
@@ -287,12 +268,9 @@ class _HomeScreenState extends State<HomeScreen> {
       context: context,
       builder: (ctx) {
         return AlertDialog(
-          backgroundColor:
-              const Color(0xFFF7F8FA),
-          shape:
-              RoundedRectangleBorder(
-            borderRadius:
-                BorderRadius.circular(20),
+          backgroundColor: const Color(0xFFF7F8FA),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(20),
           ),
           title: Text(
             title,
@@ -310,8 +288,7 @@ class _HomeScreenState extends State<HomeScreen> {
           ),
           actions: [
             TextButton(
-              onPressed: () =>
-                  Navigator.pop(ctx),
+              onPressed: () => Navigator.pop(ctx),
               child: const Text(
                 'CLOSE',
                 style: TextStyle(
@@ -340,6 +317,11 @@ class _HomeScreenState extends State<HomeScreen> {
   //
   // दोनों का नाम same है इसलिए service को
   // "home_data" alias दिया गया है.
+  //
+  // NOTE:
+  // Current HomePastWalk service model does not expose
+  // a route getter. Therefore route is supplied safely
+  // as an empty value for the UI.
   // =====================================================
 
   List<Map<String, dynamic>> _pastWalkMaps(
@@ -355,11 +337,12 @@ class _HomeScreenState extends State<HomeScreen> {
           'walkerName': walk.walkerName,
           'dogName': walk.dogName,
           'distanceKm': walk.distanceKm,
-          'durationMinutes':
-              walk.durationMinutes,
+          'durationMinutes': walk.durationMinutes,
           'date': walk.date,
           'status': walk.status,
-          'route': walk.route,
+
+          // Current data model has no route getter.
+          'route': '',
         };
       },
     ).toList();
@@ -372,18 +355,12 @@ class _HomeScreenState extends State<HomeScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor:
-          HomeScreen.background,
-
-      appBar:
-          const CustomAppBar(),
+      backgroundColor: HomeScreen.background,
+      appBar: const CustomAppBar(),
 
       body: SingleChildScrollView(
-        physics:
-            const AlwaysScrollableScrollPhysics(),
-
-        padding:
-            const EdgeInsets.fromLTRB(
+        physics: const AlwaysScrollableScrollPhysics(),
+        padding: const EdgeInsets.fromLTRB(
           15,
           15,
           15,
@@ -391,9 +368,7 @@ class _HomeScreenState extends State<HomeScreen> {
         ),
 
         child: Column(
-          crossAxisAlignment:
-              CrossAxisAlignment.start,
-
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             // =========================================
             // WELCOME
@@ -409,12 +384,9 @@ class _HomeScreenState extends State<HomeScreen> {
 
             StreamBuilder<
                 QuerySnapshot<Map<String, dynamic>>>(
-              stream:
-                  _liveWalkService
-                      .liveWalkStream(),
+              stream: _liveWalkService.liveWalkStream(),
 
-              builder:
-                  (context, snapshot) {
+              builder: (context, snapshot) {
                 if (snapshot.hasError) {
                   return const SizedBox.shrink();
                 }
@@ -424,8 +396,7 @@ class _HomeScreenState extends State<HomeScreen> {
                 }
 
                 final liveWalkData =
-                    _liveWalkService
-                        .getLiveWalkData(
+                    _liveWalkService.getLiveWalkData(
                   snapshot.data!,
                 );
 
@@ -435,9 +406,7 @@ class _HomeScreenState extends State<HomeScreen> {
 
                 return HomeLiveWalkBar(
                   onTap: () {
-                    _openLiveWalk(
-                      liveWalkData,
-                    );
+                    _openLiveWalk(liveWalkData);
                   },
                 );
               },
@@ -482,14 +451,11 @@ class _HomeScreenState extends State<HomeScreen> {
 
             StreamBuilder<
                 List<home_data.HomePastWalk>>(
-              stream:
-                  _homeDataService
-                      .pastWalksStream(
+              stream: _homeDataService.pastWalksStream(
                 limit: 20,
               ),
 
-              builder:
-                  (context, snapshot) {
+              builder: (context, snapshot) {
                 // -------------------------------------
                 // ERROR
                 // -------------------------------------
@@ -497,36 +463,21 @@ class _HomeScreenState extends State<HomeScreen> {
                 if (snapshot.hasError) {
                   return Container(
                     width: double.infinity,
-                    padding:
-                        const EdgeInsets.all(18),
-                    decoration:
-                        BoxDecoration(
-                      color:
-                          HomeScreen.card,
-                      borderRadius:
-                          BorderRadius.circular(
-                        14,
-                      ),
-                      border:
-                          Border.all(
-                        color:
-                            const Color(
-                          0xFFD4D9DF,
-                        ),
+                    padding: const EdgeInsets.all(18),
+                    decoration: BoxDecoration(
+                      color: HomeScreen.card,
+                      borderRadius: BorderRadius.circular(14),
+                      border: Border.all(
+                        color: const Color(0xFFD4D9DF),
                       ),
                     ),
-                    child:
-                        const Text(
+                    child: const Text(
                       'Unable to load past walks.',
-                      textAlign:
-                          TextAlign.center,
-                      style:
-                          TextStyle(
-                        color:
-                            HomeScreen.slate,
+                      textAlign: TextAlign.center,
+                      style: TextStyle(
+                        color: HomeScreen.slate,
                         fontSize: 12,
-                        fontWeight:
-                            FontWeight.w600,
+                        fontWeight: FontWeight.w600,
                       ),
                     ),
                   );
@@ -540,13 +491,10 @@ class _HomeScreenState extends State<HomeScreen> {
                     ConnectionState.waiting) {
                   return const SizedBox(
                     height: 70,
-                    child:
-                        Center(
-                      child:
-                          CircularProgressIndicator(
+                    child: Center(
+                      child: CircularProgressIndicator(
                         strokeWidth: 2,
-                        color:
-                            HomeScreen.orange,
+                        color: HomeScreen.orange,
                       ),
                     ),
                   );
@@ -556,8 +504,7 @@ class _HomeScreenState extends State<HomeScreen> {
                 // DATA
                 // -------------------------------------
 
-                final List<
-                    home_data.HomePastWalk> walks =
+                final List<home_data.HomePastWalk> walks =
                     snapshot.data ??
                         <home_data.HomePastWalk>[];
 
@@ -566,10 +513,7 @@ class _HomeScreenState extends State<HomeScreen> {
                 // -------------------------------------
 
                 return HomePastWalk(
-                  walks:
-                      _pastWalkMaps(
-                    walks,
-                  ),
+                  walks: _pastWalkMaps(walks),
                   onDetails: (
                     title,
                     content,
@@ -592,22 +536,17 @@ class _HomeScreenState extends State<HomeScreen> {
       // ===============================================
 
       floatingActionButtonLocation:
-          FloatingActionButtonLocation
-              .centerFloat,
+          FloatingActionButtonLocation.centerFloat,
 
       floatingActionButton:
           StreamBuilder<
               QuerySnapshot<Map<String, dynamic>>>(
-        stream:
-            _liveWalkService
-                .liveWalkStream(),
+        stream: _liveWalkService.liveWalkStream(),
 
-        builder:
-            (context, snapshot) {
+        builder: (context, snapshot) {
           final bool live =
               snapshot.hasData &&
-              _liveWalkService
-                  .isLiveWalk(
+              _liveWalkService.isLiveWalk(
                 snapshot.data!,
               );
 
@@ -626,29 +565,20 @@ class _HomeScreenState extends State<HomeScreen> {
           // =========================================
 
           return FloatingActionButton.extended(
-            backgroundColor:
-                HomeScreen.orange,
-
-            foregroundColor:
-                Colors.white,
-
+            backgroundColor: HomeScreen.orange,
+            foregroundColor: Colors.white,
             elevation: 8,
 
-            onPressed:
-                _openMyQRCode,
+            onPressed: _openMyQRCode,
 
-            icon:
-                const Icon(
+            icon: const Icon(
               Icons.qr_code_2,
             ),
 
-            label:
-                const Text(
+            label: const Text(
               'Generate QR Code',
-              style:
-                  TextStyle(
-                fontWeight:
-                    FontWeight.w900,
+              style: TextStyle(
+                fontWeight: FontWeight.w900,
               ),
             ),
           );
