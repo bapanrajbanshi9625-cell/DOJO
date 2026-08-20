@@ -8,8 +8,11 @@ import 'package:flutter/material.dart';
 
 import 'custom_app_bar.dart';
 import 'generate_qr_screen.dart';
+import 'live_walk_screen.dart';
 
+import '../features/home/services/home_data_service.dart';
 import '../features/home/services/home_live_walk_service.dart';
+
 import '../features/home/widgets/home_live_walk_bar.dart';
 import '../features/home/widgets/home_past_walk.dart';
 import '../features/home/widgets/home_section_title.dart';
