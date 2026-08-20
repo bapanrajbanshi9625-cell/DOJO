@@ -8,7 +8,6 @@ import 'package:firebase_auth/firebase_auth.dart';
 
 import 'custom_app_bar.dart';
 import 'generate_qr_screen.dart';
-import 'live_walk_screen.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -24,132 +23,14 @@ class HomeScreen extends StatefulWidget {
 }
 
 class _HomeScreenState extends State<HomeScreen> {
-  bool _isLoadingWalk = true;
 
-  String? _walkId;
-  String? _walkerUid;
-  String? _walkerName;
+  // =====================================================
+  // INIT
+  // =====================================================
 
   @override
   void initState() {
     super.initState();
-    _checkActiveWalk();
-  }
-
-  // =====================================================
-  // CHECK ACTIVE WALK
-  // =====================================================
-
-  Future<void> _checkActiveWalk() async {
-    try {
-      final User? user = FirebaseAuth.instance.currentUser;
-
-      if (user == null) {
-        if (!mounted) return;
-
-        setState(() {
-          _isLoadingWalk = false;
-          _walkId = null;
-          _walkerUid = null;
-          _walkerName = null;
-        });
-
-        return;
-      }
-
-      final String ownerUid = user.uid;
-
-      final QuerySnapshot<Map<String, dynamic>> result =
-          await FirebaseFirestore.instance
-              .collection('active_walks')
-              .where(
-                'ownerUid',
-                isEqualTo: ownerUid,
-              )
-              .where(
-                'status',
-                isEqualTo: 'active',
-              )
-              .limit(1)
-              .get();
-
-      if (result.docs.isEmpty) {
-        if (!mounted) return;
-
-        setState(() {
-          _isLoadingWalk = false;
-          _walkId = null;
-          _walkerUid = null;
-          _walkerName = null;
-        });
-
-        return;
-      }
-
-      final DocumentSnapshot<Map<String, dynamic>> walkDoc =
-          result.docs.first;
-
-      final Map<String, dynamic> data =
-          walkDoc.data() ?? <String, dynamic>{};
-
-      if (!mounted) return;
-
-      setState(() {
-        _isLoadingWalk = false;
-
-        _walkId =
-            data['walkId']?.toString() ?? walkDoc.id;
-
-        _walkerUid =
-            data['walkerUid']?.toString();
-
-        _walkerName =
-            data['walkerName']?.toString() ?? 'Walker';
-      });
-    } catch (e) {
-      if (!mounted) return;
-
-      setState(() {
-        _isLoadingWalk = false;
-        _walkId = null;
-        _walkerUid = null;
-        _walkerName = null;
-      });
-
-      debugPrint(
-        'Active walk check failed: $e',
-      );
-    }
-  }
-
-  // =====================================================
-  // OPEN LIVE WALK
-  // =====================================================
-
-  Future<void> _openLiveWalk() async {
-    final User? user =
-        FirebaseAuth.instance.currentUser;
-
-    if (user == null ||
-        _walkId == null ||
-        _walkerUid == null) {
-      return;
-    }
-
-    await Navigator.push(
-      context,
-      MaterialPageRoute(
-        builder: (context) => LiveWalkScreen(
-          walkId: _walkId!,
-          walkerUid: _walkerUid!,
-          walkerName: _walkerName ?? 'Walker',
-        ),
-      ),
-    );
-
-    if (mounted) {
-      await _checkActiveWalk();
-    }
   }
 
   // =====================================================
@@ -290,548 +171,392 @@ class _HomeScreenState extends State<HomeScreen> {
       appBar:
           const CustomAppBar(),
 
-      body: RefreshIndicator(
-        onRefresh:
-            _checkActiveWalk,
+      body:
+          SingleChildScrollView(
+        physics:
+            const AlwaysScrollableScrollPhysics(),
+
+        padding:
+            const EdgeInsets.fromLTRB(
+          15,
+          15,
+          15,
+          105,
+        ),
 
         child:
-            SingleChildScrollView(
-          physics:
-              const AlwaysScrollableScrollPhysics(),
+            Column(
+          crossAxisAlignment:
+              CrossAxisAlignment.start,
 
-          padding:
-              const EdgeInsets.fromLTRB(
-            15,
-            15,
-            15,
-            105,
-          ),
+          children: [
 
-          child:
-              Column(
-            crossAxisAlignment:
-                CrossAxisAlignment.start,
+            // =========================================
+            // WELCOME HEADER
+            // =========================================
 
-            children: [
-              // =========================================
-              // WELCOME HEADER
-              // =========================================
+            Container(
+              width:
+                  double.infinity,
 
-              Container(
-                width:
-                    double.infinity,
-
-                padding:
-                    const EdgeInsets.symmetric(
-                  horizontal: 15,
-                  vertical: 14,
-                ),
-
-                decoration:
-                    BoxDecoration(
-                  gradient:
-                      const LinearGradient(
-                    begin:
-                        Alignment.topLeft,
-                    end:
-                        Alignment.bottomRight,
-                    colors: [
-                      Color(0xFF34495E),
-                      Color(0xFF263746),
-                    ],
-                  ),
-
-                  borderRadius:
-                      BorderRadius.circular(
-                    18,
-                  ),
-
-                  boxShadow: [
-                    BoxShadow(
-                      color:
-                          Colors.black.withOpacity(
-                        0.10,
-                      ),
-                      blurRadius: 12,
-                      offset:
-                          const Offset(0, 5),
-                    ),
-                  ],
-                ),
-
-                child:
-                    Row(
-                  children: [
-                    Container(
-                      height: 46,
-                      width: 46,
-
-                      decoration:
-                          BoxDecoration(
-                        color:
-                            HomeScreen.orange
-                                .withOpacity(
-                          0.16,
-                        ),
-
-                        borderRadius:
-                            BorderRadius.circular(
-                          13,
-                        ),
-
-                        border:
-                            Border.all(
-                          color:
-                              HomeScreen.orange
-                                  .withOpacity(
-                            0.40,
-                          ),
-                        ),
-                      ),
-
-                      child:
-                          const Icon(
-                        Icons.pets,
-                        color:
-                            HomeScreen.orange,
-                        size: 24,
-                      ),
-                    ),
-
-                    const SizedBox(
-                      width: 12,
-                    ),
-
-                    const Expanded(
-                      child:
-                          Column(
-                        crossAxisAlignment:
-                            CrossAxisAlignment
-                                .start,
-
-                        children: [
-                          Text(
-                            'Welcome back 👋',
-                            maxLines: 1,
-                            overflow:
-                                TextOverflow
-                                    .ellipsis,
-
-                            style:
-                                TextStyle(
-                              color:
-                                  Colors.white,
-                              fontSize: 18,
-                              fontWeight:
-                                  FontWeight.w900,
-                            ),
-                          ),
-
-                          SizedBox(
-                            height: 3,
-                          ),
-
-                          Text(
-                            'Your walking activity is on track.',
-                            maxLines: 1,
-                            overflow:
-                                TextOverflow
-                                    .ellipsis,
-
-                            style:
-                                TextStyle(
-                              color:
-                                  Colors.white70,
-                              fontSize: 11,
-                              fontWeight:
-                                  FontWeight.w500,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ],
-                ),
+              padding:
+                  const EdgeInsets.symmetric(
+                horizontal: 15,
+                vertical: 14,
               ),
 
-              // =========================================
-              // LIVE WALK
-              // =========================================
-
-              if (!_isLoadingWalk &&
-                  _walkId != null) ...[
-                const SizedBox(
-                  height: 15,
+              decoration:
+                  BoxDecoration(
+                gradient:
+                    const LinearGradient(
+                  begin:
+                      Alignment.topLeft,
+                  end:
+                      Alignment.bottomRight,
+                  colors: [
+                    Color(0xFF34495E),
+                    Color(0xFF263746),
+                  ],
                 ),
 
-                GestureDetector(
-                  onTap:
-                      _openLiveWalk,
+                borderRadius:
+                    BorderRadius.circular(
+                  18,
+                ),
 
-                  child:
-                      Container(
-                    width:
-                        double.infinity,
-
-                    padding:
-                        const EdgeInsets.all(
-                      14,
+                boxShadow: [
+                  BoxShadow(
+                    color:
+                        Colors.black.withOpacity(
+                      0.10,
                     ),
+                    blurRadius: 12,
+                    offset:
+                        const Offset(0, 5),
+                  ),
+                ],
+              ),
+
+              child:
+                  Row(
+                children: [
+
+                  Container(
+                    height: 46,
+                    width: 46,
 
                     decoration:
                         BoxDecoration(
-                      gradient:
-                          const LinearGradient(
-                        colors: [
-                          Color(0xFF1B8F4D),
-                          Color(0xFF126B39),
-                        ],
+                      color:
+                          HomeScreen.orange
+                              .withOpacity(
+                        0.16,
                       ),
 
                       borderRadius:
                           BorderRadius.circular(
-                        17,
+                        13,
                       ),
 
-                      boxShadow: [
-                        BoxShadow(
-                          color:
-                              Colors.green
-                                  .withOpacity(
-                            0.18,
-                          ),
-                          blurRadius: 12,
-                          offset:
-                              const Offset(
-                            0,
-                            5,
-                          ),
+                      border:
+                          Border.all(
+                        color:
+                            HomeScreen.orange
+                                .withOpacity(
+                          0.40,
                         ),
-                      ],
+                      ),
                     ),
 
                     child:
-                        Row(
+                        const Icon(
+                      Icons.pets,
+                      color:
+                          HomeScreen.orange,
+                      size: 24,
+                    ),
+                  ),
+
+                  const SizedBox(
+                    width: 12,
+                  ),
+
+                  const Expanded(
+                    child:
+                        Column(
+                      crossAxisAlignment:
+                          CrossAxisAlignment
+                              .start,
+
                       children: [
-                        Container(
-                          height: 46,
-                          width: 46,
 
-                          decoration:
-                              BoxDecoration(
-                            color:
-                                Colors.white
-                                    .withOpacity(
-                              0.15,
-                            ),
-                            shape:
-                                BoxShape.circle,
-                          ),
+                        Text(
+                          'Welcome back 👋',
+                          maxLines: 1,
+                          overflow:
+                              TextOverflow
+                                  .ellipsis,
 
-                          child:
-                              const Icon(
-                            Icons
-                                .directions_walk,
+                          style:
+                              TextStyle(
                             color:
                                 Colors.white,
-                            size: 25,
+                            fontSize: 18,
+                            fontWeight:
+                                FontWeight.w900,
                           ),
                         ),
 
-                        const SizedBox(
-                          width: 12,
+                        SizedBox(
+                          height: 3,
                         ),
 
-                        Expanded(
-                          child:
-                              Column(
-                            crossAxisAlignment:
-                                CrossAxisAlignment
-                                    .start,
+                        Text(
+                          'Your walking activity is on track.',
+                          maxLines: 1,
+                          overflow:
+                              TextOverflow
+                                  .ellipsis,
 
-                            children: [
-                              const Text(
-                                'Live Walk Active',
-                                maxLines: 1,
-                                overflow:
-                                    TextOverflow
-                                        .ellipsis,
-
-                                style:
-                                    TextStyle(
-                                  color:
-                                      Colors.white,
-                                  fontSize: 16,
-                                  fontWeight:
-                                      FontWeight.w900,
-                                ),
-                              ),
-
-                              const SizedBox(
-                                height: 3,
-                              ),
-
-                              Text(
-                                _walkerUid ==
-                                        null
-                                    ? 'Your walker is connected'
-                                    : 'Walker is currently walking',
-
-                                maxLines: 1,
-                                overflow:
-                                    TextOverflow
-                                        .ellipsis,
-
-                                style:
-                                    const TextStyle(
-                                  color:
-                                      Colors.white70,
-                                  fontSize: 11,
-                                ),
-                              ),
-
-                              const SizedBox(
-                                height: 5,
-                              ),
-
-                              const Text(
-                                'Tap to view live walk',
-                                style:
-                                    TextStyle(
-                                  color:
-                                      Colors.white,
-                                  fontSize: 11,
-                                  fontWeight:
-                                      FontWeight.w700,
-                                ),
-                              ),
-                            ],
+                          style:
+                              TextStyle(
+                            color:
+                                Colors.white70,
+                            fontSize: 11,
+                            fontWeight:
+                                FontWeight.w500,
                           ),
-                        ),
-
-                        const Icon(
-                          Icons
-                              .arrow_forward_ios,
-                          color:
-                              Colors.white,
-                          size: 16,
                         ),
                       ],
                     ),
                   ),
+                ],
+              ),
+            ),
+
+            // =========================================
+            // LIVE WALK
+            //
+            // REMOVED FROM HOME SCREEN
+            //
+            // Live Walk will now be shown inside
+            // Walks Screen below Insta Walk.
+            // =========================================
+
+            // =========================================
+            // WEEKLY PROCESSING
+            // =========================================
+
+            const SizedBox(
+              height: 19,
+            ),
+
+            _sectionTitle(
+              'This week processing',
+            ),
+
+            const SizedBox(
+              height: 9,
+            ),
+
+            Container(
+              padding:
+                  const EdgeInsets.all(
+                13,
+              ),
+
+              decoration:
+                  BoxDecoration(
+                color:
+                    HomeScreen.card,
+
+                borderRadius:
+                    BorderRadius.circular(
+                  18,
                 ),
-              ],
 
-              // =========================================
-              // WEEKLY PROCESSING
-              // =========================================
-
-              const SizedBox(
-                height: 19,
-              ),
-
-              _sectionTitle(
-                'This week processing',
-              ),
-
-              const SizedBox(
-                height: 9,
-              ),
-
-              Container(
-                padding:
-                    const EdgeInsets.all(
-                  13,
-                ),
-
-                decoration:
-                    BoxDecoration(
+                border:
+                    Border.all(
                   color:
-                      HomeScreen.card,
-
-                  borderRadius:
-                      BorderRadius.circular(
-                    18,
+                      const Color(
+                    0xFFD6DAE0,
                   ),
+                ),
 
-                  border:
-                      Border.all(
+                boxShadow: [
+                  BoxShadow(
                     color:
-                        const Color(
-                      0xFFD6DAE0,
+                        Colors.black
+                            .withOpacity(
+                      0.055,
+                    ),
+
+                    blurRadius: 11,
+
+                    offset:
+                        const Offset(
+                      0,
+                      5,
                     ),
                   ),
+                ],
+              ),
 
-                  boxShadow: [
-                    BoxShadow(
-                      color:
-                          Colors.black
-                              .withOpacity(
-                        0.055,
+              child:
+                  Column(
+                children: [
+
+                  Row(
+                    children: [
+
+                      Expanded(
+                        child:
+                            _statCard(
+                          context,
+
+                          title:
+                              'Total Walks',
+
+                          value:
+                              '12',
+
+                          icon:
+                              Icons.pets,
+
+                          iconColor:
+                              HomeScreen
+                                  .orange,
+
+                          details:
+                              'Completed Walks: 12\n'
+                              'Average Walks/Day: 1.5\n'
+                              'Status: On Track',
+                        ),
                       ),
-                      blurRadius: 11,
-                      offset:
-                          const Offset(
-                        0,
-                        5,
+
+                      const SizedBox(
+                        width: 9,
                       ),
-                    ),
-                  ],
-                ),
 
-                child:
-                    Column(
-                  children: [
-                    Row(
-                      children: [
-                        Expanded(
-                          child:
-                              _statCard(
-                            context,
+                      Expanded(
+                        child:
+                            _statCard(
+                          context,
 
-                            title:
-                                'Total Walks',
+                          title:
+                              'Distance',
 
-                            value:
-                                '12',
+                          value:
+                              '24.5',
 
-                            icon:
-                                Icons.pets,
+                          suffix:
+                              ' km',
 
-                            iconColor:
-                                HomeScreen
-                                    .orange,
+                          icon:
+                              Icons.route,
 
-                            details:
-                                'Completed Walks: 12\n'
-                                'Average Walks/Day: 1.5\n'
-                                'Status: On Track',
+                          iconColor:
+                              const Color(
+                            0xFF2196F3,
                           ),
+
+                          details:
+                              'Total Distance: 24.5 km\n'
+                              'Average per Walk: 2.04 km\n'
+                              'Longest Walk: 3.5 km',
                         ),
+                      ),
+                    ],
+                  ),
 
-                        const SizedBox(
-                          width: 9,
+                  const SizedBox(
+                    height: 9,
+                  ),
+
+                  Row(
+                    children: [
+
+                      Expanded(
+                        child:
+                            _durationCard(
+                          context,
                         ),
+                      ),
 
-                        Expanded(
-                          child:
-                              _statCard(
-                            context,
+                      const SizedBox(
+                        width: 9,
+                      ),
 
-                            title:
-                                'Distance',
-
-                            value:
-                                '24.5',
-
-                            suffix:
-                                ' km',
-
-                            icon:
-                                Icons.route,
-
-                            iconColor:
-                                const Color(
-                              0xFF2196F3,
-                            ),
-
-                            details:
-                                'Total Distance: 24.5 km\n'
-                                'Average per Walk: 2.04 km\n'
-                                'Longest Walk: 3.5 km',
-                          ),
+                      Expanded(
+                        child:
+                            _reportCard(
+                          context,
                         ),
-                      ],
-                    ),
-
-                    const SizedBox(
-                      height: 9,
-                    ),
-
-                    Row(
-                      children: [
-                        Expanded(
-                          child:
-                              _durationCard(
-                            context,
-                          ),
-                        ),
-
-                        const SizedBox(
-                          width: 9,
-                        ),
-
-                        Expanded(
-                          child:
-                              _reportCard(
-                            context,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ],
-                ),
+                      ),
+                    ],
+                  ),
+                ],
               ),
+            ),
 
-              // =========================================
-              // PAST WALK
-              // =========================================
+            // =========================================
+            // PAST WALK
+            // =========================================
 
-              const SizedBox(
-                height: 19,
-              ),
+            const SizedBox(
+              height: 19,
+            ),
 
-              _sectionTitle(
-                'Past Walk',
-              ),
+            _sectionTitle(
+              'Past Walk',
+            ),
 
-              const SizedBox(
-                height: 9,
-              ),
+            const SizedBox(
+              height: 9,
+            ),
 
-              _walkCard(
-                context,
+            _walkCard(
+              context,
 
-                id:
-                    '#WID-9842',
+              id:
+                  '#WID-9842',
 
-                time:
-                    '08:30 AM',
+              time:
+                  '08:30 AM',
 
-                date:
-                    '04 Aug 2026',
+              date:
+                  '04 Aug 2026',
 
-                distance:
-                    '2.1 km',
+              distance:
+                  '2.1 km',
 
-                duration:
-                    '30 mins',
-              ),
+              duration:
+                  '30 mins',
+            ),
 
-              const SizedBox(
-                height: 8,
-              ),
+            const SizedBox(
+              height: 8,
+            ),
 
-              _walkCard(
-                context,
+            _walkCard(
+              context,
 
-                id:
-                    '#WID-9817',
+              id:
+                  '#WID-9817',
 
-                time:
-                    '07:15 AM',
+              time:
+                  '07:15 AM',
 
-                date:
-                    '03 Aug 2026',
+              date:
+                  '03 Aug 2026',
 
-                distance:
-                    '1.8 km',
+              distance:
+                  '1.8 km',
 
-                duration:
-                    '27 mins',
-              ),
-            ],
-          ),
+              duration:
+                  '27 mins',
+            ),
+          ],
         ),
       ),
 
@@ -884,6 +609,7 @@ class _HomeScreenState extends State<HomeScreen> {
   ) {
     return Row(
       children: [
+
         Container(
           height: 19,
           width: 4,
@@ -986,6 +712,7 @@ class _HomeScreenState extends State<HomeScreen> {
         child:
             Row(
           children: [
+
             Container(
               height: 43,
               width: 43,
@@ -1029,6 +756,7 @@ class _HomeScreenState extends State<HomeScreen> {
                         .start,
 
                 children: [
+
                   Text(
                     title,
 
@@ -1067,6 +795,7 @@ class _HomeScreenState extends State<HomeScreen> {
                       text:
                           TextSpan(
                         children: [
+
                           TextSpan(
                             text:
                                 value,
@@ -1175,6 +904,7 @@ class _HomeScreenState extends State<HomeScreen> {
         child:
             Row(
           children: [
+
             Container(
               height: 43,
               width: 43,
@@ -1218,6 +948,7 @@ class _HomeScreenState extends State<HomeScreen> {
                         .start,
 
                 children: [
+
                   Text(
                     'Active Duration',
 
@@ -1337,6 +1068,7 @@ class _HomeScreenState extends State<HomeScreen> {
         child:
             Row(
           children: [
+
             Container(
               height: 43,
               width: 43,
@@ -1377,6 +1109,7 @@ class _HomeScreenState extends State<HomeScreen> {
                         .start,
 
                 children: [
+
                   Text(
                     'Report Card',
 
@@ -1514,6 +1247,7 @@ class _HomeScreenState extends State<HomeScreen> {
         child:
             Row(
           children: [
+
             Container(
               height: 42,
               width: 42,
@@ -1553,6 +1287,7 @@ class _HomeScreenState extends State<HomeScreen> {
                         .start,
 
                 children: [
+
                   Text(
                     '$id • $time',
 
