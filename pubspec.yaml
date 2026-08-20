@@ -21,6 +21,9 @@ dependencies:
   # Network / Internet Connection
   connectivity_plus: ^6.1.4
 
+  # Phone Call / SMS
+  url_launcher: ^6.3.2
+
   # QR Code
   qr_flutter: ^4.1.0
 
