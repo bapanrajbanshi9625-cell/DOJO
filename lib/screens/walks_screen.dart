@@ -177,6 +177,7 @@ class WalksScreen extends StatelessWidget {
       _findWalker(
     String walkerId,
   ) async {
+    // First try document ID.
     final directDoc = await _firestore
         .collection('walkers')
         .doc(walkerId)
@@ -186,6 +187,7 @@ class WalksScreen extends StatelessWidget {
       return directDoc;
     }
 
+    // Then try walkerId field.
     final query = await _firestore
         .collection('walkers')
         .where(
@@ -220,7 +222,9 @@ class WalksScreen extends StatelessWidget {
         ),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withValues(alpha: .035),
+            color: Colors.black.withValues(
+              alpha: .035,
+            ),
             blurRadius: 12,
             offset: const Offset(0, 4),
           ),
@@ -236,8 +240,9 @@ class WalksScreen extends StatelessWidget {
                 width: 46,
                 height: 46,
                 decoration: BoxDecoration(
-                  color:
-                      primary.withValues(alpha: .10),
+                  color: primary.withValues(
+                    alpha: .10,
+                  ),
                   borderRadius:
                       BorderRadius.circular(14),
                 ),
@@ -294,13 +299,15 @@ class WalksScreen extends StatelessWidget {
               label: const Text(
                 'Find a Walker',
                 style: TextStyle(
-                  fontWeight: FontWeight.w800,
+                  fontWeight:
+                      FontWeight.w800,
                 ),
               ),
               style:
                   ElevatedButton.styleFrom(
                 backgroundColor: primary,
-                foregroundColor: Colors.white,
+                foregroundColor:
+                    Colors.white,
                 elevation: 0,
                 shape:
                     RoundedRectangleBorder(
@@ -325,12 +332,14 @@ class WalksScreen extends StatelessWidget {
     Map<String, dynamic> walkerData,
   ) {
     final String walkerId =
-        _stringValue(activeWalk['walkerId']);
+        _stringValue(
+      activeWalk['walkerId'],
+    );
 
     final String walkerName =
         _stringValue(
-      activeWalk['walkerName'],
-    ).isNotEmpty
+          activeWalk['walkerName'],
+        ).isNotEmpty
             ? _stringValue(
                 activeWalk['walkerName'],
               )
@@ -343,28 +352,37 @@ class WalksScreen extends StatelessWidget {
                 : 'Walker';
 
     final String ownerId =
-        _stringValue(activeWalk['ownerId']);
-
-    final String ownerName =
-        _stringValue(activeWalk['OwnerName']);
+        _stringValue(
+      activeWalk['ownerId'],
+    );
 
     final String phone =
         _walkerPhone(walkerData);
 
     final String petName =
-        _stringValue(activeWalk['petName']);
+        _stringValue(
+      activeWalk['petName'],
+    );
 
     final String distance =
-        _stringValue(activeWalk['distance']);
+        _stringValue(
+      activeWalk['distance'],
+    );
 
     final String duration =
-        _stringValue(activeWalk['duration']);
+        _stringValue(
+      activeWalk['duration'],
+    );
 
     final double? lat =
-        _doubleValue(activeWalk['currentLat']);
+        _doubleValue(
+      activeWalk['currentLat'],
+    );
 
     final double? lng =
-        _doubleValue(activeWalk['currentLng']);
+        _doubleValue(
+      activeWalk['currentLng'],
+    );
 
     return GestureDetector(
       onTap: () {
@@ -382,13 +400,15 @@ class WalksScreen extends StatelessWidget {
           borderRadius:
               BorderRadius.circular(20),
           border: Border.all(
-            color:
-                primary.withValues(alpha: .22),
+            color: primary.withValues(
+              alpha: .22,
+            ),
           ),
           boxShadow: [
             BoxShadow(
-              color:
-                  Colors.black.withValues(alpha: .04),
+              color: Colors.black.withValues(
+                alpha: .04,
+              ),
               blurRadius: 13,
               offset: const Offset(0, 5),
             ),
@@ -482,6 +502,58 @@ class WalksScreen extends StatelessWidget {
             const SizedBox(height: 14),
 
             // =================================================
+            // WALK SUMMARY
+            // =================================================
+
+            if (petName.isNotEmpty ||
+                distance.isNotEmpty ||
+                duration.isNotEmpty)
+              Container(
+                width: double.infinity,
+                padding:
+                    const EdgeInsets.symmetric(
+                  horizontal: 12,
+                  vertical: 10,
+                ),
+                decoration: BoxDecoration(
+                  color:
+                      const Color(0xFFF7F8F9),
+                  borderRadius:
+                      BorderRadius.circular(13),
+                  border: Border.all(
+                    color: border,
+                  ),
+                ),
+                child: Row(
+                  children: [
+                    if (petName.isNotEmpty)
+                      Expanded(
+                        child: _miniInfo(
+                          Icons.pets_rounded,
+                          petName,
+                        ),
+                      ),
+                    if (distance.isNotEmpty)
+                      Expanded(
+                        child: _miniInfo(
+                          Icons.route_rounded,
+                          distance,
+                        ),
+                      ),
+                    if (duration.isNotEmpty)
+                      Expanded(
+                        child: _miniInfo(
+                          Icons.timer_outlined,
+                          duration,
+                        ),
+                      ),
+                  ],
+                ),
+              ),
+
+            const SizedBox(height: 12),
+
+            // =================================================
             // ACTION BUTTONS
             // =================================================
 
@@ -510,8 +582,10 @@ class WalksScreen extends StatelessWidget {
                     onTap: () {
                       _smsWalker(
                         phone: phone,
-                        walkerId: walkerId,
-                        ownerId: ownerId,
+                        walkerId:
+                            walkerId,
+                        ownerId:
+                            ownerId,
                       );
                     },
                   ),
@@ -544,7 +618,8 @@ class WalksScreen extends StatelessWidget {
                   MainAxisAlignment.center,
               children: [
                 Icon(
-                  Icons.keyboard_arrow_up_rounded,
+                  Icons
+                      .keyboard_arrow_up_rounded,
                   color: slate,
                   size: 17,
                 ),
@@ -567,6 +642,40 @@ class WalksScreen extends StatelessWidget {
   }
 
   // ==========================================================
+  // MINI INFO
+  // ==========================================================
+
+  Widget _miniInfo(
+    IconData icon,
+    String value,
+  ) {
+    return Row(
+      children: [
+        Icon(
+          icon,
+          color: primary,
+          size: 16,
+        ),
+        const SizedBox(width: 5),
+        Expanded(
+          child: Text(
+            value,
+            maxLines: 1,
+            overflow:
+                TextOverflow.ellipsis,
+            style: const TextStyle(
+              color: navy,
+              fontSize: 10,
+              fontWeight:
+                  FontWeight.w700,
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  // ==========================================================
   // PROFILE ICON
   // ==========================================================
 
@@ -577,8 +686,9 @@ class WalksScreen extends StatelessWidget {
       width: size,
       height: size,
       decoration: BoxDecoration(
-        color:
-            primary.withValues(alpha: .10),
+        color: primary.withValues(
+          alpha: .10,
+        ),
         shape: BoxShape.circle,
       ),
       child: Icon(
@@ -620,10 +730,14 @@ class WalksScreen extends StatelessWidget {
         style:
             OutlinedButton.styleFrom(
           backgroundColor:
-              color.withValues(alpha: .055),
+              color.withValues(
+            alpha: .055,
+          ),
           side: BorderSide(
             color:
-                color.withValues(alpha: .18),
+                color.withValues(
+              alpha: .18,
+            ),
           ),
           padding: EdgeInsets.zero,
           shape:
@@ -643,7 +757,8 @@ class WalksScreen extends StatelessWidget {
   Widget _activeWalkerLoading() {
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.all(18),
+      padding:
+          const EdgeInsets.all(18),
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius:
@@ -686,7 +801,8 @@ class WalksScreen extends StatelessWidget {
   ) {
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.all(16),
+      padding:
+          const EdgeInsets.all(16),
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius:
@@ -728,12 +844,14 @@ class WalksScreen extends StatelessWidget {
     Map<String, dynamic> walkerData,
   ) {
     final String walkerId =
-        _stringValue(activeWalk['walkerId']);
+        _stringValue(
+      activeWalk['walkerId'],
+    );
 
     final String walkerName =
         _stringValue(
-      activeWalk['walkerName'],
-    ).isNotEmpty
+          activeWalk['walkerName'],
+        ).isNotEmpty
             ? _stringValue(
                 activeWalk['walkerName'],
               )
@@ -746,35 +864,52 @@ class WalksScreen extends StatelessWidget {
                 : 'Walker';
 
     final String ownerId =
-        _stringValue(activeWalk['ownerId']);
+        _stringValue(
+      activeWalk['ownerId'],
+    );
 
     final String petName =
-        _stringValue(activeWalk['petName']);
+        _stringValue(
+      activeWalk['petName'],
+    );
 
     final String petBreed =
-        _stringValue(activeWalk['petBreed']);
+        _stringValue(
+      activeWalk['petBreed'],
+    );
 
     final String petAge =
-        _stringValue(activeWalk['petAge']);
+        _stringValue(
+      activeWalk['petAge'],
+    );
 
     final String distance =
-        _stringValue(activeWalk['distance']);
+        _stringValue(
+      activeWalk['distance'],
+    );
 
     final String duration =
-        _stringValue(activeWalk['duration']);
+        _stringValue(
+      activeWalk['duration'],
+    );
 
     final double? lat =
-        _doubleValue(activeWalk['currentLat']);
+        _doubleValue(
+      activeWalk['currentLat'],
+    );
 
     final double? lng =
-        _doubleValue(activeWalk['currentLng']);
+        _doubleValue(
+      activeWalk['currentLng'],
+    );
 
     final String phone =
         _walkerPhone(walkerData);
 
     showModalBottomSheet<void>(
       context: context,
-      backgroundColor: Colors.transparent,
+      backgroundColor:
+          Colors.transparent,
       isScrollControlled: true,
       builder: (sheetContext) {
         return Container(
@@ -853,6 +988,10 @@ class WalksScreen extends StatelessWidget {
 
                               Text(
                                 walkerName,
+                                maxLines: 1,
+                                overflow:
+                                    TextOverflow
+                                        .ellipsis,
                                 style:
                                     const TextStyle(
                                   color: navy,
@@ -969,7 +1108,8 @@ class WalksScreen extends StatelessWidget {
                           ),
 
                           _detailRow(
-                            Icons.directions_walk_rounded,
+                            Icons
+                                .directions_walk_rounded,
                             'Status',
                             'Walker on the way',
                             valueColor:
@@ -1055,7 +1195,8 @@ class WalksScreen extends StatelessWidget {
                                     .icon(
                               onPressed: () {
                                 _smsWalker(
-                                  phone: phone,
+                                  phone:
+                                      phone,
                                   walkerId:
                                       walkerId,
                                   ownerId:
@@ -1181,8 +1322,9 @@ class WalksScreen extends StatelessWidget {
           width: 35,
           height: 35,
           decoration: BoxDecoration(
-            color:
-                primary.withValues(alpha: .08),
+            color: primary.withValues(
+              alpha: .08,
+            ),
             borderRadius:
                 BorderRadius.circular(10),
           ),
@@ -1233,7 +1375,7 @@ class WalksScreen extends StatelessWidget {
   String _walkerPhone(
     Map<String, dynamic> walkerData,
   ) {
-    final possibleFields = [
+    const possibleFields = [
       'phone',
       'phoneNumber',
       'Mobile number',
@@ -1242,8 +1384,10 @@ class WalksScreen extends StatelessWidget {
     ];
 
     for (final field in possibleFields) {
-      final value =
-          _stringValue(walkerData[field]);
+      final String value =
+          _stringValue(
+        walkerData[field],
+      );
 
       if (value.isNotEmpty) {
         return value;
@@ -1254,7 +1398,7 @@ class WalksScreen extends StatelessWidget {
   }
 
   // ==========================================================
-  // CALL
+  // CALL WALKER
   // ==========================================================
 
   Future<void> _callWalker(
@@ -1273,7 +1417,7 @@ class WalksScreen extends StatelessWidget {
   }
 
   // ==========================================================
-  // SMS
+  // SMS WALKER
   // ==========================================================
 
   Future<void> _smsWalker({
