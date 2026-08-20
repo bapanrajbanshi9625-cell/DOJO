@@ -13,6 +13,7 @@ class ActiveWalk {
   final String status;
   final String walkerName;
   final String walkerId;
+  final String walkerPhone;
 
   const ActiveWalk({
     required this.documentId,
@@ -29,6 +30,7 @@ class ActiveWalk {
     required this.status,
     required this.walkerName,
     required this.walkerId,
+    required this.walkerPhone,
   });
 
   // ==========================================================
@@ -80,6 +82,14 @@ class ActiveWalk {
       walkerId: _stringValue(
         data['walkerId'],
       ),
+
+      // Walker phone can come directly from active_walk.
+      // If not present, it remains empty.
+      walkerPhone: _stringValue(
+        data['walkerPhone'] ??
+            data['phone'] ??
+            data['phoneNumber'],
+      ),
     );
   }
 
@@ -102,6 +112,7 @@ class ActiveWalk {
       'status': status,
       'walkerName': walkerName,
       'walkerId': walkerId,
+      'walkerPhone': walkerPhone,
     };
   }
 
