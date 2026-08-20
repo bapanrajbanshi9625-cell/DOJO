@@ -1,3 +1,5 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 
 class HomeWeeklyProcessing extends StatelessWidget {
@@ -15,8 +17,252 @@ class HomeWeeklyProcessing extends StatelessWidget {
   static const Color navy = Color(0xFF263746);
   static const Color slate = Color(0xFF475569);
 
+  // ==========================================================
+  // CURRENT OWNER UID
+  // ==========================================================
+
+  String? get _ownerUid {
+    final uid = FirebaseAuth.instance.currentUser?.uid.trim();
+
+    if (uid == null || uid.isEmpty) {
+      return null;
+    }
+
+    return uid;
+  }
+
+  // ==========================================================
+  // BUILD
+  // ==========================================================
+
   @override
   Widget build(BuildContext context) {
+    final uid = _ownerUid;
+
+    if (uid == null) {
+      return _buildWithData(
+        context,
+        totalWalks: 0,
+        totalDistance: 0,
+        averageDistance: 0,
+        longestDistance: 0,
+        totalDurationMinutes: 0,
+        averageDurationMinutes: 0,
+      );
+    }
+
+    return StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
+      stream: FirebaseFirestore.instance
+          .collection('walkHistory')
+          .where('ownerId', isEqualTo: uid)
+          .snapshots(),
+
+      builder: (context, snapshot) {
+        if (snapshot.hasError) {
+          return _buildWithData(
+            context,
+            totalWalks: 0,
+            totalDistance: 0,
+            averageDistance: 0,
+            longestDistance: 0,
+            totalDurationMinutes: 0,
+            averageDurationMinutes: 0,
+          );
+        }
+
+        final documents = snapshot.data?.docs ?? [];
+
+        final weeklyData = _calculateCurrentWeek(
+          documents,
+          uid,
+        );
+
+        return _buildWithData(
+          context,
+          totalWalks: weeklyData.totalWalks,
+          totalDistance: weeklyData.totalDistance,
+          averageDistance: weeklyData.averageDistance,
+          longestDistance: weeklyData.longestDistance,
+          totalDurationMinutes:
+              weeklyData.totalDurationMinutes,
+          averageDurationMinutes:
+              weeklyData.averageDurationMinutes,
+        );
+      },
+    );
+  }
+
+  // ==========================================================
+  // CURRENT WEEK CALCULATION
+  //
+  // MONDAY -> SUNDAY
+  // ==========================================================
+
+  _WeeklyData _calculateCurrentWeek(
+    List<QueryDocumentSnapshot<Map<String, dynamic>>> documents,
+    String currentUid,
+  ) {
+    final now = DateTime.now();
+
+    // DateTime.weekday:
+    // Monday = 1
+    // Sunday = 7
+
+    final startOfToday = DateTime(
+      now.year,
+      now.month,
+      now.day,
+    );
+
+    final weekStart = startOfToday.subtract(
+      Duration(
+        days: startOfToday.weekday - DateTime.monday,
+      ),
+    );
+
+    final nextWeekStart = weekStart.add(
+      const Duration(days: 7),
+    );
+
+    int totalWalks = 0;
+    double totalDistance = 0;
+    double longestDistance = 0;
+    int totalDurationMinutes = 0;
+
+    for (final document in documents) {
+      final data = document.data();
+
+      // ------------------------------------------------------
+      // EXTRA OWNER SAFETY CHECK
+      // ------------------------------------------------------
+
+      final ownerId = _readString(
+        data['ownerId'],
+      );
+
+      if (ownerId != currentUid) {
+        continue;
+      }
+
+      // ------------------------------------------------------
+      // COMPLETED AT
+      // ------------------------------------------------------
+
+      final completedAt = _readDateTime(
+        data['completedAt'],
+      );
+
+      if (completedAt == null) {
+        continue;
+      }
+
+      // ------------------------------------------------------
+      // ONLY CURRENT MONDAY -> NEXT MONDAY
+      // ------------------------------------------------------
+
+      if (completedAt.isBefore(weekStart) ||
+          !completedAt.isBefore(nextWeekStart)) {
+        continue;
+      }
+
+      // ------------------------------------------------------
+      // OPTIONAL STATUS CHECK
+      //
+      // If status exists and is not completed, skip it.
+      // If status field does not exist, the record is allowed.
+      // ------------------------------------------------------
+
+      final status = _readString(
+        data['status'],
+      ).toLowerCase();
+
+      if (status.isNotEmpty) {
+        const completedStatuses = {
+          'completed',
+          'complete',
+          'done',
+          'finished',
+          'success',
+          'successful',
+        };
+
+        if (!completedStatuses.contains(status)) {
+          continue;
+        }
+      }
+
+      // ------------------------------------------------------
+      // WALK COUNT
+      // ------------------------------------------------------
+
+      totalWalks++;
+
+      // ------------------------------------------------------
+      // DISTANCE
+      // ------------------------------------------------------
+
+      final distance = _readDouble(
+        data['distance'],
+      );
+
+      if (distance != null && distance >= 0) {
+        totalDistance += distance;
+
+        if (distance > longestDistance) {
+          longestDistance = distance;
+        }
+      }
+
+      // ------------------------------------------------------
+      // DURATION
+      //
+      // Supports:
+      // durationMinutes
+      // duration
+      // durationInMinutes
+      // ------------------------------------------------------
+
+      final durationMinutes = _readDurationMinutes(
+        data,
+      );
+
+      if (durationMinutes != null &&
+          durationMinutes >= 0) {
+        totalDurationMinutes += durationMinutes;
+      }
+    }
+
+    final averageDistance = totalWalks == 0
+        ? 0.0
+        : totalDistance / totalWalks;
+
+    final averageDurationMinutes = totalWalks == 0
+        ? 0
+        : (totalDurationMinutes / totalWalks).round();
+
+    return _WeeklyData(
+      totalWalks: totalWalks,
+      totalDistance: totalDistance,
+      averageDistance: averageDistance,
+      longestDistance: longestDistance,
+      totalDurationMinutes: totalDurationMinutes,
+      averageDurationMinutes: averageDurationMinutes,
+    );
+  }
+
+  // ==========================================================
+  // BUILD UI
+  // ==========================================================
+
+  Widget _buildWithData(
+    BuildContext context, {
+    required int totalWalks,
+    required double totalDistance,
+    required double averageDistance,
+    required double longestDistance,
+    required int totalDurationMinutes,
+    required int averageDurationMinutes,
+  }) {
     return Container(
       padding: const EdgeInsets.all(13),
       decoration: BoxDecoration(
@@ -40,13 +286,14 @@ class HomeWeeklyProcessing extends StatelessWidget {
               Expanded(
                 child: _statCard(
                   title: 'Total Walks',
-                  value: '12',
+                  value: '$totalWalks',
                   icon: Icons.pets,
                   iconColor: orange,
                   details:
-                      'Completed Walks: 12\n'
-                      'Average Walks/Day: 1.5\n'
-                      'Status: On Track',
+                      'Completed Walks: $totalWalks\n'
+                      'Average Walks/Day: '
+                      '${_averageWalksPerDay(totalWalks)}\n'
+                      'Status: ${_walkStatus(totalWalks)}',
                 ),
               ),
 
@@ -55,14 +302,17 @@ class HomeWeeklyProcessing extends StatelessWidget {
               Expanded(
                 child: _statCard(
                   title: 'Distance',
-                  value: '24.5',
+                  value: _formatNumber(totalDistance),
                   suffix: ' km',
                   icon: Icons.route,
                   iconColor: const Color(0xFF2196F3),
                   details:
-                      'Total Distance: 24.5 km\n'
-                      'Average per Walk: 2.04 km\n'
-                      'Longest Walk: 3.5 km',
+                      'Total Distance: '
+                      '${_formatNumber(totalDistance)} km\n'
+                      'Average per Walk: '
+                      '${_formatNumber(averageDistance)} km\n'
+                      'Longest Walk: '
+                      '${_formatNumber(longestDistance)} km',
                 ),
               ),
             ],
@@ -73,13 +323,18 @@ class HomeWeeklyProcessing extends StatelessWidget {
           Row(
             children: [
               Expanded(
-                child: _durationCard(),
+                child: _durationCard(
+                  totalDurationMinutes,
+                  averageDurationMinutes,
+                ),
               ),
 
               const SizedBox(width: 9),
 
               Expanded(
-                child: _reportCard(),
+                child: _reportCard(
+                  totalWalks,
+                ),
               ),
             ],
           ),
@@ -87,6 +342,10 @@ class HomeWeeklyProcessing extends StatelessWidget {
       ),
     );
   }
+
+  // ==========================================================
+  // STAT CARD
+  // ==========================================================
 
   Widget _statCard({
     required String title,
@@ -193,15 +452,29 @@ class HomeWeeklyProcessing extends StatelessWidget {
     );
   }
 
-  Widget _durationCard() {
+  // ==========================================================
+  // DURATION CARD
+  // ==========================================================
+
+  Widget _durationCard(
+    int totalDurationMinutes,
+    int averageDurationMinutes,
+  ) {
+    final totalText = _formatDuration(
+      totalDurationMinutes,
+    );
+
     return InkWell(
       borderRadius: BorderRadius.circular(14),
       onTap: () {
         onDetails(
           'Duration Details',
-          'Total Active Time: 6 hours\n'
-          'Average Duration per Walk: 30 minutes\n'
-          'Pace Efficiency: Good',
+          'Total Active Time: $totalText\n'
+          'Average Duration per Walk: '
+          '${_formatDuration(averageDurationMinutes)}\n'
+          'Pace Efficiency: ${_paceStatus(
+            averageDurationMinutes,
+          )}',
         );
       },
       child: Container(
@@ -237,14 +510,14 @@ class HomeWeeklyProcessing extends StatelessWidget {
 
             const SizedBox(width: 9),
 
-            const Expanded(
+            Expanded(
               child: Column(
                 mainAxisAlignment:
                     MainAxisAlignment.center,
                 crossAxisAlignment:
                     CrossAxisAlignment.start,
                 children: [
-                  Text(
+                  const Text(
                     'Active Duration',
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
@@ -254,13 +527,19 @@ class HomeWeeklyProcessing extends StatelessWidget {
                       fontWeight: FontWeight.w600,
                     ),
                   ),
-                  SizedBox(height: 3),
-                  Text(
-                    '6 hrs',
-                    style: TextStyle(
-                      color: navy,
-                      fontSize: 20,
-                      fontWeight: FontWeight.w900,
+
+                  const SizedBox(height: 3),
+
+                  FittedBox(
+                    fit: BoxFit.scaleDown,
+                    alignment: Alignment.centerLeft,
+                    child: Text(
+                      totalText,
+                      style: const TextStyle(
+                        color: navy,
+                        fontSize: 20,
+                        fontWeight: FontWeight.w900,
+                      ),
                     ),
                   ),
                 ],
@@ -272,15 +551,26 @@ class HomeWeeklyProcessing extends StatelessWidget {
     );
   }
 
-  Widget _reportCard() {
+  // ==========================================================
+  // REPORT CARD
+  // ==========================================================
+
+  Widget _reportCard(
+    int totalWalks,
+  ) {
+    final reportStatus = totalWalks > 0
+        ? 'Active'
+        : 'No Walks';
+
     return InkWell(
       borderRadius: BorderRadius.circular(14),
       onTap: () {
         onDetails(
           'Report Card',
-          'First Week Report: Completed (10 Walks)\n\n'
-          'Current Week Report: Active (12 Walks)\n\n'
-          'Current Week Start: 03 Aug 2026',
+          'Current Week Report: '
+          '$reportStatus ($totalWalks Walks)\n\n'
+          'Weekly Cycle: Monday - Sunday\n\n'
+          'Counting resets automatically every Monday.',
         );
       },
       child: Container(
@@ -333,7 +623,9 @@ class HomeWeeklyProcessing extends StatelessWidget {
                       fontWeight: FontWeight.w600,
                     ),
                   ),
+
                   SizedBox(height: 3),
+
                   Text(
                     'Performance',
                     maxLines: 1,
@@ -352,4 +644,218 @@ class HomeWeeklyProcessing extends StatelessWidget {
       ),
     );
   }
+
+  // ==========================================================
+  // HELPERS
+  // ==========================================================
+
+  static String _readString(dynamic value) {
+    if (value == null) {
+      return '';
+    }
+
+    return value.toString().trim();
+  }
+
+  static DateTime? _readDateTime(dynamic value) {
+    if (value == null) {
+      return null;
+    }
+
+    if (value is Timestamp) {
+      return value.toDate();
+    }
+
+    if (value is DateTime) {
+      return value;
+    }
+
+    if (value is int) {
+      return DateTime.fromMillisecondsSinceEpoch(
+        value,
+      );
+    }
+
+    if (value is String) {
+      return DateTime.tryParse(value);
+    }
+
+    return null;
+  }
+
+  static double? _readDouble(dynamic value) {
+    if (value == null) {
+      return null;
+    }
+
+    if (value is num) {
+      return value.toDouble();
+    }
+
+    if (value is String) {
+      final cleaned = value
+          .trim()
+          .replaceAll(',', '')
+          .replaceAll('km', '')
+          .trim();
+
+      return double.tryParse(cleaned);
+    }
+
+    return null;
+  }
+
+  static int? _readDurationMinutes(
+    Map<String, dynamic> data,
+  ) {
+    final candidates = [
+      data['durationMinutes'],
+      data['durationInMinutes'],
+      data['duration'],
+    ];
+
+    for (final value in candidates) {
+      if (value == null) {
+        continue;
+      }
+
+      if (value is num) {
+        return value.round();
+      }
+
+      if (value is String) {
+        final text = value.trim().toLowerCase();
+
+        final direct = int.tryParse(text);
+
+        if (direct != null) {
+          return direct;
+        }
+
+        final hourMatch = RegExp(
+          r'(\d+(?:\.\d+)?)\s*(?:h|hr|hrs|hour|hours)',
+        ).firstMatch(text);
+
+        final minuteMatch = RegExp(
+          r'(\d+)\s*(?:m|min|mins|minute|minutes)',
+        ).firstMatch(text);
+
+        double totalMinutes = 0;
+
+        if (hourMatch != null) {
+          totalMinutes +=
+              double.parse(hourMatch.group(1)!) * 60;
+        }
+
+        if (minuteMatch != null) {
+          totalMinutes +=
+              double.parse(minuteMatch.group(1)!);
+        }
+
+        if (totalMinutes > 0) {
+          return totalMinutes.round();
+        }
+      }
+    }
+
+    return null;
+  }
+
+  static String _formatNumber(double value) {
+    if (value == 0) {
+      return '0';
+    }
+
+    if (value == value.roundToDouble()) {
+      return value.toStringAsFixed(0);
+    }
+
+    return value.toStringAsFixed(2);
+  }
+
+  static String _formatDuration(int minutes) {
+    if (minutes <= 0) {
+      return '0 hrs';
+    }
+
+    final hours = minutes ~/ 60;
+    final remainingMinutes = minutes % 60;
+
+    if (hours == 0) {
+      return '$remainingMinutes mins';
+    }
+
+    if (remainingMinutes == 0) {
+      return '$hours hrs';
+    }
+
+    return '$hours h ${remainingMinutes}m';
+  }
+
+  static String _averageWalksPerDay(
+    int totalWalks,
+  ) {
+    if (totalWalks == 0) {
+      return '0';
+    }
+
+    final now = DateTime.now();
+
+    // Monday = 1 ... Sunday = 7
+    final daysSoFar = now.weekday;
+
+    final average = totalWalks / daysSoFar;
+
+    return average.toStringAsFixed(1);
+  }
+
+  static String _walkStatus(
+    int totalWalks,
+  ) {
+    if (totalWalks == 0) {
+      return 'No Walks';
+    }
+
+    return 'On Track';
+  }
+
+  static String _paceStatus(
+    int averageDurationMinutes,
+  ) {
+    if (averageDurationMinutes <= 0) {
+      return 'No Data';
+    }
+
+    if (averageDurationMinutes <= 45) {
+      return 'Good';
+    }
+
+    if (averageDurationMinutes <= 90) {
+      return 'Normal';
+    }
+
+    return 'Long Walks';
+  }
+}
+
+// ==========================================================
+// WEEKLY DATA MODEL
+// ==========================================================
+
+class _WeeklyData {
+  const _WeeklyData({
+    required this.totalWalks,
+    required this.totalDistance,
+    required this.averageDistance,
+    required this.longestDistance,
+    required this.totalDurationMinutes,
+    required this.averageDurationMinutes,
+  });
+
+  final int totalWalks;
+  final double totalDistance;
+  final double averageDistance;
+  final double longestDistance;
+  final int totalDurationMinutes;
+  final int averageDurationMinutes;
 }
