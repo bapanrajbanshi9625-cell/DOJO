@@ -30,6 +30,16 @@ dependencies:
   # Profile Photo
   image_picker: ^1.1.2
 
+  # ========================================================
+  # LOCATION + OPENSTREETMAP
+  # ========================================================
+
+  # OpenStreetMap
+  flutter_map: ^7.0.2
+
+  # GPS / Location Permission
+  geolocator: ^13.0.2
+
 dev_dependencies:
   flutter_test:
     sdk: flutter
