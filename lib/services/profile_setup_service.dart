@@ -1,5 +1,8 @@
+// File location: lib/services/profile_setup_service.dart
+
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:geolocator/geolocator.dart';
 
 import '../models/pet_data.dart';
 import 'owner_id_service.dart';
@@ -21,6 +24,56 @@ class ProfileSetupService {
       'ownerProfiles';
 
   // ============================================================
+  // GET CURRENT LOCATION
+  // ============================================================
+
+  static Future<Position?> getCurrentLocation() async {
+    // ----------------------------------------------------------
+    // LOCATION SERVICE ENABLED?
+    // ----------------------------------------------------------
+
+    final bool serviceEnabled =
+        await Geolocator.isLocationServiceEnabled();
+
+    if (!serviceEnabled) {
+      return null;
+    }
+
+    // ----------------------------------------------------------
+    // PERMISSION
+    // ----------------------------------------------------------
+
+    LocationPermission permission =
+        await Geolocator.checkPermission();
+
+    if (permission == LocationPermission.denied) {
+      permission =
+          await Geolocator.requestPermission();
+    }
+
+    if (permission == LocationPermission.denied ||
+        permission ==
+            LocationPermission.deniedForever) {
+      return null;
+    }
+
+    // ----------------------------------------------------------
+    // CURRENT POSITION
+    // ----------------------------------------------------------
+
+    try {
+      return await Geolocator.getCurrentPosition(
+        locationSettings:
+            const LocationSettings(
+          accuracy: LocationAccuracy.high,
+        ),
+      );
+    } catch (e) {
+      return null;
+    }
+  }
+
+  // ============================================================
   // SAVE PROFILE
   // ============================================================
 
@@ -28,6 +81,10 @@ class ProfileSetupService {
     required String ownerName,
     required String address,
     required List<PetData> pets,
+
+    // Current location optional.
+    double? latitude,
+    double? longitude,
   }) async {
     // ----------------------------------------------------------
     // CURRENT FIREBASE USER
@@ -49,21 +106,23 @@ class ProfileSetupService {
     // UID
     // ----------------------------------------------------------
 
-    final String uid = user.uid.trim();
+    final String uid =
+        user.uid.trim();
 
     if (uid.isEmpty) {
       throw FirebaseException(
         plugin: 'firebase_auth',
         code: 'invalid-user',
-        message: 'Firebase UID was not found.',
+        message:
+            'Firebase UID was not found.',
       );
     }
 
     // ----------------------------------------------------------
-    // PHONE
+    // VERIFIED MOBILE NUMBER
     // ----------------------------------------------------------
 
-    String phoneNumber =
+    final String phoneNumber =
         user.phoneNumber?.trim() ?? '';
 
     if (phoneNumber.isEmpty) {
@@ -76,7 +135,7 @@ class ProfileSetupService {
     }
 
     // ----------------------------------------------------------
-    // GET EXISTING OWNER ID
+    // OWNER ID
     // ----------------------------------------------------------
 
     String? ownerId =
@@ -85,10 +144,6 @@ class ProfileSetupService {
       uid: uid,
     );
 
-    // ----------------------------------------------------------
-    // CREATE OWNER ID IF MISSING
-    // ----------------------------------------------------------
-
     ownerId ??=
         await OwnerIdService.instance
             .getOrCreateOwnerId(
@@ -96,7 +151,8 @@ class ProfileSetupService {
       phoneNumber: phoneNumber,
     );
 
-    ownerId = ownerId.trim();
+    ownerId =
+        ownerId.trim();
 
     if (ownerId.isEmpty) {
       throw FirebaseException(
@@ -126,7 +182,7 @@ class ProfileSetupService {
     }).toList();
 
     // ----------------------------------------------------------
-    // OWNER PROFILE
+    // OWNER PROFILE REFERENCE
     // ----------------------------------------------------------
 
     final DocumentReference<
@@ -138,37 +194,81 @@ class ProfileSetupService {
             .doc(ownerId);
 
     // ----------------------------------------------------------
-    // SAVE PROFILE
+    // PROFILE DATA
+    // ----------------------------------------------------------
+
+    final Map<String, dynamic> profileData = {
+      // Identity
+      'ownerId': ownerId,
+      'authUid': uid,
+
+      // Verified mobile
+      'phone': phoneNumber,
+      'mobileNumber': phoneNumber,
+
+      // Owner
+      'ownerName':
+          ownerName.trim(),
+
+      // Address
+      'address':
+          address.trim(),
+
+      // Pets
+      'pets':
+          petData,
+
+      // Status
+      'profileCompleted': true,
+      'isActive': true,
+      'role': 'owner',
+
+      // Time
+      'updatedAt':
+          FieldValue.serverTimestamp(),
+
+      'profileCompletedAt':
+          FieldValue.serverTimestamp(),
+    };
+
+    // ----------------------------------------------------------
+    // CURRENT LOCATION
     // ----------------------------------------------------------
     //
-    // IMPORTANT:
-    // profileCompleted = true
+    // Location only saved when available.
     //
-    // Splash और OTP verification
-    // इसी field को check करेंगे.
+    // latitude
+    // longitude
+    //
+    // ownerLocation:
+    // {
+    //   latitude: ...,
+    //   longitude: ...
+    // }
+    //
+    // ----------------------------------------------------------
+
+    if (latitude != null &&
+        longitude != null) {
+      profileData['latitude'] =
+          latitude;
+
+      profileData['longitude'] =
+          longitude;
+
+      profileData['ownerLocation'] =
+          GeoPoint(
+        latitude,
+        longitude,
+      );
+    }
+
+    // ----------------------------------------------------------
+    // SAVE OWNER PROFILE
     // ----------------------------------------------------------
 
     await ownerProfileRef.set(
-      {
-        'ownerId': ownerId,
-        'authUid': uid,
-        'phone': phoneNumber,
-
-        'ownerName': ownerName.trim(),
-        'address': address.trim(),
-
-        'pets': petData,
-
-        'profileCompleted': true,
-        'isActive': true,
-        'role': 'owner',
-
-        'updatedAt':
-            FieldValue.serverTimestamp(),
-
-        'profileCompletedAt':
-            FieldValue.serverTimestamp(),
-      },
+      profileData,
       SetOptions(
         merge: true,
       ),
@@ -185,9 +285,15 @@ class ProfileSetupService {
       {
         'authUid': uid,
         'phone': phoneNumber,
+        'mobileNumber': phoneNumber,
+
         'role': 'owner',
+
         'ownerId': ownerId,
-        'profileCompleted': true,
+
+        'profileCompleted':
+            true,
+
         'updatedAt':
             FieldValue.serverTimestamp(),
       },
@@ -201,7 +307,8 @@ class ProfileSetupService {
   // CHECK PROFILE COMPLETED
   // ============================================================
 
-  static Future<bool> isProfileCompleted() async {
+  static Future<bool>
+      isProfileCompleted() async {
     final User? user =
         FirebaseAuth.instance.currentUser;
 
@@ -217,7 +324,7 @@ class ProfileSetupService {
     }
 
     // ----------------------------------------------------------
-    // GET OWNER ID
+    // OWNER ID
     // ----------------------------------------------------------
 
     final String? ownerId =
@@ -232,7 +339,7 @@ class ProfileSetupService {
     }
 
     // ----------------------------------------------------------
-    // GET OWNER PROFILE
+    // OWNER PROFILE
     // ----------------------------------------------------------
 
     final DocumentSnapshot<
@@ -251,7 +358,8 @@ class ProfileSetupService {
     final Map<String, dynamic>? data =
         snapshot.data();
 
-    return data?['profileCompleted'] == true;
+    return data?['profileCompleted'] ==
+        true;
   }
 
   // ============================================================
@@ -259,7 +367,8 @@ class ProfileSetupService {
   // ============================================================
 
   static Future<
-      DocumentSnapshot<Map<String, dynamic>>?>
+      DocumentSnapshot<
+          Map<String, dynamic>>?>
       getOwnerProfile() async {
     final User? user =
         FirebaseAuth.instance.currentUser;
@@ -292,5 +401,48 @@ class ProfileSetupService {
         )
         .doc(ownerId)
         .get();
+  }
+
+  // ============================================================
+  // GET OWNER LOCATION
+  // ============================================================
+
+  static Future<GeoPoint?>
+      getOwnerLocation() async {
+    final DocumentSnapshot<
+        Map<String, dynamic>>?
+        snapshot =
+        await getOwnerProfile();
+
+    if (snapshot == null ||
+        !snapshot.exists) {
+      return null;
+    }
+
+    final data =
+        snapshot.data();
+
+    final dynamic location =
+        data?['ownerLocation'];
+
+    if (location is GeoPoint) {
+      return location;
+    }
+
+    final dynamic latitude =
+        data?['latitude'];
+
+    final dynamic longitude =
+        data?['longitude'];
+
+    if (latitude is num &&
+        longitude is num) {
+      return GeoPoint(
+        latitude.toDouble(),
+        longitude.toDouble(),
+      );
+    }
+
+    return null;
   }
 }
