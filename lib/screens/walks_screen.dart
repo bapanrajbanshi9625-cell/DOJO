@@ -1,3 +1,4 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart';
 
@@ -15,20 +16,18 @@ class WalksScreen extends StatelessWidget {
   static const Color slate = Color(0xFF475569);
   static const Color background = Color(0xFFEDEFF2);
   static const Color border = Color(0xFFD6DAE0);
-  static const Color green = Color(0xFF16A34A);
-  static const Color blue = Color(0xFF238EAE);
+
+  // Role based colors
+  static const Color primary = AppColors.primary;
+  static const Color callColor = Color(0xFF16A34A);
+  static const Color smsColor = Color(0xFF238EAE);
 
   // ==========================================================
-  // DEMO WALKER DATA
+  // FIRESTORE
   // ==========================================================
 
-  static const String walkerName = 'Rahul Kumar';
-  static const String walkerId = 'DW-10245';
-  static const String walkerGender = 'Male';
-
-  // Phone is used internally only.
-  // It is NOT displayed in the UI.
-  static const String walkerPhone = '+919876543210';
+  static final FirebaseFirestore _firestore =
+      FirebaseFirestore.instance;
 
   @override
   Widget build(BuildContext context) {
@@ -44,9 +43,9 @@ class WalksScreen extends StatelessWidget {
           110,
         ),
         children: [
-          // ======================================================
+          // ====================================================
           // PAGE TITLE
-          // ======================================================
+          // ====================================================
 
           Row(
             children: [
@@ -54,7 +53,7 @@ class WalksScreen extends StatelessWidget {
                 height: 21,
                 width: 4,
                 decoration: BoxDecoration(
-                  color: AppColors.primary,
+                  color: primary,
                   borderRadius: BorderRadius.circular(5),
                 ),
               ),
@@ -82,32 +81,135 @@ class WalksScreen extends StatelessWidget {
 
           const SizedBox(height: 20),
 
-          // ======================================================
+          // ====================================================
           // INSTA WALK
-          // ======================================================
+          // ====================================================
 
-          _instaWalkCard(),
+          _instaWalkCard(context),
 
           const SizedBox(height: 14),
 
-          // ======================================================
+          // ====================================================
           // ACTIVE WALKER
-          // ======================================================
+          // ====================================================
 
-          _activeWalkerCard(context),
+          StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
+            stream: _firestore
+                .collection('active_walk')
+                .where(
+                  'status',
+                  isEqualTo: 'active',
+                )
+                .limit(1)
+                .snapshots(),
+            builder: (
+              context,
+              snapshot,
+            ) {
+              if (snapshot.connectionState ==
+                  ConnectionState.waiting) {
+                return _activeWalkerLoading();
+              }
+
+              if (snapshot.hasError) {
+                return _activeWalkerError(
+                  snapshot.error.toString(),
+                );
+              }
+
+              if (!snapshot.hasData ||
+                  snapshot.data!.docs.isEmpty) {
+                return const SizedBox.shrink();
+              }
+
+              final activeWalk =
+                  snapshot.data!.docs.first.data();
+
+              final String walkerId =
+                  _stringValue(
+                activeWalk['walkerId'],
+              );
+
+              if (walkerId.isEmpty) {
+                return _activeWalkerError(
+                  'Walker ID is missing.',
+                );
+              }
+
+              return FutureBuilder<
+                  DocumentSnapshot<Map<String, dynamic>>>(
+                future: _findWalker(walkerId),
+                builder: (
+                  context,
+                  walkerSnapshot,
+                ) {
+                  if (walkerSnapshot.connectionState ==
+                      ConnectionState.waiting) {
+                    return _activeWalkerLoading();
+                  }
+
+                  final walkerData =
+                      walkerSnapshot.data?.data() ?? {};
+
+                  return _activeWalkerCard(
+                    context,
+                    activeWalk,
+                    walkerData,
+                  );
+                },
+              );
+            },
+          ),
         ],
       ),
     );
   }
 
   // ==========================================================
+  // FIND WALKER
+  // ==========================================================
+
+  Future<DocumentSnapshot<Map<String, dynamic>>>
+      _findWalker(
+    String walkerId,
+  ) async {
+    // First try direct document ID.
+    final directDoc = await _firestore
+        .collection('walkers')
+        .doc(walkerId)
+        .get();
+
+    if (directDoc.exists) {
+      return directDoc;
+    }
+
+    // Then try walkerId field.
+    final query = await _firestore
+        .collection('walkers')
+        .where(
+          'walkerId',
+          isEqualTo: walkerId,
+        )
+        .limit(1)
+        .get();
+
+    if (query.docs.isNotEmpty) {
+      return query.docs.first;
+    }
+
+    return directDoc;
+  }
+
+  // ==========================================================
   // INSTA WALK CARD
   // ==========================================================
 
-  Widget _instaWalkCard() {
+  Widget _instaWalkCard(
+    BuildContext context,
+  ) {
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.all(20),
+      padding: const EdgeInsets.all(17),
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(20),
@@ -123,55 +225,65 @@ class WalksScreen extends StatelessWidget {
         ],
       ),
       child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Container(
-            height: 58,
-            width: 58,
-            decoration: BoxDecoration(
-              color: AppColors.primary.withOpacity(.10),
-              borderRadius: BorderRadius.circular(17),
-            ),
-            child: const Icon(
-              Icons.pets_rounded,
-              color: AppColors.primary,
-              size: 30,
-            ),
+          Row(
+            children: [
+              Container(
+                width: 46,
+                height: 46,
+                decoration: BoxDecoration(
+                  color: primary.withOpacity(.10),
+                  borderRadius: BorderRadius.circular(14),
+                ),
+                child: const Icon(
+                  Icons.search_rounded,
+                  color: primary,
+                  size: 25,
+                ),
+              ),
+
+              const SizedBox(width: 12),
+
+              const Expanded(
+                child: Column(
+                  crossAxisAlignment:
+                      CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Insta Walk',
+                      style: TextStyle(
+                        color: navy,
+                        fontSize: 16,
+                        fontWeight: FontWeight.w900,
+                      ),
+                    ),
+                    SizedBox(height: 3),
+                    Text(
+                      'Find an available walker nearby.',
+                      style: TextStyle(
+                        color: slate,
+                        fontSize: 11,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
           ),
 
-          const SizedBox(height: 14),
-
-          const Text(
-            'Find a Walker',
-            style: TextStyle(
-              color: navy,
-              fontSize: 18,
-              fontWeight: FontWeight.w900,
-            ),
-          ),
-
-          const SizedBox(height: 6),
-
-          const Text(
-            'Start a walk request and find an available walker nearby.',
-            textAlign: TextAlign.center,
-            style: TextStyle(
-              color: slate,
-              fontSize: 12,
-              height: 1.4,
-            ),
-          ),
-
-          const SizedBox(height: 18),
+          const SizedBox(height: 15),
 
           SizedBox(
             width: double.infinity,
-            height: 48,
+            height: 47,
             child: ElevatedButton.icon(
               onPressed: () {
-                // Existing Insta Walk logic will be connected here.
+                // Existing Insta Walk flow will be connected here.
               },
               icon: const Icon(
                 Icons.search_rounded,
+                size: 19,
               ),
               label: const Text(
                 'Find a Walker',
@@ -180,12 +292,89 @@ class WalksScreen extends StatelessWidget {
                 ),
               ),
               style: ElevatedButton.styleFrom(
-                backgroundColor: AppColors.primary,
+                backgroundColor: primary,
                 foregroundColor: Colors.white,
                 elevation: 0,
                 shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(14),
+                  borderRadius: BorderRadius.circular(13),
                 ),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // ==========================================================
+  // ACTIVE WALKER LOADING
+  // ==========================================================
+
+  Widget _activeWalkerLoading() {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(18),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(
+          color: border,
+        ),
+      ),
+      child: const Row(
+        children: [
+          SizedBox(
+            width: 22,
+            height: 22,
+            child: CircularProgressIndicator(
+              strokeWidth: 2,
+            ),
+          ),
+          SizedBox(width: 12),
+          Text(
+            'Checking active walker...',
+            style: TextStyle(
+              color: slate,
+              fontSize: 12,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // ==========================================================
+  // ACTIVE WALKER ERROR
+  // ==========================================================
+
+  Widget _activeWalkerError(
+    String message,
+  ) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(
+          color: border,
+        ),
+      ),
+      child: Row(
+        children: [
+          Icon(
+            Icons.info_outline_rounded,
+            color: primary,
+            size: 20,
+          ),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Text(
+              message,
+              style: const TextStyle(
+                color: slate,
+                fontSize: 11,
               ),
             ),
           ),
@@ -198,10 +387,33 @@ class WalksScreen extends StatelessWidget {
   // ACTIVE WALKER CARD
   // ==========================================================
 
-  Widget _activeWalkerCard(BuildContext context) {
+  Widget _activeWalkerCard(
+    BuildContext context,
+    Map<String, dynamic> activeWalk,
+    Map<String, dynamic> walkerData,
+  ) {
+    final String walkerId =
+        _stringValue(activeWalk['walkerId']);
+
+    final String walkerName =
+        _walkerName(walkerData);
+
+    final String gender =
+        _walkerGender(walkerData);
+
+    final String profileImage =
+        _profileImage(walkerData);
+
+    final String phone =
+        _walkerPhone(walkerData);
+
     return GestureDetector(
       onTap: () {
-        _showWalkerBottomSheet(context);
+        _showWalkerBottomSheet(
+          context,
+          activeWalk,
+          walkerData,
+        );
       },
       child: Container(
         width: double.infinity,
@@ -210,13 +422,13 @@ class WalksScreen extends StatelessWidget {
           color: Colors.white,
           borderRadius: BorderRadius.circular(20),
           border: Border.all(
-            color: AppColors.primary.withOpacity(.22),
+            color: primary.withOpacity(.22),
           ),
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withOpacity(.035),
-              blurRadius: 12,
-              offset: const Offset(0, 4),
+              color: Colors.black.withOpacity(.04),
+              blurRadius: 13,
+              offset: const Offset(0, 5),
             ),
           ],
         ),
@@ -224,52 +436,55 @@ class WalksScreen extends StatelessWidget {
           children: [
             Row(
               children: [
+                // =================================================
                 // PROFILE
-                Container(
-                  width: 55,
-                  height: 55,
-                  decoration: BoxDecoration(
-                    color: AppColors.primary.withOpacity(.10),
-                    shape: BoxShape.circle,
-                  ),
-                  child: const Icon(
-                    Icons.person_rounded,
-                    color: AppColors.primary,
-                    size: 29,
-                  ),
+                // =================================================
+
+                _profileAvatar(
+                  profileImage,
+                  55,
                 ),
 
                 const SizedBox(width: 12),
 
+                // =================================================
                 // NAME + ID
-                const Expanded(
+                // =================================================
+
+                Expanded(
                   child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
+                    crossAxisAlignment:
+                        CrossAxisAlignment.start,
                     children: [
-                      Text(
+                      const Text(
                         'WALKER ON THE WAY',
                         style: TextStyle(
-                          color: AppColors.primary,
+                          color: primary,
                           fontSize: 9,
                           fontWeight: FontWeight.w900,
                           letterSpacing: .5,
                         ),
                       ),
-                      SizedBox(height: 3),
+
+                      const SizedBox(height: 3),
+
                       Text(
                         walkerName,
                         maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: TextStyle(
+                        overflow:
+                            TextOverflow.ellipsis,
+                        style: const TextStyle(
                           color: navy,
                           fontSize: 17,
                           fontWeight: FontWeight.w900,
                         ),
                       ),
-                      SizedBox(height: 3),
+
+                      const SizedBox(height: 3),
+
                       Text(
                         'Walker ID: $walkerId',
-                        style: TextStyle(
+                        style: const TextStyle(
                           color: slate,
                           fontSize: 10,
                           fontWeight: FontWeight.w700,
@@ -279,20 +494,25 @@ class WalksScreen extends StatelessWidget {
                   ),
                 ),
 
+                // =================================================
                 // ACTIVE STATUS
+                // =================================================
+
                 Container(
-                  padding: const EdgeInsets.symmetric(
+                  padding:
+                      const EdgeInsets.symmetric(
                     horizontal: 9,
                     vertical: 6,
                   ),
                   decoration: BoxDecoration(
                     color: const Color(0xFFEAF7EF),
-                    borderRadius: BorderRadius.circular(20),
+                    borderRadius:
+                        BorderRadius.circular(20),
                   ),
                   child: const Text(
                     'ACTIVE',
                     style: TextStyle(
-                      color: green,
+                      color: callColor,
                       fontSize: 8,
                       fontWeight: FontWeight.w900,
                     ),
@@ -303,9 +523,9 @@ class WalksScreen extends StatelessWidget {
 
             const SizedBox(height: 14),
 
-            // ==================================================
-            // CALL / SMS / TRACK
-            // ==================================================
+            // ====================================================
+            // ACTION BUTTONS
+            // ====================================================
 
             Row(
               children: [
@@ -313,8 +533,10 @@ class WalksScreen extends StatelessWidget {
                   child: _actionButton(
                     icon: Icons.call_rounded,
                     label: 'Call',
-                    color: green,
-                    onTap: _callWalker,
+                    color: callColor,
+                    onTap: () {
+                      _callWalker(phone);
+                    },
                   ),
                 ),
 
@@ -324,8 +546,10 @@ class WalksScreen extends StatelessWidget {
                   child: _actionButton(
                     icon: Icons.sms_rounded,
                     label: 'SMS',
-                    color: blue,
-                    onTap: _smsWalker,
+                    color: smsColor,
+                    onTap: () {
+                      _smsWalker(phone);
+                    },
                   ),
                 ),
 
@@ -335,9 +559,12 @@ class WalksScreen extends StatelessWidget {
                   child: _actionButton(
                     icon: Icons.location_on_rounded,
                     label: 'Track',
-                    color: AppColors.primary,
+                    color: primary,
                     onTap: () {
-                      _showTrackingMessage(context);
+                      _showTrackingMessage(
+                        context,
+                        activeWalk,
+                      );
                     },
                   ),
                 ),
@@ -346,9 +573,10 @@ class WalksScreen extends StatelessWidget {
 
             const SizedBox(height: 10),
 
-            const Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
+            Row(
+              mainAxisAlignment:
+                  MainAxisAlignment.center,
+              children: const [
                 Icon(
                   Icons.keyboard_arrow_up_rounded,
                   color: slate,
@@ -372,7 +600,54 @@ class WalksScreen extends StatelessWidget {
   }
 
   // ==========================================================
-  // CARD ACTION BUTTON
+  // PROFILE AVATAR
+  // ==========================================================
+
+  Widget _profileAvatar(
+    String imageUrl,
+    double size,
+  ) {
+    if (imageUrl.isNotEmpty) {
+      return ClipOval(
+        child: Image.network(
+          imageUrl,
+          width: size,
+          height: size,
+          fit: BoxFit.cover,
+          errorBuilder: (
+            context,
+            error,
+            stackTrace,
+          ) {
+            return _profileIcon(size);
+          },
+        ),
+      );
+    }
+
+    return _profileIcon(size);
+  }
+
+  Widget _profileIcon(
+    double size,
+  ) {
+    return Container(
+      width: size,
+      height: size,
+      decoration: BoxDecoration(
+        color: primary.withOpacity(.10),
+        shape: BoxShape.circle,
+      ),
+      child: Icon(
+        Icons.person_rounded,
+        color: primary,
+        size: size * .52,
+      ),
+    );
+  }
+
+  // ==========================================================
+  // ACTION BUTTON
   // ==========================================================
 
   Widget _actionButton({
@@ -399,13 +674,15 @@ class WalksScreen extends StatelessWidget {
           ),
         ),
         style: OutlinedButton.styleFrom(
-          backgroundColor: color.withOpacity(.055),
+          backgroundColor:
+              color.withOpacity(.055),
           side: BorderSide(
             color: color.withOpacity(.18),
           ),
           padding: EdgeInsets.zero,
           shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(11),
+            borderRadius:
+                BorderRadius.circular(11),
           ),
         ),
       ),
@@ -413,10 +690,29 @@ class WalksScreen extends StatelessWidget {
   }
 
   // ==========================================================
-  // WALKER BOTTOM SHEET
+  // BOTTOM SHEET
   // ==========================================================
 
-  void _showWalkerBottomSheet(BuildContext context) {
+  void _showWalkerBottomSheet(
+    BuildContext context,
+    Map<String, dynamic> activeWalk,
+    Map<String, dynamic> walkerData,
+  ) {
+    final String walkerId =
+        _stringValue(activeWalk['walkerId']);
+
+    final String walkerName =
+        _walkerName(walkerData);
+
+    final String gender =
+        _walkerGender(walkerData);
+
+    final String phone =
+        _walkerPhone(walkerData);
+
+    final String profileImage =
+        _profileImage(walkerData);
+
     showModalBottomSheet<void>(
       context: context,
       backgroundColor: Colors.transparent,
@@ -430,189 +726,216 @@ class WalksScreen extends StatelessWidget {
             ),
           ),
           child: SafeArea(
-            child: SingleChildScrollView(
-              child: Padding(
-                padding: const EdgeInsets.fromLTRB(
-                  18,
-                  10,
-                  18,
-                  18,
-                ),
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    // HANDLE
-                    Container(
-                      width: 42,
-                      height: 4,
-                      decoration: BoxDecoration(
-                        color: const Color(0xFFD4D8DC),
-                        borderRadius: BorderRadius.circular(10),
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(
+                18,
+                10,
+                18,
+                18,
+              ),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  // =================================================
+                  // HANDLE
+                  // =================================================
+
+                  Container(
+                    width: 42,
+                    height: 4,
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFD4D8DC),
+                      borderRadius:
+                          BorderRadius.circular(10),
+                    ),
+                  ),
+
+                  const SizedBox(height: 20),
+
+                  // =================================================
+                  // HEADER
+                  // =================================================
+
+                  Row(
+                    children: [
+                      _profileAvatar(
+                        profileImage,
+                        64,
+                      ),
+
+                      const SizedBox(width: 13),
+
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment:
+                              CrossAxisAlignment.start,
+                          children: [
+                            const Text(
+                              'Walker on the way',
+                              style: TextStyle(
+                                color: primary,
+                                fontSize: 10,
+                                fontWeight:
+                                    FontWeight.w900,
+                              ),
+                            ),
+
+                            const SizedBox(height: 3),
+
+                            Text(
+                              walkerName,
+                              style: const TextStyle(
+                                color: navy,
+                                fontSize: 20,
+                                fontWeight:
+                                    FontWeight.w900,
+                              ),
+                            ),
+
+                            const SizedBox(height: 3),
+
+                            Text(
+                              'Walker ID: $walkerId',
+                              style: const TextStyle(
+                                color: slate,
+                                fontSize: 11,
+                                fontWeight:
+                                    FontWeight.w700,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+
+                  const SizedBox(height: 18),
+
+                  // =================================================
+                  // DETAILS
+                  // =================================================
+
+                  Container(
+                    width: double.infinity,
+                    padding:
+                        const EdgeInsets.all(14),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFF7F8F9),
+                      borderRadius:
+                          BorderRadius.circular(16),
+                      border: Border.all(
+                        color: border,
                       ),
                     ),
-
-                    const SizedBox(height: 20),
-
-                    // HEADER
-                    Row(
+                    child: Column(
                       children: [
-                        Container(
-                          width: 64,
-                          height: 64,
-                          decoration: BoxDecoration(
-                            color:
-                                AppColors.primary.withOpacity(.10),
-                            shape: BoxShape.circle,
-                          ),
-                          child: const Icon(
-                            Icons.person_rounded,
-                            color: AppColors.primary,
-                            size: 34,
-                          ),
+                        _detailRow(
+                          Icons.person_outline_rounded,
+                          'Walker Name',
+                          walkerName,
                         ),
 
-                        const SizedBox(width: 13),
+                        const Divider(
+                          height: 20,
+                        ),
 
-                        const Expanded(
-                          child: Column(
-                            crossAxisAlignment:
-                                CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                'Walker on the way',
-                                style: TextStyle(
-                                  color: AppColors.primary,
-                                  fontSize: 10,
-                                  fontWeight: FontWeight.w900,
-                                ),
-                              ),
-                              SizedBox(height: 3),
-                              Text(
-                                walkerName,
-                                style: TextStyle(
-                                  color: navy,
-                                  fontSize: 20,
-                                  fontWeight: FontWeight.w900,
-                                ),
-                              ),
-                              SizedBox(height: 3),
-                              Text(
-                                'Walker ID: $walkerId',
-                                style: TextStyle(
-                                  color: slate,
-                                  fontSize: 11,
-                                  fontWeight: FontWeight.w700,
-                                ),
-                              ),
-                            ],
-                          ),
+                        _detailRow(
+                          Icons.badge_outlined,
+                          'Walker ID',
+                          walkerId,
+                        ),
+
+                        const Divider(
+                          height: 20,
+                        ),
+
+                        _detailRow(
+                          Icons.wc_rounded,
+                          'Gender',
+                          gender,
+                        ),
+
+                        const Divider(
+                          height: 20,
+                        ),
+
+                        _detailRow(
+                          Icons.directions_walk_rounded,
+                          'Status',
+                          'Walker on the way',
+                          valueColor: callColor,
                         ),
                       ],
                     ),
+                  ),
 
-                    const SizedBox(height: 18),
+                  const SizedBox(height: 16),
 
-                    // DETAILS
-                    Container(
-                      width: double.infinity,
-                      padding: const EdgeInsets.all(14),
-                      decoration: BoxDecoration(
-                        color: const Color(0xFFF7F8F9),
-                        borderRadius: BorderRadius.circular(16),
-                        border: Border.all(
-                          color: border,
+                  // =================================================
+                  // CALL / SMS / TRACK
+                  // =================================================
+
+                  Row(
+                    children: [
+                      Expanded(
+                        child: _bottomAction(
+                          icon: Icons.call_rounded,
+                          label: 'Call',
+                          color: callColor,
+                          onTap: () {
+                            _callWalker(phone);
+                          },
                         ),
                       ),
-                      child: Column(
-                        children: [
-                          _detailRow(
-                            Icons.person_outline_rounded,
-                            'Walker Name',
-                            walkerName,
-                          ),
 
-                          const Divider(height: 20),
+                      const SizedBox(width: 9),
 
-                          _detailRow(
-                            Icons.badge_outlined,
-                            'Walker ID',
-                            walkerId,
-                          ),
-
-                          const Divider(height: 20),
-
-                          _detailRow(
-                            Icons.wc_rounded,
-                            'Gender',
-                            walkerGender,
-                          ),
-
-                          const Divider(height: 20),
-
-                          _detailRow(
-                            Icons.directions_walk_rounded,
-                            'Status',
-                            'Walker on the way',
-                            valueColor: green,
-                          ),
-                        ],
+                      Expanded(
+                        child: _bottomAction(
+                          icon: Icons.sms_rounded,
+                          label: 'SMS',
+                          color: smsColor,
+                          onTap: () {
+                            _smsWalker(phone);
+                          },
+                        ),
                       ),
-                    ),
 
-                    const SizedBox(height: 16),
+                      const SizedBox(width: 9),
 
-                    // CALL / SMS / TRACK
-                    Row(
-                      children: [
-                        Expanded(
-                          child: _bottomAction(
-                            icon: Icons.call_rounded,
-                            label: 'Call',
-                            color: green,
-                            onTap: _callWalker,
-                          ),
+                      Expanded(
+                        child: _bottomAction(
+                          icon:
+                              Icons.location_on_rounded,
+                          label: 'Track',
+                          color: primary,
+                          onTap: () {
+                            Navigator.pop(
+                              sheetContext,
+                            );
+
+                            _showTrackingMessage(
+                              context,
+                              activeWalk,
+                            );
+                          },
                         ),
-
-                        const SizedBox(width: 9),
-
-                        Expanded(
-                          child: _bottomAction(
-                            icon: Icons.sms_rounded,
-                            label: 'SMS',
-                            color: blue,
-                            onTap: _smsWalker,
-                          ),
-                        ),
-
-                        const SizedBox(width: 9),
-
-                        Expanded(
-                          child: _bottomAction(
-                            icon: Icons.location_on_rounded,
-                            label: 'Track',
-                            color: AppColors.primary,
-                            onTap: () {
-                              Navigator.pop(sheetContext);
-                              _showTrackingMessage(context);
-                            },
-                          ),
-                        ),
-                      ],
-                    ),
-
-                    const SizedBox(height: 12),
-
-                    const Text(
-                      'Walker has not started the walk yet.',
-                      textAlign: TextAlign.center,
-                      style: TextStyle(
-                        color: slate,
-                        fontSize: 11,
-                        fontWeight: FontWeight.w500,
                       ),
+                    ],
+                  ),
+
+                  const SizedBox(height: 12),
+
+                  const Text(
+                    'Walker has not started the walk yet.',
+                    textAlign: TextAlign.center,
+                    style: TextStyle(
+                      color: slate,
+                      fontSize: 11,
+                      fontWeight: FontWeight.w500,
                     ),
-                  ],
-                ),
+                  ),
+                ],
               ),
             ),
           ),
@@ -637,12 +960,13 @@ class WalksScreen extends StatelessWidget {
           width: 35,
           height: 35,
           decoration: BoxDecoration(
-            color: AppColors.primary.withOpacity(.08),
-            borderRadius: BorderRadius.circular(10),
+            color: primary.withOpacity(.08),
+            borderRadius:
+                BorderRadius.circular(10),
           ),
           child: Icon(
             icon,
-            color: AppColors.primary,
+            color: primary,
             size: 18,
           ),
         ),
@@ -663,7 +987,8 @@ class WalksScreen extends StatelessWidget {
         Flexible(
           child: Text(
             value,
-            textAlign: TextAlign.end,
+            textAlign: TextAlign.right,
+            overflow: TextOverflow.ellipsis,
             style: TextStyle(
               color: valueColor,
               fontSize: 12,
@@ -690,20 +1015,15 @@ class WalksScreen extends StatelessWidget {
       child: ElevatedButton.icon(
         onPressed: onTap,
 
-        // ROLE COLOR ONLY FOR ICON
+        // ONLY ICON COLOR IS ROLE BASED
         icon: Icon(
           icon,
           size: 17,
           color: color,
         ),
 
-        label: Text(
-          label,
-          style: const TextStyle(
-            color: navy,
-            fontSize: 11,
-            fontWeight: FontWeight.w800,
-          ),
+        label: const Text(
+          '',
         ),
 
         style: ElevatedButton.styleFrom(
@@ -715,7 +1035,8 @@ class WalksScreen extends StatelessWidget {
             color: color.withOpacity(.18),
           ),
           shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(12),
+            borderRadius:
+                BorderRadius.circular(12),
           ),
         ),
       ),
@@ -726,10 +1047,16 @@ class WalksScreen extends StatelessWidget {
   // CALL WALKER
   // ==========================================================
 
-  Future<void> _callWalker() async {
+  Future<void> _callWalker(
+    String phone,
+  ) async {
+    if (phone.isEmpty) {
+      return;
+    }
+
     final Uri uri = Uri(
       scheme: 'tel',
-      path: walkerPhone,
+      path: phone,
     );
 
     await launchUrl(uri);
@@ -739,10 +1066,16 @@ class WalksScreen extends StatelessWidget {
   // SMS WALKER
   // ==========================================================
 
-  Future<void> _smsWalker() async {
+  Future<void> _smsWalker(
+    String phone,
+  ) async {
+    if (phone.isEmpty) {
+      return;
+    }
+
     final Uri uri = Uri(
       scheme: 'sms',
-      path: walkerPhone,
+      path: phone,
     );
 
     await launchUrl(uri);
@@ -752,15 +1085,159 @@ class WalksScreen extends StatelessWidget {
   // TRACK
   // ==========================================================
 
-  void _showTrackingMessage(BuildContext context) {
+  void _showTrackingMessage(
+    BuildContext context,
+    Map<String, dynamic> activeWalk,
+  ) {
+    final double? lat =
+        _doubleValue(activeWalk['currentLat']);
+
+    final double? lng =
+        _doubleValue(activeWalk['currentLng']);
+
+    final String message;
+
+    if (lat != null && lng != null) {
+      message =
+          'Walker location: ${lat.toStringAsFixed(5)}, '
+          '${lng.toStringAsFixed(5)}';
+    } else {
+      message =
+          'Walker location is not available yet.';
+    }
+
     ScaffoldMessenger.of(context)
       ..hideCurrentSnackBar()
       ..showSnackBar(
-        const SnackBar(
-          content: Text(
-            'Walker tracking will be connected here.',
-          ),
+        SnackBar(
+          content: Text(message),
         ),
       );
+  }
+
+  // ==========================================================
+  // WALKER NAME
+  // ==========================================================
+
+  String _walkerName(
+    Map<String, dynamic> data,
+  ) {
+    return _firstString(
+      data,
+      [
+        'Full Name',
+        'fullName',
+        'name',
+        'walkerName',
+      ],
+      fallback: 'Walker',
+    );
+  }
+
+  // ==========================================================
+  // WALKER GENDER
+  // ==========================================================
+
+  String _walkerGender(
+    Map<String, dynamic> data,
+  ) {
+    return _firstString(
+      data,
+      [
+        'Gender',
+        'gender',
+        'walkerGender',
+      ],
+      fallback: 'Not available',
+    );
+  }
+
+  // ==========================================================
+  // WALKER PHONE
+  // ==========================================================
+
+  String _walkerPhone(
+    Map<String, dynamic> data,
+  ) {
+    return _firstString(
+      data,
+      [
+        'Mobile number',
+        'mobileNumber',
+        'phone',
+        'phoneNumber',
+        'mobile',
+      ],
+    );
+  }
+
+  // ==========================================================
+  // PROFILE IMAGE
+  // ==========================================================
+
+  String _profileImage(
+    Map<String, dynamic> data,
+  ) {
+    return _firstString(
+      data,
+      [
+        'Profile Selfie',
+        'profileSelfie',
+        'profileImage',
+        'profileImageUrl',
+        'photoUrl',
+      ],
+    );
+  }
+
+  // ==========================================================
+  // STRING HELPER
+  // ==========================================================
+
+  String _firstString(
+    Map<String, dynamic> data,
+    List<String> keys, {
+    String fallback = '',
+  }) {
+    for (final key in keys) {
+      final value = data[key];
+
+      if (value is String &&
+          value.trim().isNotEmpty) {
+        return value.trim();
+      }
+    }
+
+    return fallback;
+  }
+
+  // ==========================================================
+  // GENERIC STRING VALUE
+  // ==========================================================
+
+  String _stringValue(
+    dynamic value,
+  ) {
+    if (value == null) {
+      return '';
+    }
+
+    return value.toString();
+  }
+
+  // ==========================================================
+  // DOUBLE VALUE
+  // ==========================================================
+
+  double? _doubleValue(
+    dynamic value,
+  ) {
+    if (value is num) {
+      return value.toDouble();
+    }
+
+    return double.tryParse(
+      value?.toString() ?? '',
+    );
   }
 }
