@@ -4,7 +4,7 @@ class ActiveWalkMapper {
   ActiveWalkMapper._();
 
   // ==========================================================
-  // FIRESTORE MAP → ACTIVE WALK MODEL
+  // FIRESTORE MAP → ACTIVE WALK
   // ==========================================================
 
   static ActiveWalk fromMap(
@@ -18,7 +18,7 @@ class ActiveWalkMapper {
   }
 
   // ==========================================================
-  // ACTIVE WALK MODEL → FIRESTORE MAP
+  // ACTIVE WALK → FIRESTORE MAP
   // ==========================================================
 
   static Map<String, dynamic> toMap(
