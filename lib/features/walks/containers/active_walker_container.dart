@@ -1,3 +1,5 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart';
 
@@ -7,7 +9,7 @@ import '../models/active_walk_mapper.dart';
 import '../services/active_walk_service.dart';
 
 class ActiveWalkerContainer extends StatelessWidget {
-  const ActiveWalkerContainer({
+  ActiveWalkerContainer({
     super.key,
   });
 
@@ -15,23 +17,12 @@ class ActiveWalkerContainer extends StatelessWidget {
   // COLORS
   // ==========================================================
 
-  static const Color navy =
-      Color(0xFF263746);
-
-  static const Color slate =
-      Color(0xFF475569);
-
-  static const Color border =
-      Color(0xFFD6DAE0);
-
-  static const Color primary =
-      AppColors.primary;
-
-  static const Color callColor =
-      Color(0xFF16A34A);
-
-  static const Color smsColor =
-      Color(0xFF238EAE);
+  static const Color navy = Color(0xFF263746);
+  static const Color slate = Color(0xFF475569);
+  static const Color border = Color(0xFFD6DAE0);
+  static const Color primary = AppColors.primary;
+  static const Color callColor = Color(0xFF16A34A);
+  static const Color smsColor = Color(0xFF238EAE);
 
   // ==========================================================
   // SERVICE
@@ -42,70 +33,124 @@ class ActiveWalkerContainer extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return StreamBuilder(
-      stream: _service.watchActiveWalks(),
-      builder: (
-        context,
-        snapshot,
-      ) {
-        // ====================================================
-        // LOADING
-        // ====================================================
+    final User? user =
+        FirebaseAuth.instance.currentUser;
 
-        if (snapshot.connectionState ==
+    if (user == null) {
+      return const SizedBox.shrink();
+    }
+
+    // ========================================================
+    // AUTH UID → OWNER PROFILE → OWNER ID
+    // ========================================================
+
+    return StreamBuilder<
+        DocumentSnapshot<Map<String, dynamic>>>(
+      stream: FirebaseFirestore.instance
+          .collection('ownerProfiles')
+          .doc(user.uid)
+          .snapshots(),
+      builder: (context, ownerSnapshot) {
+        if (ownerSnapshot.connectionState ==
             ConnectionState.waiting) {
           return _loading();
         }
 
-        // ====================================================
-        // ERROR
-        // ====================================================
-
-        if (snapshot.hasError) {
+        if (ownerSnapshot.hasError) {
           return _error(
-            'Unable to load active walker.',
+            'Unable to load owner profile.',
           );
         }
 
-        // ====================================================
-        // NO ACTIVE WALK
-        // ====================================================
+        final Map<String, dynamic>? ownerData =
+            ownerSnapshot.data?.data();
 
-        if (!snapshot.hasData ||
-            snapshot.data!.docs.isEmpty) {
+        if (ownerData == null) {
           return const SizedBox.shrink();
         }
 
-        // ====================================================
-        // FIRST ACTIVE WALK
-        // ====================================================
+        final String ownerId =
+            ownerData['ownerId']
+                    ?.toString()
+                    .trim() ??
+                '';
 
-        final document =
-            snapshot.data!.docs.first;
-
-        final ActiveWalk activeWalk =
-            ActiveWalkMapper.fromMap(
-          document.id,
-          document.data(),
-        );
-
-        // ====================================================
-        // WALKER ID CHECK
-        // ====================================================
-
-        if (activeWalk.walkerId.isEmpty) {
-          return _error(
-            'Walker ID is missing.',
-          );
+        if (ownerId.isEmpty) {
+          return const SizedBox.shrink();
         }
 
-        // ====================================================
-        // CARD
-        // ====================================================
+        // ======================================================
+        // OWNER ID → ACTIVE WALK
+        // ======================================================
 
-        return _buildCard(
-          context,
-          activeWalk,
+        return StreamBuilder<
+            QuerySnapshot<Map<String, dynamic>>>(
+          stream: _service.watchActiveWalks(
+            ownerId: ownerId,
+          ),
+          builder: (context, snapshot) {
+            // ==================================================
+            // LOADING
+            // ==================================================
+
+            if (snapshot.connectionState ==
+                ConnectionState.waiting) {
+              return _loading();
+            }
+
+            // ==================================================
+            // ERROR
+            // ==================================================
+
+            if (snapshot.hasError) {
+              return _error(
+                'Unable to load active walker.',
+              );
+            }
+
+            // ==================================================
+            // NO ACTIVE WALK
+            // ==================================================
+
+            if (!snapshot.hasData ||
+                snapshot.data!.docs.isEmpty) {
+              return const SizedBox.shrink();
+            }
+
+            // ==================================================
+            // FIRST ACTIVE WALK
+            // ==================================================
+
+            final QueryDocumentSnapshot<
+                    Map<String, dynamic>>
+                document =
+                snapshot.data!.docs.first;
+
+            final ActiveWalk activeWalk =
+                ActiveWalkMapper.fromMap(
+              document.id,
+              document.data(),
+            );
+
+            // ==================================================
+            // WALKER ID CHECK
+            // ==================================================
+
+            if (activeWalk.walkerId.isEmpty) {
+              return _error(
+                'Walker ID is missing.',
+              );
+            }
+
+            // ==================================================
+            // CARD
+            // ==================================================
+
+            return _buildCard(
+              context,
+              activeWalk,
+            );
+          },
         );
       },
     );
@@ -134,15 +179,13 @@ class ActiveWalkerContainer extends StatelessWidget {
         padding: const EdgeInsets.all(15),
         decoration: BoxDecoration(
           color: Colors.white,
-          borderRadius:
-              BorderRadius.circular(20),
+          borderRadius: BorderRadius.circular(20),
           border: Border.all(
             color: primary.withOpacity(.22),
           ),
           boxShadow: [
             BoxShadow(
-              color:
-                  Colors.black.withOpacity(.04),
+              color: Colors.black.withOpacity(.04),
               blurRadius: 13,
               offset: const Offset(0, 5),
             ),
@@ -150,16 +193,10 @@ class ActiveWalkerContainer extends StatelessWidget {
         ),
         child: Column(
           children: [
-            // =================================================
-            // TOP ROW
-            // =================================================
-
             Row(
               children: [
                 _profileIcon(55),
-
                 const SizedBox(width: 12),
-
                 Expanded(
                   child: Column(
                     crossAxisAlignment:
@@ -170,49 +207,35 @@ class ActiveWalkerContainer extends StatelessWidget {
                         style: TextStyle(
                           color: primary,
                           fontSize: 9,
-                          fontWeight:
-                              FontWeight.w900,
+                          fontWeight: FontWeight.w900,
                           letterSpacing: .5,
                         ),
                       ),
-
                       const SizedBox(height: 3),
-
                       Text(
-                        activeWalk.walkerName
-                                .isNotEmpty
+                        activeWalk.walkerName.isNotEmpty
                             ? activeWalk.walkerName
                             : 'Walker',
                         maxLines: 1,
-                        overflow:
-                            TextOverflow.ellipsis,
+                        overflow: TextOverflow.ellipsis,
                         style: const TextStyle(
                           color: navy,
                           fontSize: 17,
-                          fontWeight:
-                              FontWeight.w900,
+                          fontWeight: FontWeight.w900,
                         ),
                       ),
-
                       const SizedBox(height: 3),
-
                       Text(
                         'Walker ID: ${activeWalk.walkerId}',
                         style: const TextStyle(
                           color: slate,
                           fontSize: 10,
-                          fontWeight:
-                              FontWeight.w700,
+                          fontWeight: FontWeight.w700,
                         ),
                       ),
                     ],
                   ),
                 ),
-
-                // =================================================
-                // ACTIVE
-                // =================================================
-
                 Container(
                   padding:
                       const EdgeInsets.symmetric(
@@ -220,8 +243,7 @@ class ActiveWalkerContainer extends StatelessWidget {
                     vertical: 6,
                   ),
                   decoration: BoxDecoration(
-                    color:
-                        const Color(0xFFEAF7EF),
+                    color: const Color(0xFFEAF7EF),
                     borderRadius:
                         BorderRadius.circular(20),
                   ),
@@ -230,8 +252,7 @@ class ActiveWalkerContainer extends StatelessWidget {
                     style: TextStyle(
                       color: callColor,
                       fontSize: 8,
-                      fontWeight:
-                          FontWeight.w900,
+                      fontWeight: FontWeight.w900,
                     ),
                   ),
                 ),
@@ -239,10 +260,6 @@ class ActiveWalkerContainer extends StatelessWidget {
             ),
 
             const SizedBox(height: 14),
-
-            // =================================================
-            // ACTION BUTTONS
-            // =================================================
 
             Row(
               children: [
@@ -253,14 +270,12 @@ class ActiveWalkerContainer extends StatelessWidget {
                     color: callColor,
                     onTap: () {
                       _callWalker(
-                        activeWalk.walkerId,
+                        activeWalk.walkerPhone,
                       );
                     },
                   ),
                 ),
-
                 const SizedBox(width: 8),
-
                 Expanded(
                   child: _actionButton(
                     icon: Icons.sms_rounded,
@@ -268,18 +283,15 @@ class ActiveWalkerContainer extends StatelessWidget {
                     color: smsColor,
                     onTap: () {
                       _smsWalker(
-                        activeWalk.walkerId,
+                        activeWalk.walkerPhone,
                       );
                     },
                   ),
                 ),
-
                 const SizedBox(width: 8),
-
                 Expanded(
                   child: _actionButton(
-                    icon:
-                        Icons.location_on_rounded,
+                    icon: Icons.location_on_rounded,
                     label: 'Track',
                     color: primary,
                     onTap: () {
@@ -310,8 +322,7 @@ class ActiveWalkerContainer extends StatelessWidget {
                   style: TextStyle(
                     color: slate,
                     fontSize: 10,
-                    fontWeight:
-                        FontWeight.w600,
+                    fontWeight: FontWeight.w600,
                   ),
                 ),
               ],
@@ -326,9 +337,7 @@ class ActiveWalkerContainer extends StatelessWidget {
   // PROFILE ICON
   // ==========================================================
 
-  Widget _profileIcon(
-    double size,
-  ) {
+  Widget _profileIcon(double size) {
     return Container(
       width: size,
       height: size,
@@ -368,8 +377,7 @@ class ActiveWalkerContainer extends StatelessWidget {
           style: TextStyle(
             color: color,
             fontSize: 11,
-            fontWeight:
-                FontWeight.w800,
+            fontWeight: FontWeight.w800,
           ),
         ),
         style: OutlinedButton.styleFrom(
@@ -379,8 +387,7 @@ class ActiveWalkerContainer extends StatelessWidget {
             color: color.withOpacity(.18),
           ),
           padding: EdgeInsets.zero,
-          shape:
-              RoundedRectangleBorder(
+          shape: RoundedRectangleBorder(
             borderRadius:
                 BorderRadius.circular(11),
           ),
@@ -413,8 +420,7 @@ class ActiveWalkerContainer extends StatelessWidget {
           SizedBox(
             width: 22,
             height: 22,
-            child:
-                CircularProgressIndicator(
+            child: CircularProgressIndicator(
               strokeWidth: 2,
             ),
           ),
@@ -424,8 +430,7 @@ class ActiveWalkerContainer extends StatelessWidget {
             style: TextStyle(
               color: slate,
               fontSize: 12,
-              fontWeight:
-                  FontWeight.w600,
+              fontWeight: FontWeight.w600,
             ),
           ),
         ],
@@ -437,9 +442,7 @@ class ActiveWalkerContainer extends StatelessWidget {
   // ERROR
   // ==========================================================
 
-  Widget _error(
-    String message,
-  ) {
+  Widget _error(String message) {
     return Container(
       width: double.infinity,
       margin: const EdgeInsets.symmetric(
@@ -490,51 +493,38 @@ class ActiveWalkerContainer extends StatelessWidget {
       isScrollControlled: true,
       builder: (sheetContext) {
         return Container(
-          decoration:
-              const BoxDecoration(
+          decoration: const BoxDecoration(
             color: Colors.white,
-            borderRadius:
-                BorderRadius.vertical(
+            borderRadius: BorderRadius.vertical(
               top: Radius.circular(27),
             ),
           ),
           child: SafeArea(
             child: Padding(
-              padding:
-                  const EdgeInsets.fromLTRB(
+              padding: const EdgeInsets.fromLTRB(
                 18,
                 10,
                 18,
                 18,
               ),
               child: Column(
-                mainAxisSize:
-                    MainAxisSize.min,
+                mainAxisSize: MainAxisSize.min,
                 children: [
                   Container(
                     width: 42,
                     height: 4,
-                    decoration:
-                        BoxDecoration(
-                      color:
-                          const Color(
-                        0xFFD4D8DC,
-                      ),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFD4D8DC),
                       borderRadius:
-                          BorderRadius.circular(
-                        10,
-                      ),
+                          BorderRadius.circular(10),
                     ),
                   ),
-
                   const SizedBox(height: 20),
 
                   Row(
                     children: [
                       _profileIcon(64),
-
                       const SizedBox(width: 13),
-
                       Expanded(
                         child: Column(
                           crossAxisAlignment:
@@ -549,35 +539,22 @@ class ActiveWalkerContainer extends StatelessWidget {
                                     FontWeight.w900,
                               ),
                             ),
-
-                            const SizedBox(
-                              height: 3,
-                            ),
-
+                            const SizedBox(height: 3),
                             Text(
-                              activeWalk
-                                      .walkerName
-                                      .isNotEmpty
-                                  ? activeWalk
-                                      .walkerName
+                              activeWalk.walkerName.isNotEmpty
+                                  ? activeWalk.walkerName
                                   : 'Walker',
-                              style:
-                                  const TextStyle(
+                              style: const TextStyle(
                                 color: navy,
                                 fontSize: 20,
                                 fontWeight:
                                     FontWeight.w900,
                               ),
                             ),
-
-                            const SizedBox(
-                              height: 3,
-                            ),
-
+                            const SizedBox(height: 3),
                             Text(
                               'Walker ID: ${activeWalk.walkerId}',
-                              style:
-                                  const TextStyle(
+                              style: const TextStyle(
                                 color: slate,
                                 fontSize: 11,
                                 fontWeight:
@@ -597,12 +574,9 @@ class ActiveWalkerContainer extends StatelessWidget {
                     padding:
                         const EdgeInsets.all(14),
                     decoration: BoxDecoration(
-                      color:
-                          const Color(0xFFF7F8F9),
+                      color: const Color(0xFFF7F8F9),
                       borderRadius:
-                          BorderRadius.circular(
-                        16,
-                      ),
+                          BorderRadius.circular(16),
                       border: Border.all(
                         color: border,
                       ),
@@ -612,56 +586,36 @@ class ActiveWalkerContainer extends StatelessWidget {
                         _detailRow(
                           Icons.pets_rounded,
                           'Pet',
-                          activeWalk.petName
-                                  .isNotEmpty
+                          activeWalk.petName.isNotEmpty
                               ? activeWalk.petName
                               : 'Not available',
                         ),
-
-                        const Divider(
-                          height: 20,
-                        ),
-
+                        const Divider(height: 20),
                         _detailRow(
                           Icons.badge_outlined,
                           'Walker ID',
                           activeWalk.walkerId,
                         ),
-
-                        const Divider(
-                          height: 20,
-                        ),
-
+                        const Divider(height: 20),
                         _detailRow(
                           Icons.directions_walk_rounded,
                           'Status',
                           'Walker on the way',
-                          valueColor:
-                              callColor,
+                          valueColor: callColor,
                         ),
-
-                        const Divider(
-                          height: 20,
-                        ),
-
+                        const Divider(height: 20),
                         _detailRow(
                           Icons.route_rounded,
                           'Distance',
-                          activeWalk.distance
-                                  .isNotEmpty
+                          activeWalk.distance.isNotEmpty
                               ? activeWalk.distance
                               : 'Not available',
                         ),
-
-                        const Divider(
-                          height: 20,
-                        ),
-
+                        const Divider(height: 20),
                         _detailRow(
                           Icons.timer_outlined,
                           'Duration',
-                          activeWalk.duration
-                                  .isNotEmpty
+                          activeWalk.duration.isNotEmpty
                               ? activeWalk.duration
                               : 'Not started',
                         ),
@@ -676,10 +630,7 @@ class ActiveWalkerContainer extends StatelessWidget {
                     height: 46,
                     child: ElevatedButton.icon(
                       onPressed: () {
-                        Navigator.pop(
-                          sheetContext,
-                        );
-
+                        Navigator.pop(sheetContext);
                         _showTrackingMessage(
                           context,
                           activeWalk,
@@ -691,23 +642,19 @@ class ActiveWalkerContainer extends StatelessWidget {
                       label: const Text(
                         'Track Walker',
                         style: TextStyle(
-                          fontWeight:
-                              FontWeight.w800,
+                          fontWeight: FontWeight.w800,
                         ),
                       ),
                       style:
                           ElevatedButton.styleFrom(
-                        backgroundColor:
-                            primary,
+                        backgroundColor: primary,
                         foregroundColor:
                             Colors.white,
                         elevation: 0,
                         shape:
                             RoundedRectangleBorder(
                           borderRadius:
-                              BorderRadius.circular(
-                            12,
-                          ),
+                              BorderRadius.circular(12),
                         ),
                       ),
                     ),
@@ -717,13 +664,11 @@ class ActiveWalkerContainer extends StatelessWidget {
 
                   const Text(
                     'Walker is on the way. The live walk has not started yet.',
-                    textAlign:
-                        TextAlign.center,
+                    textAlign: TextAlign.center,
                     style: TextStyle(
                       color: slate,
                       fontSize: 11,
-                      fontWeight:
-                          FontWeight.w500,
+                      fontWeight: FontWeight.w500,
                     ),
                   ),
                 ],
@@ -751,8 +696,7 @@ class ActiveWalkerContainer extends StatelessWidget {
           width: 35,
           height: 35,
           decoration: BoxDecoration(
-            color:
-                primary.withOpacity(.08),
+            color: primary.withOpacity(.08),
             borderRadius:
                 BorderRadius.circular(10),
           ),
@@ -762,33 +706,26 @@ class ActiveWalkerContainer extends StatelessWidget {
             size: 18,
           ),
         ),
-
         const SizedBox(width: 10),
-
         Expanded(
           child: Text(
             title,
             style: const TextStyle(
               color: slate,
               fontSize: 11,
-              fontWeight:
-                  FontWeight.w600,
+              fontWeight: FontWeight.w600,
             ),
           ),
         ),
-
         Flexible(
           child: Text(
             value,
-            textAlign:
-                TextAlign.right,
-            overflow:
-                TextOverflow.ellipsis,
+            textAlign: TextAlign.right,
+            overflow: TextOverflow.ellipsis,
             style: TextStyle(
               color: valueColor,
               fontSize: 12,
-              fontWeight:
-                  FontWeight.w800,
+              fontWeight: FontWeight.w800,
             ),
           ),
         ),
@@ -803,13 +740,13 @@ class ActiveWalkerContainer extends StatelessWidget {
   Future<void> _callWalker(
     String phone,
   ) async {
-    if (phone.isEmpty) {
+    if (phone.trim().isEmpty) {
       return;
     }
 
     final Uri uri = Uri(
       scheme: 'tel',
-      path: phone,
+      path: phone.trim(),
     );
 
     await launchUrl(uri);
@@ -822,13 +759,13 @@ class ActiveWalkerContainer extends StatelessWidget {
   Future<void> _smsWalker(
     String phone,
   ) async {
-    if (phone.isEmpty) {
+    if (phone.trim().isEmpty) {
       return;
     }
 
     final Uri uri = Uri(
       scheme: 'sms',
-      path: phone,
+      path: phone.trim(),
     );
 
     await launchUrl(uri);
@@ -842,10 +779,10 @@ class ActiveWalkerContainer extends StatelessWidget {
     BuildContext context,
     ActiveWalk activeWalk,
   ) {
-    final lat =
+    final double? lat =
         activeWalk.currentLat;
 
-    final lng =
+    final double? lng =
         activeWalk.currentLng;
 
     final String message;
