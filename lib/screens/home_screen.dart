@@ -19,11 +19,6 @@ import '../features/home/widgets/home_section_title.dart';
 import '../features/home/widgets/home_weekly_processing.dart';
 import '../features/home/widgets/home_welcome_card.dart';
 
-// IMPORTANT:
-// अपने project में LiveWalkScreen की actual location
-// अगर अलग है तो सिर्फ नीचे का import path बदलना है.
-import 'live_walk_screen.dart';
-
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
 
@@ -34,18 +29,23 @@ class HomeScreen extends StatefulWidget {
   static const card = Color(0xFFF7F8FA);
 
   @override
-  State<HomeScreen> createState() =>
-      _HomeScreenState();
+  State<HomeScreen> createState() => _HomeScreenState();
 }
 
 class _HomeScreenState extends State<HomeScreen> {
 
   // =====================================================
+  // HOME DATA SERVICE
+  // =====================================================
+
+  final HomeDataService _homeDataService =
+      HomeDataService.instance;
+
+  // =====================================================
   // LIVE WALK SERVICE
   // =====================================================
 
-  final HomeLiveWalkService
-      _liveWalkService =
+  final HomeLiveWalkService _liveWalkService =
       HomeLiveWalkService.instance;
 
   // =====================================================
@@ -249,6 +249,10 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
+  // =====================================================
+  // STRING READER
+  // =====================================================
+
   String _readString(
     Map<String, dynamic> data,
     List<String> keys,
@@ -322,6 +326,33 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   // =====================================================
+  // CONVERT PAST WALK MODEL → UI MAP
+  // =====================================================
+
+  List<Map<String, dynamic>> _pastWalkMaps(
+    List<HomePastWalk> walks,
+  ) {
+    return walks.map(
+      (walk) {
+        return <String, dynamic>{
+          'walkId': walk.walkId,
+          'id': walk.walkId,
+          'ownerUid': walk.ownerUid,
+          'walkerUid': walk.walkerUid,
+          'walkerName': walk.walkerName,
+          'dogName': walk.dogName,
+          'distanceKm': walk.distanceKm,
+          'durationMinutes':
+              walk.durationMinutes,
+          'date': walk.date,
+          'status': walk.status,
+          'route': walk.route,
+        };
+      },
+    ).toList();
+  }
+
+  // =====================================================
   // BUILD
   // =====================================================
 
@@ -360,10 +391,6 @@ class _HomeScreenState extends State<HomeScreen> {
 
             // =========================================
             // LIVE WALK
-            //
-            // यह Active Walk container नहीं है.
-            //
-            // यह सीधे active_walks stream से आएगा.
             // =========================================
 
             const SizedBox(height: 14),
@@ -442,15 +469,80 @@ class _HomeScreenState extends State<HomeScreen> {
 
             const SizedBox(height: 9),
 
-            HomePastWalk(
-              onDetails: (
-                title,
-                content,
-              ) {
-                _showDialog(
-                  context,
-                  title,
-                  content,
+            StreamBuilder<List<HomePastWalk>>(
+              stream:
+                  _homeDataService
+                      .pastWalksStream(
+                limit: 20,
+              ),
+
+              builder:
+                  (context, snapshot) {
+
+                if (snapshot.hasError) {
+                  return Container(
+                    width: double.infinity,
+                    padding:
+                        const EdgeInsets.all(18),
+                    decoration:
+                        BoxDecoration(
+                      color:
+                          HomeScreen.card,
+                      borderRadius:
+                          BorderRadius.circular(14),
+                      border: Border.all(
+                        color:
+                            const Color(
+                          0xFFD4D9DF,
+                        ),
+                      ),
+                    ),
+                    child: const Text(
+                      'Unable to load past walks.',
+                      textAlign:
+                          TextAlign.center,
+                      style: TextStyle(
+                        color:
+                            HomeScreen.slate,
+                        fontSize: 12,
+                        fontWeight:
+                            FontWeight.w600,
+                      ),
+                    ),
+                  );
+                }
+
+                if (snapshot.connectionState ==
+                    ConnectionState.waiting) {
+                  return const SizedBox(
+                    height: 70,
+                    child: Center(
+                      child:
+                          CircularProgressIndicator(
+                        strokeWidth: 2,
+                        color:
+                            HomeScreen.orange,
+                      ),
+                    ),
+                  );
+                }
+
+                final List<HomePastWalk> walks =
+                    snapshot.data ??
+                        <HomePastWalk>[];
+
+                return HomePastWalk(
+                  walks: _pastWalkMaps(walks),
+                  onDetails: (
+                    title,
+                    content,
+                  ) {
+                    _showDialog(
+                      context,
+                      title,
+                      content,
+                    );
+                  },
                 );
               },
             ),
@@ -484,7 +576,7 @@ class _HomeScreenState extends State<HomeScreen> {
               );
 
           // =========================================
-          // LIVE WALK = QR BUTTON COMPLETELY HIDDEN
+          // LIVE WALK = QR BUTTON HIDDEN
           // =========================================
 
           if (live) {
