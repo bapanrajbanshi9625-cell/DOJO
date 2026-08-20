@@ -6,32 +6,65 @@ import 'package:flutter/material.dart';
 import 'package:qr_flutter/qr_flutter.dart';
 
 class GenerateQRButton extends StatelessWidget {
-  const GenerateQRButton({super.key});
+  /// ==========================================================
+  /// LIVE WALK STATE
+  ///
+  /// अभी connection बाद में करेंगे।
+  ///
+  /// false = Generate QR Code
+  /// true  = Live Walk bar
+  /// ==========================================================
+  final bool isLiveWalk;
+
+  /// ==========================================================
+  /// LIVE WALK TAP
+  ///
+  /// बाद में यहाँ LiveWalkScreen navigation connect करेंगे।
+  /// ==========================================================
+  final VoidCallback? onLiveWalkTap;
+
+  const GenerateQRButton({
+    super.key,
+    this.isLiveWalk = false,
+    this.onLiveWalkTap,
+  });
+
+  // ==========================================================
+  // GENERATE QR
+  // ==========================================================
 
   Future<void> _generateQR(BuildContext context) async {
-    final User? user = FirebaseAuth.instance.currentUser;
+    final User? user =
+        FirebaseAuth.instance.currentUser;
 
     if (user == null) {
       if (!context.mounted) return;
 
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text('Owner is not logged in.'),
+          content: Text(
+            'Owner is not logged in.',
+          ),
         ),
       );
+
       return;
     }
 
-    final String ownerUid = user.uid.trim();
+    final String ownerUid =
+        user.uid.trim();
 
     if (ownerUid.isEmpty) {
       if (!context.mounted) return;
 
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text('Owner UID is missing.'),
+          content: Text(
+            'Owner UID is missing.',
+          ),
         ),
       );
+
       return;
     }
 
@@ -48,9 +81,9 @@ class GenerateQRButton extends StatelessWidget {
     final String walkId =
         'WALK_${DateTime.now().millisecondsSinceEpoch}';
 
-    // ==================================================
+    // ========================================================
     // REAL QR DATA
-    // ==================================================
+    // ========================================================
 
     final Map<String, dynamic> qrData = {
       'type': 'owner',
@@ -60,11 +93,12 @@ class GenerateQRButton extends StatelessWidget {
       'walkId': walkId,
     };
 
-    final String qrPayload = jsonEncode(qrData);
+    final String qrPayload =
+        jsonEncode(qrData);
 
-    // ==================================================
+    // ========================================================
     // SAVE TO FIRESTORE
-    // ==================================================
+    // ========================================================
 
     try {
       await FirebaseFirestore.instance
@@ -73,33 +107,41 @@ class GenerateQRButton extends StatelessWidget {
           .set(
         {
           ...qrData,
+
+          // Compatibility fields
           'uid': ownerUid,
           'userId': ownerUid,
           'name': ownerName,
           'phoneNumber': ownerPhone,
+
           'qrData': qrPayload,
           'scanned': false,
           'scannedBy': null,
           'scannedAt': null,
-          'updatedAt': FieldValue.serverTimestamp(),
+          'updatedAt':
+              FieldValue.serverTimestamp(),
         },
-        SetOptions(merge: true),
+        SetOptions(
+          merge: true,
+        ),
       );
     } catch (e) {
-      // QR फिर भी दिखेगा।
-      // Firebase save fail होने पर भी local QR generate होगा.
-      debugPrint('Firebase QR save error: $e');
+      // QR फिर भी दिखाई देगा।
+      debugPrint(
+        'Firebase QR save error: $e',
+      );
     }
 
     if (!context.mounted) return;
 
-    // ==================================================
-    // OPEN REAL QR BOTTOM SHEET
-    // ==================================================
+    // ========================================================
+    // OPEN QR BOTTOM SHEET
+    // ========================================================
 
     await showModalBottomSheet(
       context: context,
-      backgroundColor: Colors.transparent,
+      backgroundColor:
+          Colors.transparent,
       isScrollControlled: true,
       isDismissible: true,
       enableDrag: true,
@@ -115,32 +157,255 @@ class GenerateQRButton extends StatelessWidget {
     );
   }
 
+  // ==========================================================
+  // BUILD
+  // ==========================================================
+
   @override
   Widget build(BuildContext context) {
+    // ========================================================
+    // LIVE WALK
+    // ========================================================
+
+    if (isLiveWalk) {
+      return _liveWalkBar(context);
+    }
+
+    // ========================================================
+    // NORMAL QR BUTTON
+    // ========================================================
+
     return FloatingActionButton.extended(
-      backgroundColor: const Color(0xFFF4511E),
-      foregroundColor: Colors.white,
+      backgroundColor:
+          const Color(0xFFF4511E),
+      foregroundColor:
+          Colors.white,
       elevation: 8,
-      onPressed: () => _generateQR(context),
+
+      onPressed: () =>
+          _generateQR(context),
+
       icon: const Icon(
         Icons.qr_code_2,
         size: 25,
       ),
+
       label: const Text(
         'Generate QR Code',
         style: TextStyle(
-          fontWeight: FontWeight.w900,
+          fontWeight:
+              FontWeight.w900,
+        ),
+      ),
+    );
+  }
+
+  // ==========================================================
+  // LIVE WALK BAR
+  // ==========================================================
+
+  Widget _liveWalkBar(
+    BuildContext context,
+  ) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(
+        horizontal: 15,
+      ),
+
+      child: SizedBox(
+        width: double.infinity,
+        height: 56,
+
+        child: Material(
+          color: Colors.transparent,
+
+          child: InkWell(
+            onTap: onLiveWalkTap,
+
+            borderRadius:
+                BorderRadius.circular(16),
+
+            child: Ink(
+              decoration:
+                  BoxDecoration(
+                gradient:
+                    const LinearGradient(
+                  begin:
+                      Alignment.centerLeft,
+                  end:
+                      Alignment.centerRight,
+                  colors: [
+                    Color(0xFF1B8F4D),
+                    Color(0xFF126B39),
+                  ],
+                ),
+
+                borderRadius:
+                    BorderRadius.circular(
+                  16,
+                ),
+
+                boxShadow: [
+                  BoxShadow(
+                    color: const Color(
+                      0xFF126B39,
+                    ).withValues(
+                      alpha: .22,
+                    ),
+                    blurRadius: 12,
+                    offset:
+                        const Offset(0, 5),
+                  ),
+                ],
+              ),
+
+              child: Row(
+                children: [
+                  const SizedBox(
+                    width: 14,
+                  ),
+
+                  // ==================================================
+                  // ICON
+                  // ==================================================
+
+                  Container(
+                    width: 38,
+                    height: 38,
+
+                    decoration:
+                        BoxDecoration(
+                      color:
+                          Colors.white
+                              .withValues(
+                        alpha: .15,
+                      ),
+
+                      borderRadius:
+                          BorderRadius.circular(
+                        11,
+                      ),
+                    ),
+
+                    child:
+                        const Icon(
+                      Icons
+                          .directions_walk_rounded,
+                      color:
+                          Colors.white,
+                      size: 21,
+                    ),
+                  ),
+
+                  const SizedBox(
+                    width: 11,
+                  ),
+
+                  // ==================================================
+                  // TEXT
+                  // ==================================================
+
+                  const Expanded(
+                    child: Column(
+                      mainAxisAlignment:
+                          MainAxisAlignment
+                              .center,
+
+                      crossAxisAlignment:
+                          CrossAxisAlignment
+                              .start,
+
+                      children: [
+                        Text(
+                          'Live Walk',
+                          maxLines: 1,
+                          overflow:
+                              TextOverflow
+                                  .ellipsis,
+
+                          style:
+                              TextStyle(
+                            color:
+                                Colors.white,
+                            fontSize: 15,
+                            fontWeight:
+                                FontWeight.w900,
+                          ),
+                        ),
+
+                        SizedBox(
+                          height: 1,
+                        ),
+
+                        Text(
+                          'Tap to See',
+                          maxLines: 1,
+                          overflow:
+                              TextOverflow
+                                  .ellipsis,
+
+                          style:
+                              TextStyle(
+                            color:
+                                Colors.white70,
+                            fontSize: 10,
+                            fontWeight:
+                                FontWeight.w600,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+
+                  // ==================================================
+                  // ARROW
+                  // ==================================================
+
+                  Container(
+                    width: 32,
+                    height: 32,
+
+                    decoration:
+                        BoxDecoration(
+                      color:
+                          Colors.white
+                              .withValues(
+                        alpha: .10,
+                      ),
+
+                      shape:
+                          BoxShape.circle,
+                    ),
+
+                    child:
+                        const Icon(
+                      Icons
+                          .arrow_forward_ios_rounded,
+                      color:
+                          Colors.white,
+                      size: 14,
+                    ),
+                  ),
+
+                  const SizedBox(
+                    width: 12,
+                  ),
+                ],
+              ),
+            ),
+          ),
         ),
       ),
     );
   }
 }
 
-// ======================================================
+// ================================================================
 // OWNER QR BOTTOM SHEET
-// ======================================================
+// ================================================================
 
-class OwnerQRBottomSheet extends StatelessWidget {
+class OwnerQRBottomSheet
+    extends StatelessWidget {
   final String ownerUid;
   final String ownerName;
   final String ownerPhone;
@@ -161,211 +426,326 @@ class OwnerQRBottomSheet extends StatelessWidget {
     return SafeArea(
       child: Container(
         width: double.infinity,
-        padding: const EdgeInsets.fromLTRB(
+
+        padding:
+            const EdgeInsets.fromLTRB(
           24,
           12,
           24,
           30,
         ),
-        decoration: const BoxDecoration(
+
+        decoration:
+            const BoxDecoration(
           color: Colors.white,
-          borderRadius: BorderRadius.vertical(
+
+          borderRadius:
+              BorderRadius.vertical(
             top: Radius.circular(30),
           ),
         ),
+
         child: Column(
-          mainAxisSize: MainAxisSize.min,
+          mainAxisSize:
+              MainAxisSize.min,
+
           children: [
-            // ==========================================
-            // STICKY HANDLE
-            // ==========================================
+            // ==================================================
+            // HANDLE
+            // ==================================================
 
             Container(
               width: 45,
               height: 5,
-              margin: const EdgeInsets.only(
+
+              margin:
+                  const EdgeInsets.only(
                 bottom: 18,
               ),
-              decoration: BoxDecoration(
-                color: const Color(0xffd1d5db),
-                borderRadius: BorderRadius.circular(20),
+
+              decoration:
+                  BoxDecoration(
+                color:
+                    const Color(
+                  0xffd1d5db,
+                ),
+
+                borderRadius:
+                    BorderRadius.circular(
+                  20,
+                ),
               ),
             ),
 
-            // ==========================================
+            // ==================================================
             // HEADER
-            // ==========================================
+            // ==================================================
 
             Row(
               children: [
                 const Expanded(
                   child: Text(
                     'My QR Code',
-                    textAlign: TextAlign.center,
-                    style: TextStyle(
+                    textAlign:
+                        TextAlign.center,
+
+                    style:
+                        TextStyle(
                       fontSize: 20,
-                      fontWeight: FontWeight.w800,
-                      color: Color(0xff111827),
+                      fontWeight:
+                          FontWeight.w800,
+                      color:
+                          Color(0xff111827),
                     ),
                   ),
                 ),
 
                 IconButton(
                   onPressed: () {
-                    Navigator.pop(context);
+                    Navigator.pop(
+                      context,
+                    );
                   },
-                  icon: const Icon(
+
+                  icon:
+                      const Icon(
                     Icons.close,
-                    color: Color(0xff4b5563),
+                    color:
+                        Color(0xff4b5563),
                   ),
                 ),
               ],
             ),
 
-            const SizedBox(height: 8),
+            const SizedBox(
+              height: 8,
+            ),
 
-            // ==========================================
+            // ==================================================
             // OWNER NAME
-            // ==========================================
+            // ==================================================
 
             Text(
               ownerName,
-              textAlign: TextAlign.center,
-              style: const TextStyle(
+              textAlign:
+                  TextAlign.center,
+
+              style:
+                  const TextStyle(
                 fontSize: 17,
-                fontWeight: FontWeight.w700,
+                fontWeight:
+                    FontWeight.w700,
               ),
             ),
 
             if (ownerPhone.isNotEmpty) ...[
-              const SizedBox(height: 3),
+              const SizedBox(
+                height: 3,
+              ),
+
               Text(
                 ownerPhone,
-                style: const TextStyle(
+                style:
+                    const TextStyle(
                   fontSize: 13,
-                  color: Color(0xff6b7280),
+                  color:
+                      Color(0xff6b7280),
                 ),
               ),
             ],
 
-            const SizedBox(height: 20),
+            const SizedBox(
+              height: 20,
+            ),
 
-            // ==========================================
-            // REAL SCANNABLE QR
-            // ==========================================
+            // ==================================================
+            // REAL QR
+            // ==================================================
 
             Container(
               width: 230,
               height: 230,
-              padding: const EdgeInsets.all(14),
-              decoration: BoxDecoration(
+
+              padding:
+                  const EdgeInsets.all(
+                14,
+              ),
+
+              decoration:
+                  BoxDecoration(
                 color: Colors.white,
-                borderRadius: BorderRadius.circular(20),
-                border: Border.all(
-                  color: const Color(0xffe5e7eb),
-                  width: 1,
+
+                borderRadius:
+                    BorderRadius.circular(
+                  20,
                 ),
-                boxShadow: const [
+
+                border:
+                    Border.all(
+                  color:
+                      const Color(
+                    0xffe5e7eb,
+                  ),
+                ),
+
+                boxShadow:
+                    const [
                   BoxShadow(
-                    color: Colors.black12,
+                    color:
+                        Colors.black12,
                     blurRadius: 18,
-                    offset: Offset(0, 6),
+                    offset:
+                        Offset(0, 6),
                   ),
                 ],
               ),
+
               child: QrImageView(
-                data: qrPayload,
-                version: QrVersions.auto,
+                data:
+                    qrPayload,
+                version:
+                    QrVersions.auto,
                 size: 200,
-                backgroundColor: Colors.white,
+                backgroundColor:
+                    Colors.white,
                 errorCorrectionLevel:
                     QrErrorCorrectLevel.H,
               ),
             ),
 
-            const SizedBox(height: 18),
+            const SizedBox(
+              height: 18,
+            ),
 
-            // ==========================================
-            // SCAN MESSAGE
-            // ==========================================
+            // ==================================================
+            // MESSAGE
+            // ==================================================
 
             const Text(
               'Scan this QR code to connect with the Owner.',
-              textAlign: TextAlign.center,
-              style: TextStyle(
+              textAlign:
+                  TextAlign.center,
+
+              style:
+                  TextStyle(
                 fontSize: 13,
-                color: Color(0xff6b7280),
+                color:
+                    Color(0xff6b7280),
               ),
             ),
 
-            const SizedBox(height: 12),
+            const SizedBox(
+              height: 12,
+            ),
 
-            // ==========================================
+            // ==================================================
             // WAITING STATUS
-            // ==========================================
+            // ==================================================
 
             Container(
-              padding: const EdgeInsets.symmetric(
+              padding:
+                  const EdgeInsets
+                      .symmetric(
                 horizontal: 14,
                 vertical: 9,
               ),
-              decoration: BoxDecoration(
-                color: const Color(0xfff0fdf4),
-                borderRadius: BorderRadius.circular(30),
+
+              decoration:
+                  BoxDecoration(
+                color:
+                    const Color(
+                  0xfff0fdf4,
+                ),
+
+                borderRadius:
+                    BorderRadius.circular(
+                  30,
+                ),
               ),
-              child: const Row(
-                mainAxisSize: MainAxisSize.min,
+
+              child:
+                  const Row(
+                mainAxisSize:
+                    MainAxisSize.min,
+
                 children: [
                   SizedBox(
                     width: 8,
                     height: 8,
-                    child: DecoratedBox(
-                      decoration: BoxDecoration(
-                        color: Color(0xff22c55e),
-                        shape: BoxShape.circle,
+
+                    child:
+                        DecoratedBox(
+                      decoration:
+                          BoxDecoration(
+                        color:
+                            Color(
+                          0xff22c55e,
+                        ),
+                        shape:
+                            BoxShape.circle,
                       ),
                     ),
                   ),
-                  SizedBox(width: 8),
+
+                  SizedBox(
+                    width: 8,
+                  ),
+
                   Text(
                     'Waiting for Walker to scan...',
-                    style: TextStyle(
+                    style:
+                        TextStyle(
                       fontSize: 12,
-                      fontWeight: FontWeight.w600,
-                      color: Color(0xff166534),
+                      fontWeight:
+                          FontWeight.w600,
+                      color:
+                          Color(0xff166534),
                     ),
                   ),
                 ],
               ),
             ),
 
-            const SizedBox(height: 12),
+            const SizedBox(
+              height: 12,
+            ),
 
-            // ==========================================
+            // ==================================================
             // WALK ID
-            // ==========================================
+            // ==================================================
 
             Text(
               'Walk ID: $walkId',
+
               maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              style: const TextStyle(
+
+              overflow:
+                  TextOverflow.ellipsis,
+
+              style:
+                  const TextStyle(
                 fontSize: 10,
-                color: Color(0xff9ca3af),
+                color:
+                    Color(0xff9ca3af),
               ),
             ),
 
-            const SizedBox(height: 5),
+            const SizedBox(
+              height: 5,
+            ),
 
-            // ==========================================
-            // UID - SMALL / HIDDEN STYLE
-            // ==========================================
+            // ==================================================
+            // UID
+            // ==================================================
 
             Text(
               'Owner UID: ${ownerUid.substring(0, ownerUid.length > 8 ? 8 : ownerUid.length)}...',
-              style: const TextStyle(
+
+              style:
+                  const TextStyle(
                 fontSize: 9,
-                color: Color(0xffd1d5db),
+                color:
+                    Color(0xffd1d5db),
               ),
             ),
           ],
