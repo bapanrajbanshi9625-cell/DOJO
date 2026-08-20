@@ -1,45 +1,65 @@
-import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../../../core/constants/app_colors.dart';
+import '../models/active_walk.dart';
+import '../models/active_walk_mapper.dart';
+import '../services/active_walk_service.dart';
 
 class ActiveWalkerContainer extends StatelessWidget {
   const ActiveWalkerContainer({
     super.key,
   });
 
-  static const Color navy = Color(0xFF263746);
-  static const Color slate = Color(0xFF475569);
-  static const Color border = Color(0xFFD6DAE0);
+  // ==========================================================
+  // COLORS
+  // ==========================================================
 
-  static const Color primary = AppColors.primary;
-  static const Color callColor = Color(0xFF16A34A);
-  static const Color smsColor = Color(0xFF238EAE);
+  static const Color navy =
+      Color(0xFF263746);
 
-  static final FirebaseFirestore _firestore =
-      FirebaseFirestore.instance;
+  static const Color slate =
+      Color(0xFF475569);
+
+  static const Color border =
+      Color(0xFFD6DAE0);
+
+  static const Color primary =
+      AppColors.primary;
+
+  static const Color callColor =
+      Color(0xFF16A34A);
+
+  static const Color smsColor =
+      Color(0xFF238EAE);
+
+  // ==========================================================
+  // SERVICE
+  // ==========================================================
+
+  final ActiveWalkService _service =
+      ActiveWalkService.instance;
 
   @override
   Widget build(BuildContext context) {
-    return StreamBuilder<
-        QuerySnapshot<Map<String, dynamic>>>(
-      stream: _firestore
-          .collection('active_walk')
-          .where(
-            'status',
-            isEqualTo: 'active',
-          )
-          .limit(1)
-          .snapshots(),
+    return StreamBuilder(
+      stream: _service.watchActiveWalks(),
       builder: (
         context,
         snapshot,
       ) {
+        // ====================================================
+        // LOADING
+        // ====================================================
+
         if (snapshot.connectionState ==
             ConnectionState.waiting) {
           return _loading();
         }
+
+        // ====================================================
+        // ERROR
+        // ====================================================
 
         if (snapshot.hasError) {
           return _error(
@@ -47,88 +67,48 @@ class ActiveWalkerContainer extends StatelessWidget {
           );
         }
 
+        // ====================================================
+        // NO ACTIVE WALK
+        // ====================================================
+
         if (!snapshot.hasData ||
             snapshot.data!.docs.isEmpty) {
           return const SizedBox.shrink();
         }
 
-        final activeWalk =
-            snapshot.data!.docs.first.data();
+        // ====================================================
+        // FIRST ACTIVE WALK
+        // ====================================================
 
-        final walkerId =
-            _stringValue(
-          activeWalk['walkerId'],
+        final document =
+            snapshot.data!.docs.first;
+
+        final ActiveWalk activeWalk =
+            ActiveWalkMapper.fromMap(
+          document.id,
+          document.data(),
         );
 
-        if (walkerId.isEmpty) {
+        // ====================================================
+        // WALKER ID CHECK
+        // ====================================================
+
+        if (activeWalk.walkerId.isEmpty) {
           return _error(
             'Walker ID is missing.',
           );
         }
 
-        return FutureBuilder<
-            DocumentSnapshot<Map<String, dynamic>>>(
-          future: _findWalker(walkerId),
-          builder: (
-            context,
-            walkerSnapshot,
-          ) {
-            if (walkerSnapshot.connectionState ==
-                ConnectionState.waiting) {
-              return _loading();
-            }
+        // ====================================================
+        // CARD
+        // ====================================================
 
-            if (walkerSnapshot.hasError) {
-              return _error(
-                'Unable to load walker details.',
-              );
-            }
-
-            final walkerData =
-                walkerSnapshot.data?.data() ?? {};
-
-            return _buildCard(
-              context,
-              activeWalk,
-              walkerData,
-            );
-          },
+        return _buildCard(
+          context,
+          activeWalk,
         );
       },
     );
-  }
-
-  // ==========================================================
-  // FIND WALKER
-  // ==========================================================
-
-  Future<DocumentSnapshot<Map<String, dynamic>>>
-      _findWalker(
-    String walkerId,
-  ) async {
-    final directDoc = await _firestore
-        .collection('walkers')
-        .doc(walkerId)
-        .get();
-
-    if (directDoc.exists) {
-      return directDoc;
-    }
-
-    final query = await _firestore
-        .collection('walkers')
-        .where(
-          'walkerId',
-          isEqualTo: walkerId,
-        )
-        .limit(1)
-        .get();
-
-    if (query.docs.isNotEmpty) {
-      return query.docs.first;
-    }
-
-    return directDoc;
   }
 
   // ==========================================================
@@ -137,27 +117,13 @@ class ActiveWalkerContainer extends StatelessWidget {
 
   Widget _buildCard(
     BuildContext context,
-    Map<String, dynamic> activeWalk,
-    Map<String, dynamic> walkerData,
+    ActiveWalk activeWalk,
   ) {
-    final walkerId =
-        _stringValue(activeWalk['walkerId']);
-
-    final walkerName =
-        _walkerName(walkerData);
-
-    final profileImage =
-        _profileImage(walkerData);
-
-    final phone =
-        _walkerPhone(walkerData);
-
     return GestureDetector(
       onTap: () {
         _showWalkerDetails(
           context,
           activeWalk,
-          walkerData,
         );
       },
       child: Container(
@@ -184,12 +150,13 @@ class ActiveWalkerContainer extends StatelessWidget {
         ),
         child: Column(
           children: [
+            // =================================================
+            // TOP ROW
+            // =================================================
+
             Row(
               children: [
-                _profileAvatar(
-                  profileImage,
-                  55,
-                ),
+                _profileIcon(55),
 
                 const SizedBox(width: 12),
 
@@ -212,7 +179,10 @@ class ActiveWalkerContainer extends StatelessWidget {
                       const SizedBox(height: 3),
 
                       Text(
-                        walkerName,
+                        activeWalk.walkerName
+                                .isNotEmpty
+                            ? activeWalk.walkerName
+                            : 'Walker',
                         maxLines: 1,
                         overflow:
                             TextOverflow.ellipsis,
@@ -227,7 +197,7 @@ class ActiveWalkerContainer extends StatelessWidget {
                       const SizedBox(height: 3),
 
                       Text(
-                        'Walker ID: $walkerId',
+                        'Walker ID: ${activeWalk.walkerId}',
                         style: const TextStyle(
                           color: slate,
                           fontSize: 10,
@@ -238,6 +208,10 @@ class ActiveWalkerContainer extends StatelessWidget {
                     ],
                   ),
                 ),
+
+                // =================================================
+                // ACTIVE
+                // =================================================
 
                 Container(
                   padding:
@@ -266,6 +240,10 @@ class ActiveWalkerContainer extends StatelessWidget {
 
             const SizedBox(height: 14),
 
+            // =================================================
+            // ACTION BUTTONS
+            // =================================================
+
             Row(
               children: [
                 Expanded(
@@ -274,7 +252,9 @@ class ActiveWalkerContainer extends StatelessWidget {
                     label: 'Call',
                     color: callColor,
                     onTap: () {
-                      _callWalker(phone);
+                      _callWalker(
+                        activeWalk.walkerId,
+                      );
                     },
                   ),
                 ),
@@ -287,7 +267,9 @@ class ActiveWalkerContainer extends StatelessWidget {
                     label: 'SMS',
                     color: smsColor,
                     onTap: () {
-                      _smsWalker(phone);
+                      _smsWalker(
+                        activeWalk.walkerId,
+                      );
                     },
                   ),
                 ),
@@ -341,33 +323,8 @@ class ActiveWalkerContainer extends StatelessWidget {
   }
 
   // ==========================================================
-  // PROFILE AVATAR
+  // PROFILE ICON
   // ==========================================================
-
-  Widget _profileAvatar(
-    String imageUrl,
-    double size,
-  ) {
-    if (imageUrl.isNotEmpty) {
-      return ClipOval(
-        child: Image.network(
-          imageUrl,
-          width: size,
-          height: size,
-          fit: BoxFit.cover,
-          errorBuilder: (
-            context,
-            error,
-            stackTrace,
-          ) {
-            return _profileIcon(size);
-          },
-        ),
-      );
-    }
-
-    return _profileIcon(size);
-  }
 
   Widget _profileIcon(
     double size,
@@ -520,16 +477,323 @@ class ActiveWalkerContainer extends StatelessWidget {
   }
 
   // ==========================================================
-  // BOTTOM SHEET PLACEHOLDER
+  // BOTTOM SHEET
   // ==========================================================
 
   void _showWalkerDetails(
     BuildContext context,
-    Map<String, dynamic> activeWalk,
-    Map<String, dynamic> walkerData,
+    ActiveWalk activeWalk,
   ) {
-    // Part 3 will provide the complete
-    // bottom sheet implementation.
+    showModalBottomSheet<void>(
+      context: context,
+      backgroundColor: Colors.transparent,
+      isScrollControlled: true,
+      builder: (sheetContext) {
+        return Container(
+          decoration:
+              const BoxDecoration(
+            color: Colors.white,
+            borderRadius:
+                BorderRadius.vertical(
+              top: Radius.circular(27),
+            ),
+          ),
+          child: SafeArea(
+            child: Padding(
+              padding:
+                  const EdgeInsets.fromLTRB(
+                18,
+                10,
+                18,
+                18,
+              ),
+              child: Column(
+                mainAxisSize:
+                    MainAxisSize.min,
+                children: [
+                  Container(
+                    width: 42,
+                    height: 4,
+                    decoration:
+                        BoxDecoration(
+                      color:
+                          const Color(
+                        0xFFD4D8DC,
+                      ),
+                      borderRadius:
+                          BorderRadius.circular(
+                        10,
+                      ),
+                    ),
+                  ),
+
+                  const SizedBox(height: 20),
+
+                  Row(
+                    children: [
+                      _profileIcon(64),
+
+                      const SizedBox(width: 13),
+
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment:
+                              CrossAxisAlignment.start,
+                          children: [
+                            const Text(
+                              'Walker on the way',
+                              style: TextStyle(
+                                color: primary,
+                                fontSize: 10,
+                                fontWeight:
+                                    FontWeight.w900,
+                              ),
+                            ),
+
+                            const SizedBox(
+                              height: 3,
+                            ),
+
+                            Text(
+                              activeWalk
+                                      .walkerName
+                                      .isNotEmpty
+                                  ? activeWalk
+                                      .walkerName
+                                  : 'Walker',
+                              style:
+                                  const TextStyle(
+                                color: navy,
+                                fontSize: 20,
+                                fontWeight:
+                                    FontWeight.w900,
+                              ),
+                            ),
+
+                            const SizedBox(
+                              height: 3,
+                            ),
+
+                            Text(
+                              'Walker ID: ${activeWalk.walkerId}',
+                              style:
+                                  const TextStyle(
+                                color: slate,
+                                fontSize: 11,
+                                fontWeight:
+                                    FontWeight.w700,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+
+                  const SizedBox(height: 18),
+
+                  Container(
+                    width: double.infinity,
+                    padding:
+                        const EdgeInsets.all(14),
+                    decoration: BoxDecoration(
+                      color:
+                          const Color(0xFFF7F8F9),
+                      borderRadius:
+                          BorderRadius.circular(
+                        16,
+                      ),
+                      border: Border.all(
+                        color: border,
+                      ),
+                    ),
+                    child: Column(
+                      children: [
+                        _detailRow(
+                          Icons.pets_rounded,
+                          'Pet',
+                          activeWalk.petName
+                                  .isNotEmpty
+                              ? activeWalk.petName
+                              : 'Not available',
+                        ),
+
+                        const Divider(
+                          height: 20,
+                        ),
+
+                        _detailRow(
+                          Icons.badge_outlined,
+                          'Walker ID',
+                          activeWalk.walkerId,
+                        ),
+
+                        const Divider(
+                          height: 20,
+                        ),
+
+                        _detailRow(
+                          Icons.directions_walk_rounded,
+                          'Status',
+                          'Walker on the way',
+                          valueColor:
+                              callColor,
+                        ),
+
+                        const Divider(
+                          height: 20,
+                        ),
+
+                        _detailRow(
+                          Icons.route_rounded,
+                          'Distance',
+                          activeWalk.distance
+                                  .isNotEmpty
+                              ? activeWalk.distance
+                              : 'Not available',
+                        ),
+
+                        const Divider(
+                          height: 20,
+                        ),
+
+                        _detailRow(
+                          Icons.timer_outlined,
+                          'Duration',
+                          activeWalk.duration
+                                  .isNotEmpty
+                              ? activeWalk.duration
+                              : 'Not started',
+                        ),
+                      ],
+                    ),
+                  ),
+
+                  const SizedBox(height: 16),
+
+                  SizedBox(
+                    width: double.infinity,
+                    height: 46,
+                    child: ElevatedButton.icon(
+                      onPressed: () {
+                        Navigator.pop(
+                          sheetContext,
+                        );
+
+                        _showTrackingMessage(
+                          context,
+                          activeWalk,
+                        );
+                      },
+                      icon: const Icon(
+                        Icons.location_on_rounded,
+                      ),
+                      label: const Text(
+                        'Track Walker',
+                        style: TextStyle(
+                          fontWeight:
+                              FontWeight.w800,
+                        ),
+                      ),
+                      style:
+                          ElevatedButton.styleFrom(
+                        backgroundColor:
+                            primary,
+                        foregroundColor:
+                            Colors.white,
+                        elevation: 0,
+                        shape:
+                            RoundedRectangleBorder(
+                          borderRadius:
+                              BorderRadius.circular(
+                            12,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+
+                  const SizedBox(height: 12),
+
+                  const Text(
+                    'Walker is on the way. The live walk has not started yet.',
+                    textAlign:
+                        TextAlign.center,
+                    style: TextStyle(
+                      color: slate,
+                      fontSize: 11,
+                      fontWeight:
+                          FontWeight.w500,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  // ==========================================================
+  // DETAIL ROW
+  // ==========================================================
+
+  Widget _detailRow(
+    IconData icon,
+    String title,
+    String value, {
+    Color valueColor = navy,
+  }) {
+    return Row(
+      children: [
+        Container(
+          width: 35,
+          height: 35,
+          decoration: BoxDecoration(
+            color:
+                primary.withOpacity(.08),
+            borderRadius:
+                BorderRadius.circular(10),
+          ),
+          child: Icon(
+            icon,
+            color: primary,
+            size: 18,
+          ),
+        ),
+
+        const SizedBox(width: 10),
+
+        Expanded(
+          child: Text(
+            title,
+            style: const TextStyle(
+              color: slate,
+              fontSize: 11,
+              fontWeight:
+                  FontWeight.w600,
+            ),
+          ),
+        ),
+
+        Flexible(
+          child: Text(
+            value,
+            textAlign:
+                TextAlign.right,
+            overflow:
+                TextOverflow.ellipsis,
+            style: TextStyle(
+              color: valueColor,
+              fontSize: 12,
+              fontWeight:
+                  FontWeight.w800,
+            ),
+          ),
+        ),
+      ],
+    );
   }
 
   // ==========================================================
@@ -543,7 +807,7 @@ class ActiveWalkerContainer extends StatelessWidget {
       return;
     }
 
-    final uri = Uri(
+    final Uri uri = Uri(
       scheme: 'tel',
       path: phone,
     );
@@ -562,7 +826,7 @@ class ActiveWalkerContainer extends StatelessWidget {
       return;
     }
 
-    final uri = Uri(
+    final Uri uri = Uri(
       scheme: 'sms',
       path: phone,
     );
@@ -576,17 +840,13 @@ class ActiveWalkerContainer extends StatelessWidget {
 
   void _showTrackingMessage(
     BuildContext context,
-    Map<String, dynamic> activeWalk,
+    ActiveWalk activeWalk,
   ) {
     final lat =
-        _doubleValue(
-      activeWalk['currentLat'],
-    );
+        activeWalk.currentLat;
 
     final lng =
-        _doubleValue(
-      activeWalk['currentLng'],
-    );
+        activeWalk.currentLng;
 
     final String message;
 
@@ -607,105 +867,5 @@ class ActiveWalkerContainer extends StatelessWidget {
           content: Text(message),
         ),
       );
-  }
-
-  // ==========================================================
-  // WALKER NAME
-  // ==========================================================
-
-  String _walkerName(
-    Map<String, dynamic> data,
-  ) {
-    return _firstString(
-      data,
-      [
-        'Full Name',
-        'fullName',
-        'name',
-        'walkerName',
-      ],
-      fallback: 'Walker',
-    );
-  }
-
-  // ==========================================================
-  // PHONE
-  // ==========================================================
-
-  String _walkerPhone(
-    Map<String, dynamic> data,
-  ) {
-    return _firstString(
-      data,
-      [
-        'Mobile number',
-        'mobileNumber',
-        'phone',
-        'phoneNumber',
-        'mobile',
-      ],
-    );
-  }
-
-  // ==========================================================
-  // PROFILE IMAGE
-  // ==========================================================
-
-  String _profileImage(
-    Map<String, dynamic> data,
-  ) {
-    return _firstString(
-      data,
-      [
-        'Profile Selfie',
-        'profileSelfie',
-        'profileImage',
-        'profileImageUrl',
-        'photoUrl',
-      ],
-    );
-  }
-
-  // ==========================================================
-  // STRING HELPERS
-  // ==========================================================
-
-  String _firstString(
-    Map<String, dynamic> data,
-    List<String> keys, {
-    String fallback = '',
-  }) {
-    for (final key in keys) {
-      final value = data[key];
-
-      if (value is String &&
-          value.trim().isNotEmpty) {
-        return value.trim();
-      }
-    }
-
-    return fallback;
-  }
-
-  String _stringValue(
-    dynamic value,
-  ) {
-    if (value == null) {
-      return '';
-    }
-
-    return value.toString();
-  }
-
-  double? _doubleValue(
-    dynamic value,
-  ) {
-    if (value is num) {
-      return value.toDouble();
-    }
-
-    return double.tryParse(
-      value?.toString() ?? '',
-    );
   }
 }
