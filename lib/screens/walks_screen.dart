@@ -26,7 +26,9 @@ class WalksScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: background,
+
       appBar: const CustomAppBar(),
+
       body: ListView(
         padding: const EdgeInsets.fromLTRB(
           15,
@@ -34,6 +36,7 @@ class WalksScreen extends StatelessWidget {
           15,
           110,
         ),
+
         children: [
           // ====================================================
           // PAGE TITLE
@@ -44,14 +47,19 @@ class WalksScreen extends StatelessWidget {
               Container(
                 height: 21,
                 width: 4,
+
                 decoration: BoxDecoration(
                   color: primary,
-                  borderRadius: BorderRadius.circular(5),
+                  borderRadius:
+                      BorderRadius.circular(5),
                 ),
               ),
+
               const SizedBox(width: 9),
+
               const Text(
                 'Walks',
+
                 style: TextStyle(
                   color: navy,
                   fontSize: 18,
@@ -65,6 +73,7 @@ class WalksScreen extends StatelessWidget {
 
           const Text(
             'Find and manage your dog walks.',
+
             style: TextStyle(
               color: slate,
               fontSize: 12,
@@ -79,28 +88,30 @@ class WalksScreen extends StatelessWidget {
 
           _instaWalkCard(context),
 
+          // ====================================================
+          // GAP
+          // ====================================================
+
           const SizedBox(height: 14),
 
           // ====================================================
-          // ACTIVE WALKER
+          // LIVE / ACTIVE WALK
+          // ====================================================
           //
-          // Flow:
+          // IMPORTANT:
           //
-          // Firebase Auth UID
-          //        ↓
-          // ownerProfiles/{UID}
-          //        ↓
-          // ownerId
-          //        ↓
-          // ActiveWalkService
-          //        ↓
-          // active_walk
+          // This is now displayed BELOW Insta Walk.
           //
-          // ActiveWalkerContainer already handles
-          // all active walker logic.
+          // The ActiveWalkerContainer is responsible for
+          // checking the current active walk and displaying
+          // the connected Walker / Live Walk information.
+          //
+          // QR Scan walk + Insta Walk both use active_walks,
+          // so both flows can appear here.
+          //
           // ====================================================
 
-          ActiveWalkerContainer(),
+          const ActiveWalkerContainer(),
         ],
       ),
     );
@@ -115,26 +126,39 @@ class WalksScreen extends StatelessWidget {
   ) {
     return Container(
       width: double.infinity,
+
       padding: const EdgeInsets.all(17),
+
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(20),
+
+        borderRadius:
+            BorderRadius.circular(20),
+
         border: Border.all(
           color: border,
         ),
+
         boxShadow: [
           BoxShadow(
             color: Colors.black.withValues(
               alpha: .035,
             ),
+
             blurRadius: 12,
-            offset: const Offset(0, 4),
+
+            offset: const Offset(
+              0,
+              4,
+            ),
           ),
         ],
       ),
+
       child: Column(
         crossAxisAlignment:
             CrossAxisAlignment.start,
+
         children: [
           // ====================================================
           // HEADER
@@ -145,16 +169,21 @@ class WalksScreen extends StatelessWidget {
               Container(
                 width: 46,
                 height: 46,
+
                 decoration: BoxDecoration(
                   color: primary.withValues(
                     alpha: .10,
                   ),
+
                   borderRadius:
                       BorderRadius.circular(14),
                 ),
+
                 child: const Icon(
                   Icons.search_rounded,
+
                   color: primary,
+
                   size: 25,
                 ),
               ),
@@ -165,9 +194,11 @@ class WalksScreen extends StatelessWidget {
                 child: Column(
                   crossAxisAlignment:
                       CrossAxisAlignment.start,
+
                   children: [
                     Text(
                       'Insta Walk',
+
                       style: TextStyle(
                         color: navy,
                         fontSize: 16,
@@ -175,9 +206,12 @@ class WalksScreen extends StatelessWidget {
                             FontWeight.w900,
                       ),
                     ),
+
                     SizedBox(height: 3),
+
                     Text(
                       'Find an available walker nearby.',
+
                       style: TextStyle(
                         color: slate,
                         fontSize: 11,
@@ -198,36 +232,47 @@ class WalksScreen extends StatelessWidget {
           SizedBox(
             width: double.infinity,
             height: 47,
+
             child: ElevatedButton.icon(
               onPressed: () {
                 // ==================================================
                 // EXISTING INSTA WALK FLOW
                 // ==================================================
                 //
-                // Keep your existing Insta Walk navigation/
-                // request creation logic here.
+                // आपका existing Insta Walk logic यहाँ रहेगा.
                 //
-                // Nothing else in the active walker flow
-                // depends on this button.
+                // इस button के logic को जानबूझकर नहीं छेड़ा गया।
+                //
+                // Insta Walk से active walk बनने के बाद
+                // ActiveWalkerContainer उसे नीचे दिखाएगा।
+                //
                 // ==================================================
               },
+
               icon: const Icon(
                 Icons.search_rounded,
                 size: 19,
               ),
+
               label: const Text(
                 'Find a Walker',
+
                 style: TextStyle(
                   fontWeight:
                       FontWeight.w800,
                 ),
               ),
+
               style:
                   ElevatedButton.styleFrom(
-                backgroundColor: primary,
+                backgroundColor:
+                    primary,
+
                 foregroundColor:
                     Colors.white,
+
                 elevation: 0,
+
                 shape:
                     RoundedRectangleBorder(
                   borderRadius:
