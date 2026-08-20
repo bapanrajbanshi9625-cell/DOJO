@@ -26,7 +26,6 @@ class WalksScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: background,
-
       appBar: const CustomAppBar(),
 
       body: ListView(
@@ -88,30 +87,22 @@ class WalksScreen extends StatelessWidget {
 
           _instaWalkCard(context),
 
-          // ====================================================
-          // GAP
-          // ====================================================
-
           const SizedBox(height: 14),
 
           // ====================================================
-          // LIVE / ACTIVE WALK
-          // ====================================================
+          // ACTIVE WALKER
           //
           // IMPORTANT:
+          // Do NOT add const here.
           //
-          // This is now displayed BELOW Insta Walk.
+          // ActiveWalkerContainer constructor is non-const.
           //
-          // The ActiveWalkerContainer is responsible for
-          // checking the current active walk and displaying
-          // the connected Walker / Live Walk information.
-          //
-          // QR Scan walk + Insta Walk both use active_walks,
-          // so both flows can appear here.
-          //
+          // Insta Walk
+          //     ↓
+          // Active Walker / Live Walk
           // ====================================================
 
-          const ActiveWalkerContainer(),
+          ActiveWalkerContainer(),
         ],
       ),
     );
@@ -144,13 +135,8 @@ class WalksScreen extends StatelessWidget {
             color: Colors.black.withValues(
               alpha: .035,
             ),
-
             blurRadius: 12,
-
-            offset: const Offset(
-              0,
-              4,
-            ),
+            offset: const Offset(0, 4),
           ),
         ],
       ),
@@ -181,9 +167,7 @@ class WalksScreen extends StatelessWidget {
 
                 child: const Icon(
                   Icons.search_rounded,
-
                   color: primary,
-
                   size: 25,
                 ),
               ),
@@ -239,13 +223,11 @@ class WalksScreen extends StatelessWidget {
                 // EXISTING INSTA WALK FLOW
                 // ==================================================
                 //
-                // आपका existing Insta Walk logic यहाँ रहेगा.
+                // Yahan aapka existing Insta Walk
+                // request/search logic rahega.
                 //
-                // इस button के logic को जानबूझकर नहीं छेड़ा गया।
-                //
-                // Insta Walk से active walk बनने के बाद
-                // ActiveWalkerContainer उसे नीचे दिखाएगा।
-                //
+                // ActiveWalkerContainer ka flow
+                // is button se affect nahi hoga.
                 // ==================================================
               },
 
@@ -265,12 +247,9 @@ class WalksScreen extends StatelessWidget {
 
               style:
                   ElevatedButton.styleFrom(
-                backgroundColor:
-                    primary,
-
+                backgroundColor: primary,
                 foregroundColor:
                     Colors.white,
-
                 elevation: 0,
 
                 shape:
