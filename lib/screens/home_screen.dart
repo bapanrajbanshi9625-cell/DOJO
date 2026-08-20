@@ -2,12 +2,24 @@
 
 import 'dart:convert';
 
-import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:flutter/material.dart';
 
 import 'custom_app_bar.dart';
 import 'generate_qr_screen.dart';
+
+import '../features/home/services/home_live_walk_service.dart';
+import '../features/home/widgets/home_live_walk_bar.dart';
+import '../features/home/widgets/home_past_walk.dart';
+import '../features/home/widgets/home_section_title.dart';
+import '../features/home/widgets/home_weekly_processing.dart';
+import '../features/home/widgets/home_welcome_card.dart';
+
+// IMPORTANT:
+// अपने project में LiveWalkScreen की actual location
+// अगर अलग है तो सिर्फ नीचे का import path बदलना है.
+import 'live_walk_screen.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -19,19 +31,19 @@ class HomeScreen extends StatefulWidget {
   static const card = Color(0xFFF7F8FA);
 
   @override
-  State<HomeScreen> createState() => _HomeScreenState();
+  State<HomeScreen> createState() =>
+      _HomeScreenState();
 }
 
 class _HomeScreenState extends State<HomeScreen> {
 
   // =====================================================
-  // INIT
+  // LIVE WALK SERVICE
   // =====================================================
 
-  @override
-  void initState() {
-    super.initState();
-  }
+  final HomeLiveWalkService
+      _liveWalkService =
+      HomeLiveWalkService.instance;
 
   // =====================================================
   // GENERATE OWNER QR
@@ -91,8 +103,6 @@ class _HomeScreenState extends State<HomeScreen> {
       'ownerName': ownerName,
       'ownerPhone': ownerPhone,
       'walkId': walkId,
-
-      // Compatibility fields
       'uid': ownerUid,
       'userId': ownerUid,
       'name': ownerName,
@@ -159,6 +169,156 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   // =====================================================
+  // OPEN LIVE WALK
+  // =====================================================
+
+  void _openLiveWalk(
+    Map<String, dynamic> data,
+  ) {
+    if (!mounted) return;
+
+    final String walkId =
+        _readString(
+          data,
+          const [
+            'walkId',
+            'walkID',
+            'id',
+          ],
+        );
+
+    final String walkerUid =
+        _readString(
+          data,
+          const [
+            'walkerUid',
+            'walkerUID',
+            'walkerId',
+          ],
+        );
+
+    final String walkerName =
+        _readString(
+          data,
+          const [
+            'walkerName',
+            'name',
+          ],
+        );
+
+    final String walkerPhone =
+        _readString(
+          data,
+          const [
+            'walkerPhone',
+            'phone',
+            'phoneNumber',
+          ],
+        );
+
+    if (walkId.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text(
+            'Live Walk information is not ready yet.',
+          ),
+        ),
+      );
+      return;
+    }
+
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => LiveWalkScreen(
+          walkId: walkId,
+          walkerUid: walkerUid,
+          walkerName:
+              walkerName.isEmpty
+                  ? 'Walker'
+                  : walkerName,
+          walkerPhone:
+              walkerPhone.isEmpty
+                  ? null
+                  : walkerPhone,
+        ),
+      ),
+    );
+  }
+
+  String _readString(
+    Map<String, dynamic> data,
+    List<String> keys,
+  ) {
+    for (final key in keys) {
+      final value = data[key];
+
+      if (value != null) {
+        final result =
+            value.toString().trim();
+
+        if (result.isNotEmpty) {
+          return result;
+        }
+      }
+    }
+
+    return '';
+  }
+
+  // =====================================================
+  // DETAILS DIALOG
+  // =====================================================
+
+  void _showDialog(
+    BuildContext context,
+    String title,
+    String content,
+  ) {
+    showDialog(
+      context: context,
+      builder: (ctx) {
+        return AlertDialog(
+          backgroundColor:
+              const Color(0xFFF7F8FA),
+          shape:
+              RoundedRectangleBorder(
+            borderRadius:
+                BorderRadius.circular(20),
+          ),
+          title: Text(
+            title,
+            style: const TextStyle(
+              color: HomeScreen.navy,
+              fontWeight: FontWeight.w900,
+            ),
+          ),
+          content: Text(
+            content,
+            style: const TextStyle(
+              color: HomeScreen.slate,
+              height: 1.5,
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () =>
+                  Navigator.pop(ctx),
+              child: const Text(
+                'CLOSE',
+                style: TextStyle(
+                  color: HomeScreen.orange,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  // =====================================================
   // BUILD
   // =====================================================
 
@@ -171,8 +331,7 @@ class _HomeScreenState extends State<HomeScreen> {
       appBar:
           const CustomAppBar(),
 
-      body:
-          SingleChildScrollView(
+      body: SingleChildScrollView(
         physics:
             const AlwaysScrollableScrollPhysics(),
 
@@ -184,384 +343,120 @@ class _HomeScreenState extends State<HomeScreen> {
           105,
         ),
 
-        child:
-            Column(
+        child: Column(
           crossAxisAlignment:
               CrossAxisAlignment.start,
 
           children: [
 
             // =========================================
-            // WELCOME HEADER
+            // WELCOME
             // =========================================
 
-            Container(
-              width:
-                  double.infinity,
-
-              padding:
-                  const EdgeInsets.symmetric(
-                horizontal: 15,
-                vertical: 14,
-              ),
-
-              decoration:
-                  BoxDecoration(
-                gradient:
-                    const LinearGradient(
-                  begin:
-                      Alignment.topLeft,
-                  end:
-                      Alignment.bottomRight,
-                  colors: [
-                    Color(0xFF34495E),
-                    Color(0xFF263746),
-                  ],
-                ),
-
-                borderRadius:
-                    BorderRadius.circular(
-                  18,
-                ),
-
-                boxShadow: [
-                  BoxShadow(
-                    color:
-                        Colors.black.withOpacity(
-                      0.10,
-                    ),
-                    blurRadius: 12,
-                    offset:
-                        const Offset(0, 5),
-                  ),
-                ],
-              ),
-
-              child:
-                  Row(
-                children: [
-
-                  Container(
-                    height: 46,
-                    width: 46,
-
-                    decoration:
-                        BoxDecoration(
-                      color:
-                          HomeScreen.orange
-                              .withOpacity(
-                        0.16,
-                      ),
-
-                      borderRadius:
-                          BorderRadius.circular(
-                        13,
-                      ),
-
-                      border:
-                          Border.all(
-                        color:
-                            HomeScreen.orange
-                                .withOpacity(
-                          0.40,
-                        ),
-                      ),
-                    ),
-
-                    child:
-                        const Icon(
-                      Icons.pets,
-                      color:
-                          HomeScreen.orange,
-                      size: 24,
-                    ),
-                  ),
-
-                  const SizedBox(
-                    width: 12,
-                  ),
-
-                  const Expanded(
-                    child:
-                        Column(
-                      crossAxisAlignment:
-                          CrossAxisAlignment
-                              .start,
-
-                      children: [
-
-                        Text(
-                          'Welcome back 👋',
-                          maxLines: 1,
-                          overflow:
-                              TextOverflow
-                                  .ellipsis,
-
-                          style:
-                              TextStyle(
-                            color:
-                                Colors.white,
-                            fontSize: 18,
-                            fontWeight:
-                                FontWeight.w900,
-                          ),
-                        ),
-
-                        SizedBox(
-                          height: 3,
-                        ),
-
-                        Text(
-                          'Your walking activity is on track.',
-                          maxLines: 1,
-                          overflow:
-                              TextOverflow
-                                  .ellipsis,
-
-                          style:
-                              TextStyle(
-                            color:
-                                Colors.white70,
-                            fontSize: 11,
-                            fontWeight:
-                                FontWeight.w500,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ],
-              ),
-            ),
+            const HomeWelcomeCard(),
 
             // =========================================
             // LIVE WALK
             //
-            // REMOVED FROM HOME SCREEN
+            // यह Active Walk container नहीं है.
             //
-            // Live Walk will now be shown inside
-            // Walks Screen below Insta Walk.
+            // यह सीधे active_walks stream से आएगा.
             // =========================================
+
+            const SizedBox(height: 14),
+
+            StreamBuilder<
+                QuerySnapshot<Map<String, dynamic>>>(
+              stream:
+                  _liveWalkService
+                      .liveWalkStream(),
+
+              builder:
+                  (context, snapshot) {
+
+                if (snapshot.hasError) {
+                  return const SizedBox.shrink();
+                }
+
+                if (!snapshot.hasData) {
+                  return const SizedBox.shrink();
+                }
+
+                final liveWalkData =
+                    _liveWalkService
+                        .getLiveWalkData(
+                  snapshot.data!,
+                );
+
+                if (liveWalkData == null) {
+                  return const SizedBox.shrink();
+                }
+
+                return HomeLiveWalkBar(
+                  onTap: () {
+                    _openLiveWalk(
+                      liveWalkData,
+                    );
+                  },
+                );
+              },
+            ),
 
             // =========================================
             // WEEKLY PROCESSING
             // =========================================
 
-            const SizedBox(
-              height: 19,
+            const SizedBox(height: 19),
+
+            const HomeSectionTitle(
+              title: 'This week processing',
             ),
 
-            _sectionTitle(
-              'This week processing',
-            ),
+            const SizedBox(height: 9),
 
-            const SizedBox(
-              height: 9,
-            ),
-
-            Container(
-              padding:
-                  const EdgeInsets.all(
-                13,
-              ),
-
-              decoration:
-                  BoxDecoration(
-                color:
-                    HomeScreen.card,
-
-                borderRadius:
-                    BorderRadius.circular(
-                  18,
-                ),
-
-                border:
-                    Border.all(
-                  color:
-                      const Color(
-                    0xFFD6DAE0,
-                  ),
-                ),
-
-                boxShadow: [
-                  BoxShadow(
-                    color:
-                        Colors.black
-                            .withOpacity(
-                      0.055,
-                    ),
-
-                    blurRadius: 11,
-
-                    offset:
-                        const Offset(
-                      0,
-                      5,
-                    ),
-                  ),
-                ],
-              ),
-
-              child:
-                  Column(
-                children: [
-
-                  Row(
-                    children: [
-
-                      Expanded(
-                        child:
-                            _statCard(
-                          context,
-
-                          title:
-                              'Total Walks',
-
-                          value:
-                              '12',
-
-                          icon:
-                              Icons.pets,
-
-                          iconColor:
-                              HomeScreen
-                                  .orange,
-
-                          details:
-                              'Completed Walks: 12\n'
-                              'Average Walks/Day: 1.5\n'
-                              'Status: On Track',
-                        ),
-                      ),
-
-                      const SizedBox(
-                        width: 9,
-                      ),
-
-                      Expanded(
-                        child:
-                            _statCard(
-                          context,
-
-                          title:
-                              'Distance',
-
-                          value:
-                              '24.5',
-
-                          suffix:
-                              ' km',
-
-                          icon:
-                              Icons.route,
-
-                          iconColor:
-                              const Color(
-                            0xFF2196F3,
-                          ),
-
-                          details:
-                              'Total Distance: 24.5 km\n'
-                              'Average per Walk: 2.04 km\n'
-                              'Longest Walk: 3.5 km',
-                        ),
-                      ),
-                    ],
-                  ),
-
-                  const SizedBox(
-                    height: 9,
-                  ),
-
-                  Row(
-                    children: [
-
-                      Expanded(
-                        child:
-                            _durationCard(
-                          context,
-                        ),
-                      ),
-
-                      const SizedBox(
-                        width: 9,
-                      ),
-
-                      Expanded(
-                        child:
-                            _reportCard(
-                          context,
-                        ),
-                      ),
-                    ],
-                  ),
-                ],
-              ),
+            HomeWeeklyProcessing(
+              onDetails: (
+                title,
+                content,
+              ) {
+                _showDialog(
+                  context,
+                  title,
+                  content,
+                );
+              },
             ),
 
             // =========================================
             // PAST WALK
             // =========================================
 
-            const SizedBox(
-              height: 19,
+            const SizedBox(height: 19),
+
+            const HomeSectionTitle(
+              title: 'Past Walk',
             ),
 
-            _sectionTitle(
-              'Past Walk',
-            ),
+            const SizedBox(height: 9),
 
-            const SizedBox(
-              height: 9,
-            ),
-
-            _walkCard(
-              context,
-
-              id:
-                  '#WID-9842',
-
-              time:
-                  '08:30 AM',
-
-              date:
-                  '04 Aug 2026',
-
-              distance:
-                  '2.1 km',
-
-              duration:
-                  '30 mins',
-            ),
-
-            const SizedBox(
-              height: 8,
-            ),
-
-            _walkCard(
-              context,
-
-              id:
-                  '#WID-9817',
-
-              time:
-                  '07:15 AM',
-
-              date:
-                  '03 Aug 2026',
-
-              distance:
-                  '1.8 km',
-
-              duration:
-                  '27 mins',
+            HomePastWalk(
+              onDetails: (
+                title,
+                content,
+              ) {
+                _showDialog(
+                  context,
+                  title,
+                  content,
+                );
+              },
             ),
           ],
         ),
       ),
 
       // ===============================================
-      // GENERATE QR CODE
+      // BOTTOM BUTTON
       // ===============================================
 
       floatingActionButtonLocation:
@@ -569,907 +464,60 @@ class _HomeScreenState extends State<HomeScreen> {
               .centerFloat,
 
       floatingActionButton:
-          FloatingActionButton.extended(
-        backgroundColor:
-            HomeScreen.orange,
+          StreamBuilder<
+              QuerySnapshot<Map<String, dynamic>>>(
+        stream:
+            _liveWalkService
+                .liveWalkStream(),
 
-        foregroundColor:
-            Colors.white,
+        builder:
+            (context, snapshot) {
 
-        elevation: 8,
+          final bool live =
+              snapshot.hasData &&
+              _liveWalkService
+                  .isLiveWalk(
+                snapshot.data!,
+              );
 
-        onPressed:
-            _openMyQRCode,
+          // =========================================
+          // LIVE WALK = QR BUTTON COMPLETELY HIDDEN
+          // =========================================
 
-        icon:
-            const Icon(
-          Icons.qr_code_2,
-        ),
+          if (live) {
+            return const SizedBox.shrink();
+          }
 
-        label:
-            const Text(
-          'Generate QR Code',
+          // =========================================
+          // NORMAL = QR BUTTON
+          // =========================================
 
-          style:
-              TextStyle(
-            fontWeight:
-                FontWeight.w900,
-          ),
-        ),
-      ),
-    );
-  }
-
-  // =====================================================
-  // SECTION TITLE
-  // =====================================================
-
-  Widget _sectionTitle(
-    String title,
-  ) {
-    return Row(
-      children: [
-
-        Container(
-          height: 19,
-          width: 4,
-
-          decoration:
-              BoxDecoration(
-            color:
+          return FloatingActionButton.extended(
+            backgroundColor:
                 HomeScreen.orange,
 
-            borderRadius:
-                BorderRadius.circular(
-              5,
+            foregroundColor:
+                Colors.white,
+
+            elevation: 8,
+
+            onPressed:
+                _openMyQRCode,
+
+            icon: const Icon(
+              Icons.qr_code_2,
             ),
-          ),
-        ),
 
-        const SizedBox(
-          width: 8,
-        ),
-
-        Text(
-          title,
-
-          style:
-              const TextStyle(
-            color:
-                HomeScreen.navy,
-
-            fontSize: 16,
-
-            fontWeight:
-                FontWeight.w900,
-          ),
-        ),
-      ],
-    );
-  }
-
-  // =====================================================
-  // STAT CARD
-  // =====================================================
-
-  Widget _statCard(
-    BuildContext context, {
-    required String title,
-    required String value,
-    String suffix = '',
-    required IconData icon,
-    required Color iconColor,
-    required String details,
-  }) {
-    return InkWell(
-      borderRadius:
-          BorderRadius.circular(
-        14,
+            label: const Text(
+              'Generate QR Code',
+              style: TextStyle(
+                fontWeight:
+                    FontWeight.w900,
+              ),
+            ),
+          );
+        },
       ),
-
-      onTap: () {
-        _showDialog(
-          context,
-          '$title Details',
-          details,
-        );
-      },
-
-      child:
-          Container(
-        constraints:
-            const BoxConstraints(
-          minHeight: 88,
-        ),
-
-        padding:
-            const EdgeInsets.symmetric(
-          horizontal: 11,
-          vertical: 12,
-        ),
-
-        decoration:
-            BoxDecoration(
-          color:
-              const Color(
-            0xFFEFF2F5,
-          ),
-
-          borderRadius:
-              BorderRadius.circular(
-            14,
-          ),
-
-          border:
-              Border.all(
-            color:
-                const Color(
-              0xFFD4D9DF,
-            ),
-          ),
-        ),
-
-        child:
-            Row(
-          children: [
-
-            Container(
-              height: 43,
-              width: 43,
-
-              decoration:
-                  BoxDecoration(
-                color:
-                    iconColor
-                        .withOpacity(
-                  0.12,
-                ),
-
-                borderRadius:
-                    BorderRadius.circular(
-                  12,
-                ),
-              ),
-
-              child:
-                  Icon(
-                icon,
-                color:
-                    iconColor,
-                size: 22,
-              ),
-            ),
-
-            const SizedBox(
-              width: 9,
-            ),
-
-            Expanded(
-              child:
-                  Column(
-                mainAxisAlignment:
-                    MainAxisAlignment
-                        .center,
-
-                crossAxisAlignment:
-                    CrossAxisAlignment
-                        .start,
-
-                children: [
-
-                  Text(
-                    title,
-
-                    maxLines: 1,
-
-                    overflow:
-                        TextOverflow
-                            .ellipsis,
-
-                    style:
-                        const TextStyle(
-                      color:
-                          HomeScreen.slate,
-
-                      fontSize: 11,
-
-                      fontWeight:
-                          FontWeight.w600,
-                    ),
-                  ),
-
-                  const SizedBox(
-                    height: 3,
-                  ),
-
-                  FittedBox(
-                    fit:
-                        BoxFit.scaleDown,
-
-                    alignment:
-                        Alignment
-                            .centerLeft,
-
-                    child:
-                        RichText(
-                      text:
-                          TextSpan(
-                        children: [
-
-                          TextSpan(
-                            text:
-                                value,
-
-                            style:
-                                const TextStyle(
-                              color:
-                                  HomeScreen.navy,
-
-                              fontSize: 20,
-
-                              fontWeight:
-                                  FontWeight.w900,
-                            ),
-                          ),
-
-                          if (suffix
-                              .isNotEmpty)
-                            TextSpan(
-                              text:
-                                  suffix,
-
-                              style:
-                                  TextStyle(
-                                color:
-                                    iconColor,
-
-                                fontSize:
-                                    10,
-
-                                fontWeight:
-                                    FontWeight
-                                        .w900,
-                              ),
-                            ),
-                        ],
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  // =====================================================
-  // DURATION CARD
-  // =====================================================
-
-  Widget _durationCard(
-    BuildContext context,
-  ) {
-    return InkWell(
-      borderRadius:
-          BorderRadius.circular(
-        14,
-      ),
-
-      onTap: () {
-        _showDialog(
-          context,
-          'Duration Details',
-          'Total Active Time: 6 hours\n'
-          'Average Duration per Walk: 30 minutes\n'
-          'Pace Efficiency: Good',
-        );
-      },
-
-      child:
-          Container(
-        constraints:
-            const BoxConstraints(
-          minHeight: 88,
-        ),
-
-        padding:
-            const EdgeInsets.symmetric(
-          horizontal: 11,
-          vertical: 12,
-        ),
-
-        decoration:
-            BoxDecoration(
-          color:
-              const Color(
-            0xFFEFF2F5,
-          ),
-
-          borderRadius:
-              BorderRadius.circular(
-            14,
-          ),
-
-          border:
-              Border.all(
-            color:
-                const Color(
-              0xFFD4D9DF,
-            ),
-          ),
-        ),
-
-        child:
-            Row(
-          children: [
-
-            Container(
-              height: 43,
-              width: 43,
-
-              decoration:
-                  BoxDecoration(
-                color:
-                    Colors.green
-                        .withOpacity(
-                  0.12,
-                ),
-
-                borderRadius:
-                    BorderRadius.circular(
-                  12,
-                ),
-              ),
-
-              child:
-                  const Icon(
-                Icons.timer_outlined,
-                color:
-                    Colors.green,
-                size: 22,
-              ),
-            ),
-
-            const SizedBox(
-              width: 9,
-            ),
-
-            const Expanded(
-              child:
-                  Column(
-                mainAxisAlignment:
-                    MainAxisAlignment
-                        .center,
-
-                crossAxisAlignment:
-                    CrossAxisAlignment
-                        .start,
-
-                children: [
-
-                  Text(
-                    'Active Duration',
-
-                    maxLines: 1,
-
-                    overflow:
-                        TextOverflow
-                            .ellipsis,
-
-                    style:
-                        TextStyle(
-                      color:
-                          HomeScreen.slate,
-
-                      fontSize: 11,
-
-                      fontWeight:
-                          FontWeight.w600,
-                    ),
-                  ),
-
-                  SizedBox(
-                    height: 3,
-                  ),
-
-                  FittedBox(
-                    fit:
-                        BoxFit.scaleDown,
-
-                    alignment:
-                        Alignment
-                            .centerLeft,
-
-                    child:
-                        Text(
-                      '6 hrs',
-
-                      style:
-                          TextStyle(
-                        color:
-                            HomeScreen.navy,
-
-                        fontSize: 20,
-
-                        fontWeight:
-                            FontWeight.w900,
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  // =====================================================
-  // REPORT CARD
-  // =====================================================
-
-  Widget _reportCard(
-    BuildContext context,
-  ) {
-    return InkWell(
-      borderRadius:
-          BorderRadius.circular(
-        14,
-      ),
-
-      onTap: () {
-        _showDialog(
-          context,
-          'Report Card',
-          'First Week Report: Completed (10 Walks)\n\n'
-          'Current Week Report: Active (12 Walks)\n\n'
-          'Current Week Start: 03 Aug 2026',
-        );
-      },
-
-      child:
-          Container(
-        constraints:
-            const BoxConstraints(
-          minHeight: 88,
-        ),
-
-        padding:
-            const EdgeInsets.symmetric(
-          horizontal: 11,
-          vertical: 12,
-        ),
-
-        decoration:
-            BoxDecoration(
-          color:
-              const Color(
-            0xFFFFF1EA,
-          ),
-
-          borderRadius:
-              BorderRadius.circular(
-            14,
-          ),
-
-          border:
-              Border.all(
-            color:
-                HomeScreen.orange
-                    .withOpacity(
-              0.25,
-            ),
-          ),
-        ),
-
-        child:
-            Row(
-          children: [
-
-            Container(
-              height: 43,
-              width: 43,
-
-              decoration:
-                  BoxDecoration(
-                color:
-                    HomeScreen.orange,
-
-                borderRadius:
-                    BorderRadius.circular(
-                  12,
-                ),
-              ),
-
-              child:
-                  const Icon(
-                Icons.assessment_outlined,
-                color:
-                    Colors.white,
-                size: 22,
-              ),
-            ),
-
-            const SizedBox(
-              width: 9,
-            ),
-
-            const Expanded(
-              child:
-                  Column(
-                mainAxisAlignment:
-                    MainAxisAlignment
-                        .center,
-
-                crossAxisAlignment:
-                    CrossAxisAlignment
-                        .start,
-
-                children: [
-
-                  Text(
-                    'Report Card',
-
-                    maxLines: 1,
-
-                    overflow:
-                        TextOverflow
-                            .ellipsis,
-
-                    style:
-                        TextStyle(
-                      color:
-                          HomeScreen.slate,
-
-                      fontSize: 11,
-
-                      fontWeight:
-                          FontWeight.w600,
-                    ),
-                  ),
-
-                  SizedBox(
-                    height: 3,
-                  ),
-
-                  FittedBox(
-                    fit:
-                        BoxFit.scaleDown,
-
-                    alignment:
-                        Alignment
-                            .centerLeft,
-
-                    child:
-                        Text(
-                      'Performance',
-
-                      style:
-                          TextStyle(
-                        color:
-                            HomeScreen.navy,
-
-                        fontSize: 17,
-
-                        fontWeight:
-                            FontWeight.w900,
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  // =====================================================
-  // PAST WALK CARD
-  // =====================================================
-
-  Widget _walkCard(
-    BuildContext context, {
-    required String id,
-    required String time,
-    required String date,
-    required String distance,
-    required String duration,
-  }) {
-    return InkWell(
-      borderRadius:
-          BorderRadius.circular(
-        14,
-      ),
-
-      onTap: () {
-        _showDialog(
-          context,
-          'Walk Details',
-          'Walk ID: $id\n'
-          'Time: $time\n'
-          'Date: $date\n'
-          'Duration: $duration\n'
-          'Distance: $distance\n'
-          'Route: Park Lane to Block C\n'
-          'Status: Completed Successfully',
-        );
-      },
-
-      child:
-          Container(
-        padding:
-            const EdgeInsets.all(
-          11,
-        ),
-
-        decoration:
-            BoxDecoration(
-          color:
-              HomeScreen.card,
-
-          borderRadius:
-              BorderRadius.circular(
-            14,
-          ),
-
-          border:
-              Border.all(
-            color:
-                const Color(
-              0xFFD4D9DF,
-            ),
-          ),
-
-          boxShadow: [
-            BoxShadow(
-              color:
-                  Colors.black
-                      .withOpacity(
-                0.045,
-              ),
-
-              blurRadius: 8,
-
-              offset:
-                  const Offset(
-                0,
-                3,
-              ),
-            ),
-          ],
-        ),
-
-        child:
-            Row(
-          children: [
-
-            Container(
-              height: 42,
-              width: 42,
-
-              decoration:
-                  BoxDecoration(
-                color:
-                    Colors.green
-                        .withOpacity(
-                  0.12,
-                ),
-
-                borderRadius:
-                    BorderRadius.circular(
-                  12,
-                ),
-              ),
-
-              child:
-                  const Icon(
-                Icons.pets,
-                color:
-                    Colors.green,
-                size: 21,
-              ),
-            ),
-
-            const SizedBox(
-              width: 10,
-            ),
-
-            Expanded(
-              child:
-                  Column(
-                crossAxisAlignment:
-                    CrossAxisAlignment
-                        .start,
-
-                children: [
-
-                  Text(
-                    '$id • $time',
-
-                    maxLines: 1,
-
-                    overflow:
-                        TextOverflow
-                            .ellipsis,
-
-                    style:
-                        const TextStyle(
-                      color:
-                          HomeScreen.navy,
-
-                      fontWeight:
-                          FontWeight.w900,
-
-                      fontSize: 12,
-                    ),
-                  ),
-
-                  const SizedBox(
-                    height: 4,
-                  ),
-
-                  Text(
-                    '$distance • $duration • $date',
-
-                    maxLines: 1,
-
-                    overflow:
-                        TextOverflow
-                            .ellipsis,
-
-                    style:
-                        const TextStyle(
-                      color:
-                          HomeScreen.slate,
-
-                      fontSize: 10,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-
-            Container(
-              padding:
-                  const EdgeInsets
-                      .symmetric(
-                horizontal: 7,
-                vertical: 4,
-              ),
-
-              decoration:
-                  BoxDecoration(
-                color:
-                    Colors.green
-                        .withOpacity(
-                  0.10,
-                ),
-
-                borderRadius:
-                    BorderRadius.circular(
-                  7,
-                ),
-              ),
-
-              child:
-                  const Text(
-                'DONE',
-
-                style:
-                    TextStyle(
-                  color:
-                      Colors.green,
-
-                  fontSize: 8,
-
-                  fontWeight:
-                      FontWeight.w900,
-                ),
-              ),
-            ),
-
-            const SizedBox(
-              width: 6,
-            ),
-
-            const Icon(
-              Icons.arrow_forward_ios,
-              size: 12,
-              color:
-                  Color(
-                0xFF8A96A3,
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  // =====================================================
-  // DIALOG
-  // =====================================================
-
-  void _showDialog(
-    BuildContext context,
-    String title,
-    String content,
-  ) {
-    showDialog(
-      context: context,
-
-      builder: (ctx) {
-        return AlertDialog(
-          backgroundColor:
-              const Color(
-            0xFFF7F8FA,
-          ),
-
-          shape:
-              RoundedRectangleBorder(
-            borderRadius:
-                BorderRadius.circular(
-              20,
-            ),
-          ),
-
-          title:
-              Text(
-            title,
-
-            style:
-                const TextStyle(
-              color:
-                  HomeScreen.navy,
-
-              fontWeight:
-                  FontWeight.w900,
-            ),
-          ),
-
-          content:
-              Text(
-            content,
-
-            style:
-                const TextStyle(
-              color:
-                  HomeScreen.slate,
-
-              height: 1.5,
-            ),
-          ),
-
-          actions: [
-            TextButton(
-              onPressed:
-                  () =>
-                      Navigator.pop(
-                ctx,
-              ),
-
-              child:
-                  const Text(
-                'CLOSE',
-
-                style:
-                    TextStyle(
-                  color:
-                      HomeScreen.orange,
-
-                  fontWeight:
-                      FontWeight.bold,
-                ),
-              ),
-            ),
-          ],
-        );
-      },
     );
   }
 }
