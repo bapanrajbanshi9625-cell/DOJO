@@ -3,22 +3,22 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 class ActiveWalkService {
   ActiveWalkService._();
 
+  // ==========================================================
+  // SINGLETON
+  // ==========================================================
+
   static final ActiveWalkService instance =
       ActiveWalkService._();
+
+  // ==========================================================
+  // FIRESTORE
+  // ==========================================================
 
   final FirebaseFirestore _firestore =
       FirebaseFirestore.instance;
 
   // ==========================================================
   // ACTIVE WALK COLLECTION
-  // ==========================================================
-
-  CollectionReference<Map<String, dynamic>>
-      get _activeWalks =>
-          _firestore.collection('active_walk');
-
-  // ==========================================================
-  // GET ACTIVE WALKS FOR OWNER
   //
   // active_walk = walker is on the way.
   //
@@ -28,6 +28,14 @@ class ActiveWalkService {
   // routeCoordinates
   // events
   // elapsedSeconds
+  // ==========================================================
+
+  CollectionReference<Map<String, dynamic>>
+      get _activeWalks =>
+          _firestore.collection('active_walk');
+
+  // ==========================================================
+  // WATCH ACTIVE WALKS FOR OWNER
   // ==========================================================
 
   Stream<QuerySnapshot<Map<String, dynamic>>>
@@ -47,7 +55,7 @@ class ActiveWalkService {
   }
 
   // ==========================================================
-  // GET ONE ACTIVE WALK
+  // WATCH ONE ACTIVE WALK
   // ==========================================================
 
   Stream<DocumentSnapshot<Map<String, dynamic>>>
@@ -60,7 +68,10 @@ class ActiveWalkService {
   }
 
   // ==========================================================
-  // FIND ACTIVE WALK BY WALK ID
+  // WATCH ACTIVE WALK BY WALK ID
+  //
+  // IMPORTANT:
+  // Firestore field is exactly "Walkid"
   // ==========================================================
 
   Stream<QuerySnapshot<Map<String, dynamic>>>
@@ -69,7 +80,7 @@ class ActiveWalkService {
   }) {
     return _activeWalks
         .where(
-          'walkId',
+          'Walkid',
           isEqualTo: walkId,
         )
         .where(
@@ -102,10 +113,25 @@ class ActiveWalkService {
   }
 
   // ==========================================================
-  // CANCEL / CLOSE ACTIVE WALK
+  // GET ACTIVE WALK BY DOCUMENT ID ONCE
+  // ==========================================================
+
+  Future<DocumentSnapshot<Map<String, dynamic>>>
+      getActiveWalkByDocumentId({
+    required String documentId,
+  }) {
+    return _activeWalks
+        .doc(documentId)
+        .get();
+  }
+
+  // ==========================================================
+  // CLOSE ACTIVE WALK
   //
-  // This only changes the status.
-  // It does NOT create or modify liveWalkSessions.
+  // active_walk only changes its status.
+  //
+  // It does NOT modify:
+  // liveWalkSessions
   // ==========================================================
 
   Future<void> closeActiveWalk({
@@ -122,9 +148,6 @@ class ActiveWalkService {
 
   // ==========================================================
   // DELETE ACTIVE WALK
-  //
-  // Use only when the active_walk document should
-  // completely disappear.
   // ==========================================================
 
   Future<void> deleteActiveWalk({
