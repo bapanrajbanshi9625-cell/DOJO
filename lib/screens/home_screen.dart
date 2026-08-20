@@ -11,7 +11,7 @@ import 'generate_qr_screen.dart';
 import 'live_walk_screen.dart';
 
 import '../features/home/services/home_data_service.dart'
-    hide HomePastWalk;
+    as home_data;
 import '../features/home/services/home_live_walk_service.dart';
 
 import '../features/home/widgets/home_live_walk_bar.dart';
@@ -34,13 +34,12 @@ class HomeScreen extends StatefulWidget {
 }
 
 class _HomeScreenState extends State<HomeScreen> {
-
   // =====================================================
   // HOME DATA SERVICE
   // =====================================================
 
-  final HomeDataService _homeDataService =
-      HomeDataService.instance;
+  final home_data.HomeDataService _homeDataService =
+      home_data.HomeDataService.instance;
 
   // =====================================================
   // LIVE WALK SERVICE
@@ -228,6 +227,7 @@ class _HomeScreenState extends State<HomeScreen> {
           ),
         ),
       );
+
       return;
     }
 
@@ -327,11 +327,23 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   // =====================================================
-  // CONVERT PAST WALK MODEL → UI MAP
+  // CONVERT DATA MODEL → UI MAP
+  // =====================================================
+  //
+  // IMPORTANT:
+  //
+  // home_data.HomePastWalk
+  //     = Firestore/data model
+  //
+  // HomePastWalk
+  //     = UI widget
+  //
+  // दोनों का नाम same है इसलिए service को
+  // "home_data" alias दिया गया है.
   // =====================================================
 
   List<Map<String, dynamic>> _pastWalkMaps(
-    List<HomePastWalk> walks,
+    List<home_data.HomePastWalk> walks,
   ) {
     return walks.map(
       (walk) {
@@ -383,7 +395,6 @@ class _HomeScreenState extends State<HomeScreen> {
               CrossAxisAlignment.start,
 
           children: [
-
             // =========================================
             // WELCOME
             // =========================================
@@ -404,7 +415,6 @@ class _HomeScreenState extends State<HomeScreen> {
 
               builder:
                   (context, snapshot) {
-
                 if (snapshot.hasError) {
                   return const SizedBox.shrink();
                 }
@@ -470,7 +480,8 @@ class _HomeScreenState extends State<HomeScreen> {
 
             const SizedBox(height: 9),
 
-            StreamBuilder<List<HomePastWalk>>(
+            StreamBuilder<
+                List<home_data.HomePastWalk>>(
               stream:
                   _homeDataService
                       .pastWalksStream(
@@ -479,6 +490,9 @@ class _HomeScreenState extends State<HomeScreen> {
 
               builder:
                   (context, snapshot) {
+                // -------------------------------------
+                // ERROR
+                // -------------------------------------
 
                 if (snapshot.hasError) {
                   return Container(
@@ -490,19 +504,24 @@ class _HomeScreenState extends State<HomeScreen> {
                       color:
                           HomeScreen.card,
                       borderRadius:
-                          BorderRadius.circular(14),
-                      border: Border.all(
+                          BorderRadius.circular(
+                        14,
+                      ),
+                      border:
+                          Border.all(
                         color:
                             const Color(
                           0xFFD4D9DF,
                         ),
                       ),
                     ),
-                    child: const Text(
+                    child:
+                        const Text(
                       'Unable to load past walks.',
                       textAlign:
                           TextAlign.center,
-                      style: TextStyle(
+                      style:
+                          TextStyle(
                         color:
                             HomeScreen.slate,
                         fontSize: 12,
@@ -513,11 +532,16 @@ class _HomeScreenState extends State<HomeScreen> {
                   );
                 }
 
+                // -------------------------------------
+                // LOADING
+                // -------------------------------------
+
                 if (snapshot.connectionState ==
                     ConnectionState.waiting) {
                   return const SizedBox(
                     height: 70,
-                    child: Center(
+                    child:
+                        Center(
                       child:
                           CircularProgressIndicator(
                         strokeWidth: 2,
@@ -528,12 +552,24 @@ class _HomeScreenState extends State<HomeScreen> {
                   );
                 }
 
-                final List<HomePastWalk> walks =
+                // -------------------------------------
+                // DATA
+                // -------------------------------------
+
+                final List<
+                    home_data.HomePastWalk> walks =
                     snapshot.data ??
-                        <HomePastWalk>[];
+                        <home_data.HomePastWalk>[];
+
+                // -------------------------------------
+                // UI WIDGET
+                // -------------------------------------
 
                 return HomePastWalk(
-                  walks: _pastWalkMaps(walks),
+                  walks:
+                      _pastWalkMaps(
+                    walks,
+                  ),
                   onDetails: (
                     title,
                     content,
@@ -568,7 +604,6 @@ class _HomeScreenState extends State<HomeScreen> {
 
         builder:
             (context, snapshot) {
-
           final bool live =
               snapshot.hasData &&
               _liveWalkService
@@ -577,7 +612,8 @@ class _HomeScreenState extends State<HomeScreen> {
               );
 
           // =========================================
-          // LIVE WALK = QR BUTTON HIDDEN
+          // LIVE WALK
+          // QR BUTTON HIDDEN
           // =========================================
 
           if (live) {
@@ -585,7 +621,8 @@ class _HomeScreenState extends State<HomeScreen> {
           }
 
           // =========================================
-          // NORMAL = QR BUTTON
+          // NORMAL
+          // QR BUTTON
           // =========================================
 
           return FloatingActionButton.extended(
@@ -600,13 +637,16 @@ class _HomeScreenState extends State<HomeScreen> {
             onPressed:
                 _openMyQRCode,
 
-            icon: const Icon(
+            icon:
+                const Icon(
               Icons.qr_code_2,
             ),
 
-            label: const Text(
+            label:
+                const Text(
               'Generate QR Code',
-              style: TextStyle(
+              style:
+                  TextStyle(
                 fontWeight:
                     FontWeight.w900,
               ),
