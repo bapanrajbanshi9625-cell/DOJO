@@ -3,8 +3,15 @@ import 'package:flutter/material.dart';
 class HomePastWalk extends StatelessWidget {
   const HomePastWalk({
     super.key,
+    required this.walks,
     required this.onDetails,
   });
+
+  // =====================================================
+  // FIRESTORE DATA
+  // =====================================================
+
+  final List<Map<String, dynamic>> walks;
 
   final void Function(
     String title,
@@ -16,38 +23,110 @@ class HomePastWalk extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // ===================================================
+    // EMPTY STATE
+    // ===================================================
+
+    if (walks.isEmpty) {
+      return Container(
+        width: double.infinity,
+        padding: const EdgeInsets.all(18),
+        decoration: BoxDecoration(
+          color: const Color(0xFFF7F8FA),
+          borderRadius: BorderRadius.circular(14),
+          border: Border.all(
+            color: const Color(0xFFD4D9DF),
+          ),
+        ),
+        child: const Text(
+          'No past walks found.',
+          textAlign: TextAlign.center,
+          style: TextStyle(
+            color: slate,
+            fontSize: 12,
+            fontWeight: FontWeight.w600,
+          ),
+        ),
+      );
+    }
+
+    // ===================================================
+    // PAST WALKS
+    // ===================================================
+
     return Column(
       children: [
-        _walkCard(
-          id: '#WID-9842',
-          time: '08:30 AM',
-          date: '04 Aug 2026',
-          distance: '2.1 km',
-          duration: '30 mins',
-        ),
+        for (int i = 0; i < walks.length; i++) ...[
+          _walkCard(
+            walk: walks[i],
+          ),
 
-        const SizedBox(height: 8),
-
-        _walkCard(
-          id: '#WID-9817',
-          time: '07:15 AM',
-          date: '03 Aug 2026',
-          distance: '1.8 km',
-          duration: '27 mins',
-        ),
+          if (i != walks.length - 1)
+            const SizedBox(height: 8),
+        ],
       ],
     );
   }
 
+  // =====================================================
+  // WALK CARD
+  // =====================================================
+
   Widget _walkCard({
-    required String id,
-    required String time,
-    required String date,
-    required String distance,
-    required String duration,
+    required Map<String, dynamic> walk,
   }) {
+    // ===================================================
+    // SAFE FIRESTORE VALUES
+    // ===================================================
+
+    final String id = _stringValue(
+      walk['walkId'] ??
+          walk['id'] ??
+          walk['walkID'],
+      fallback: 'Walk',
+    );
+
+    final String time = _stringValue(
+      walk['timeFormatted'] ??
+          walk['time'] ??
+          walk['startTime'],
+      fallback: '--',
+    );
+
+    final String date = _stringValue(
+      walk['date'] ??
+          walk['walkDate'] ??
+          walk['createdDate'],
+      fallback: '--',
+    );
+
+    final String distance = _formatDistance(
+      walk['distance'] ??
+          walk['distanceKm'] ??
+          walk['totalDistance'],
+    );
+
+    final String duration = _formatDuration(
+      walk['durationMinutes'] ??
+          walk['duration'] ??
+          walk['totalDuration'],
+    );
+
+    final String route = _stringValue(
+      walk['route'] ??
+          walk['routeName'] ??
+          walk['location'],
+      fallback: 'Route information unavailable',
+    );
+
+    final String status = _stringValue(
+      walk['status'],
+      fallback: 'Completed',
+    );
+
     return InkWell(
       borderRadius: BorderRadius.circular(14),
+
       onTap: () {
         onDetails(
           'Walk Details',
@@ -56,18 +135,23 @@ class HomePastWalk extends StatelessWidget {
           'Date: $date\n'
           'Duration: $duration\n'
           'Distance: $distance\n'
-          'Route: Park Lane to Block C\n'
-          'Status: Completed Successfully',
+          'Route: $route\n'
+          'Status: $status',
         );
       },
+
       child: Container(
         padding: const EdgeInsets.all(11),
+
         decoration: BoxDecoration(
           color: const Color(0xFFF7F8FA),
+
           borderRadius: BorderRadius.circular(14),
+
           border: Border.all(
             color: const Color(0xFFD4D9DF),
           ),
+
           boxShadow: [
             BoxShadow(
               color: Colors.black.withOpacity(0.045),
@@ -76,15 +160,22 @@ class HomePastWalk extends StatelessWidget {
             ),
           ],
         ),
+
         child: Row(
           children: [
+            // =========================================
+            // ICON
+            // =========================================
+
             Container(
               height: 42,
               width: 42,
+
               decoration: BoxDecoration(
                 color: Colors.green.withOpacity(0.12),
                 borderRadius: BorderRadius.circular(12),
               ),
+
               child: const Icon(
                 Icons.pets,
                 color: Colors.green,
@@ -94,15 +185,24 @@ class HomePastWalk extends StatelessWidget {
 
             const SizedBox(width: 10),
 
+            // =========================================
+            // WALK INFORMATION
+            // =========================================
+
             Expanded(
               child: Column(
                 crossAxisAlignment:
                     CrossAxisAlignment.start,
+
                 children: [
                   Text(
                     '$id • $time',
+
                     maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
+
+                    overflow:
+                        TextOverflow.ellipsis,
+
                     style: const TextStyle(
                       color: navy,
                       fontWeight: FontWeight.w900,
@@ -114,8 +214,12 @@ class HomePastWalk extends StatelessWidget {
 
                   Text(
                     '$distance • $duration • $date',
+
                     maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
+
+                    overflow:
+                        TextOverflow.ellipsis,
+
                     style: const TextStyle(
                       color: slate,
                       fontSize: 10,
@@ -125,18 +229,31 @@ class HomePastWalk extends StatelessWidget {
               ),
             ),
 
+            // =========================================
+            // STATUS
+            // =========================================
+
             Container(
-              padding: const EdgeInsets.symmetric(
+              padding:
+                  const EdgeInsets.symmetric(
                 horizontal: 7,
                 vertical: 4,
               ),
+
               decoration: BoxDecoration(
                 color: Colors.green.withOpacity(0.10),
                 borderRadius: BorderRadius.circular(7),
               ),
-              child: const Text(
-                'DONE',
-                style: TextStyle(
+
+              child: Text(
+                status.toUpperCase(),
+
+                maxLines: 1,
+
+                overflow:
+                    TextOverflow.ellipsis,
+
+                style: const TextStyle(
                   color: Colors.green,
                   fontSize: 8,
                   fontWeight: FontWeight.w900,
@@ -155,5 +272,74 @@ class HomePastWalk extends StatelessWidget {
         ),
       ),
     );
+  }
+
+  // =====================================================
+  // STRING HELPER
+  // =====================================================
+
+  String _stringValue(
+    dynamic value, {
+    String fallback = '',
+  }) {
+    if (value == null) {
+      return fallback;
+    }
+
+    final String result = value.toString().trim();
+
+    if (result.isEmpty) {
+      return fallback;
+    }
+
+    return result;
+  }
+
+  // =====================================================
+  // DISTANCE FORMAT
+  // =====================================================
+
+  String _formatDistance(dynamic value) {
+    if (value == null) {
+      return '--';
+    }
+
+    if (value is num) {
+      return '${value.toString()} km';
+    }
+
+    final String text = value.toString().trim();
+
+    if (text.isEmpty) {
+      return '--';
+    }
+
+    if (text.toLowerCase().contains('km')) {
+      return text;
+    }
+
+    return '$text km';
+  }
+
+  // =====================================================
+  // DURATION FORMAT
+  // =====================================================
+
+  String _formatDuration(dynamic value) {
+    if (value == null) {
+      return '--';
+    }
+
+    if (value is num) {
+      return '${value.toString()} mins';
+    }
+
+    final String text = value.toString().trim();
+
+    if (text.isEmpty) {
+      return '--';
+    }
+
+    return text;
   }
 }
