@@ -7,32 +7,52 @@ import 'package:firebase_auth/firebase_auth.dart';
 /// INSTA WALK SEARCH SERVICE
 /// ============================================================
 ///
-/// Owner side Insta Walk flow:
+/// OWNER SIDE FLOW
+/// ------------------------------------------------------------
 ///
 /// 1. Owner "Find a Walker" दबाता है
-/// 2. Owner की current/search location के आधार पर request बनती है
-/// 3. Request maximum 3 KM radius के walkers के लिए होती है
-/// 4. Walker request accept करता है
-/// 5. Owner को तभी पता चलता है कि Walker ने accept किया
-/// 6. Accept होने पर searching बंद
-/// 7. Radar/UI बंद करने का signal मिलता है
-/// 8. Request 2 minutes बाद automatically expire हो जाती है
+/// 2. Owner की selected/current location request में save होती है
+/// 3. Walker matching maximum 3 KM radius में होगी
+/// 4. Owner को searching के दौरान कोई Walker list नहीं मिलेगी
+/// 5. Owner को यह भी नहीं पता चलेगा कि कितने Walker available हैं
+/// 6. Nearby eligible Walker request accept करेगा
+/// 7. तभी request status = accepted होगा
+/// 8. Owner को accepted Walker की जानकारी मिलेगी
+/// 9. Accept होते ही Radar/Search बंद किया जा सकता है
+/// 10. Searching request maximum 2 minutes valid है
 ///
-/// IMPORTANT:
+/// IMPORTANT LOCATION PRIVACY
 /// ------------------------------------------------------------
-/// App background / screen change:
-/// Firestore में expiresAt save होता है, इसलिए request की
-/// वास्तविक validity local Timer पर depend नहीं करती।
 ///
-/// अगर Owner Home -> Walks -> Home जाता है तो Firestore request
-/// बनी रहती है।
+/// ownerLocation केवल nearby Walker matching के लिए है।
 ///
-/// अगर app पूरी तरह बंद हो जाए तो local Dart Timer रुक सकता है,
-/// लेकिन Firestore में expiresAt मौजूद रहेगा। अगली बार app खुलने
-/// पर service request की वास्तविक स्थिति check कर सकती है।
+/// इस service में:
 ///
-/// Owner को Walker की availability/list नहीं दिखाई जाती।
-/// Owner को सिर्फ "accepted" होने पर Walker की जानकारी मिलेगी।
+/// ❌ Owner की live location Walker को नहीं भेजी जाती
+/// ❌ Walker को Owner की live tracking नहीं दी जाती
+/// ❌ Searching में Owner को Walker की location नहीं मिलती
+/// ❌ Searching में Owner को Walker count/list नहीं मिलता
+///
+/// ACCEPT होने के बाद:
+///
+/// ✅ Owner को accepted Walker की information मिल सकती है
+/// ✅ अलग Live Walk system से Walker location दिखाई जा सकती है
+///
+/// IMPORTANT BACKGROUND BEHAVIOUR
+/// ------------------------------------------------------------
+///
+/// Firestore में expiresAt save होता है। इसलिए UI का local Timer
+/// request की वास्तविक validity का source नहीं है.
+///
+/// Home -> Walks -> Home:
+/// request Firestore में बनी रहती है.
+///
+/// App पूरी तरह बंद:
+/// local Timer रुक सकता है, लेकिन expiresAt Firestore में रहता है.
+///
+/// App दोबारा खुलने पर recoverActiveRequest() से existing request
+/// check की जा सकती है.
+///
 /// ============================================================
 
 class InstaWalkSearchService {
@@ -41,13 +61,14 @@ class InstaWalkSearchService {
     FirebaseAuth? auth,
   })  : _firestore =
             firestore ?? FirebaseFirestore.instance,
-        _auth = auth ?? FirebaseAuth.instance;
+        _auth =
+            auth ?? FirebaseAuth.instance;
 
   final FirebaseFirestore _firestore;
   final FirebaseAuth _auth;
 
   // ============================================================
-  // COLLECTION
+  // COLLECTIONS
   // ============================================================
 
   static const String walkRequestsCollection =
@@ -60,8 +81,10 @@ class InstaWalkSearchService {
   // SEARCH SETTINGS
   // ============================================================
 
+  /// Maximum search radius.
   static const double searchRadiusKm = 3.0;
 
+  /// Maximum time for a searching request.
   static const Duration requestDuration =
       Duration(minutes: 2);
 
@@ -74,13 +97,17 @@ class InstaWalkSearchService {
       _requestSubscription;
 
   // ============================================================
-  // ACTIVE REQUEST ID
+  // ACTIVE REQUEST
   // ============================================================
 
   String? _activeRequestId;
 
   String? get activeRequestId =>
       _activeRequestId;
+
+  bool get hasActiveRequest =>
+      _activeRequestId != null &&
+      _activeRequestId!.trim().isNotEmpty;
 
   // ============================================================
   // CURRENT USER
@@ -89,12 +116,16 @@ class InstaWalkSearchService {
   User? get currentUser =>
       _auth.currentUser;
 
+  String? get currentAuthUid =>
+      _auth.currentUser?.uid;
+
   // ============================================================
   // DISPOSE
   // ============================================================
 
   Future<void> dispose() async {
     await _requestSubscription?.cancel();
+
     _requestSubscription = null;
   }
 
@@ -104,32 +135,41 @@ class InstaWalkSearchService {
 
   Future<QueryDocumentSnapshot<
       Map<String, dynamic>>?> findOwnerProfile() async {
-    final User? user = _auth.currentUser;
+    final User? user =
+        _auth.currentUser;
 
     if (user == null) {
       return null;
     }
 
-    final QuerySnapshot<
-        Map<String, dynamic>> snapshot =
-        await _firestore
-            .collection(ownerProfilesCollection)
-            .where(
-              'authUid',
-              isEqualTo: user.uid,
-            )
-            .limit(1)
-            .get();
+    try {
+      final QuerySnapshot<
+          Map<String, dynamic>> snapshot =
+          await _firestore
+              .collection(
+                ownerProfilesCollection,
+              )
+              .where(
+                'authUid',
+                isEqualTo: user.uid,
+              )
+              .limit(1)
+              .get();
 
-    if (snapshot.docs.isEmpty) {
+      if (snapshot.docs.isEmpty) {
+        return null;
+      }
+
+      return snapshot.docs.first;
+    } on FirebaseException {
+      rethrow;
+    } catch (_) {
       return null;
     }
-
-    return snapshot.docs.first;
   }
 
   // ============================================================
-  // CREATE SEARCH REQUEST
+  // START SEARCH
   // ============================================================
 
   Future<InstaWalkSearchResult> startSearch({
@@ -139,15 +179,22 @@ class InstaWalkSearchService {
 
     /// Owner की search/current location.
     ///
-    /// यह location Walker को expose करने के लिए नहीं है।
-    /// यह केवल nearby Walker matching के लिए है।
+    /// यह Walker को live location के रूप में expose नहीं होगी।
+    ///
+    /// इसका उपयोग nearby Walker matching के लिए होगा।
     GeoPoint? ownerLocation,
   }) async {
-    final User? user = _auth.currentUser;
+    final User? user =
+        _auth.currentUser;
+
+    // ==========================================================
+    // LOGIN CHECK
+    // ==========================================================
 
     if (user == null) {
       return const InstaWalkSearchResult.failure(
-        message: 'Please login first.',
+        message:
+            'Please login first.',
       );
     }
 
@@ -156,49 +203,95 @@ class InstaWalkSearchService {
 
     if (ownerAuthUid.isEmpty) {
       return const InstaWalkSearchResult.failure(
-        message: 'Owner UID is missing.',
+        message:
+            'Owner UID is missing.',
       );
     }
 
-    if (ownerId.trim().isEmpty) {
+    // ==========================================================
+    // OWNER ID CHECK
+    // ==========================================================
+
+    final String cleanOwnerId =
+        ownerId.trim();
+
+    if (cleanOwnerId.isEmpty) {
       return const InstaWalkSearchResult.failure(
-        message: 'Owner ID is missing.',
+        message:
+            'Owner ID is missing.',
       );
     }
 
-    if (address.trim().isEmpty) {
+    // ==========================================================
+    // ADDRESS CHECK
+    // ==========================================================
+
+    final String cleanAddress =
+        address.trim();
+
+    if (cleanAddress.isEmpty) {
       return const InstaWalkSearchResult.failure(
-        message: 'Owner address is missing.',
+        message:
+            'Owner address is missing.',
       );
+    }
+
+    // ==========================================================
+    // PREVENT DUPLICATE SEARCH
+    // ==========================================================
+
+    if (hasActiveRequest) {
+      final InstaWalkRequestState currentState =
+          await getRequestState(
+        _activeRequestId!,
+      );
+
+      if (currentState.isSearching) {
+        return InstaWalkSearchResult.success(
+          requestId:
+              _activeRequestId!,
+          expiresAt:
+              _readExpiresAt(
+            currentState.data,
+          ),
+        );
+      }
+
+      _activeRequestId = null;
     }
 
     try {
       // ========================================================
-      // STOP PREVIOUS LISTENER
+      // STOP OLD LISTENER
       // ========================================================
 
       await _requestSubscription?.cancel();
+
       _requestSubscription = null;
 
       // ========================================================
-      // REQUEST REFERENCE
+      // CREATE REQUEST DOCUMENT
       // ========================================================
 
       final DocumentReference<
           Map<String, dynamic>> requestRef =
           _firestore
-              .collection(walkRequestsCollection)
+              .collection(
+                walkRequestsCollection,
+              )
               .doc();
 
       // ========================================================
-      // TIME
+      // REQUEST TIME
       // ========================================================
 
       final DateTime now =
           DateTime.now();
 
       final DateTime expiresAt =
-          now.add(requestDuration);
+          now.add(
+        requestDuration,
+      );
 
       // ========================================================
       // REQUEST DATA
@@ -207,23 +300,38 @@ class InstaWalkSearchService {
       final Map<String, dynamic> requestData =
           <String, dynamic>{
         // ------------------------------------------------------
-        // REQUEST
+        // REQUEST ID
         // ------------------------------------------------------
 
-        'requestId': requestRef.id,
+        'requestId':
+            requestRef.id,
 
-        'status': 'searching',
+        // ------------------------------------------------------
+        // STATUS
+        // ------------------------------------------------------
 
-        'senderRole': 'owner',
+        'status':
+            'searching',
 
-        'senderUid': ownerAuthUid,
+        // ------------------------------------------------------
+        // REQUEST TYPE
+        // ------------------------------------------------------
+
+        'searchType':
+            'insta_walk',
+
+        'senderRole':
+            'owner',
+
+        'senderUid':
+            ownerAuthUid,
 
         // ------------------------------------------------------
         // OWNER
         // ------------------------------------------------------
 
         'ownerId':
-            ownerId.trim(),
+            cleanOwnerId,
 
         'ownerAuthUid':
             ownerAuthUid,
@@ -234,31 +342,29 @@ class InstaWalkSearchService {
                 : ownerName.trim(),
 
         // ------------------------------------------------------
-        // DESTINATION / ADDRESS
+        // DESTINATION
         // ------------------------------------------------------
 
         'address':
-            address.trim(),
+            cleanAddress,
 
         // ------------------------------------------------------
-        // SEARCH
+        // SEARCH RADIUS
         // ------------------------------------------------------
-
-        'searchType':
-            'insta_walk',
 
         'searchRadiusKm':
             searchRadiusKm,
 
         // ------------------------------------------------------
-        // LOCATION
+        // OWNER LOCATION
         // ------------------------------------------------------
         //
-        // Only used for matching nearby walkers.
+        // केवल nearby matching के लिए।
         //
-        // IMPORTANT:
-        // Walker app should NOT expose owner's live location.
-        // This is the owner's selected/current request location.
+        // यह Owner की live location sharing नहीं है।
+        //
+        // Walker side को इसे read करके Owner की live tracking
+        // नहीं करनी चाहिए।
         // ------------------------------------------------------
 
         if (ownerLocation != null)
@@ -269,16 +375,23 @@ class InstaWalkSearchService {
         // WALKER
         // ------------------------------------------------------
 
-        'walkerUid': null,
+        'walkerUid':
+            null,
 
-        'walkerId': null,
+        'walkerId':
+            null,
 
-        'acceptedBy': null,
+        'walkerName':
+            null,
 
-        'acceptedAt': null,
+        'acceptedBy':
+            null,
+
+        'acceptedAt':
+            null,
 
         // ------------------------------------------------------
-        // TIMESTAMP
+        // TIMESTAMPS
         // ------------------------------------------------------
 
         'createdAt':
@@ -291,19 +404,29 @@ class InstaWalkSearchService {
       };
 
       // ========================================================
-      // CREATE REQUEST
+      // SAVE REQUEST
       // ========================================================
 
       await requestRef.set(
         requestData,
       );
 
+      // ========================================================
+      // SAVE ACTIVE REQUEST
+      // ========================================================
+
       _activeRequestId =
           requestRef.id;
 
+      // ========================================================
+      // SUCCESS
+      // ========================================================
+
       return InstaWalkSearchResult.success(
-        requestId: requestRef.id,
-        expiresAt: expiresAt,
+        requestId:
+            requestRef.id,
+        expiresAt:
+            expiresAt,
       );
     } on FirebaseException catch (e) {
       return InstaWalkSearchResult.failure(
@@ -312,8 +435,8 @@ class InstaWalkSearchService {
         errorCode:
             e.code,
       );
-    } catch (e) {
-      return InstaWalkSearchResult.failure(
+    } catch (_) {
+      return const InstaWalkSearchResult.failure(
         message:
             'Unable to start Insta Walk search.',
         errorCode:
@@ -323,19 +446,17 @@ class InstaWalkSearchService {
   }
 
   // ============================================================
-  // LISTEN FOR WALKER ACCEPT
+  // LISTEN FOR REQUEST
   // ============================================================
   ///
-  /// Owner को Walker की list नहीं मिलेगी।
-  ///
-  /// सिर्फ request document का status observe होगा:
+  /// Owner को केवल request status changes मिलेंगे।
   ///
   /// searching
   /// accepted
   /// expired
   /// cancelled
   ///
-  /// Accepted होने पर callback चलेगा।
+  /// Searching में Walker list नहीं भेजी जाती।
   // ============================================================
 
   Future<void> listenForRequest({
@@ -353,7 +474,48 @@ class InstaWalkSearchService {
       Object error,
     )? onError,
   }) async {
+    final String cleanRequestId =
+        requestId.trim();
+
+    if (cleanRequestId.isEmpty) {
+      return;
+    }
+
+    // ==========================================================
+    // STOP PREVIOUS LISTENER
+    // ==========================================================
+
     await _requestSubscription?.cancel();
+
+    _requestSubscription = null;
+
+    // ==========================================================
+    // ACTIVE REQUEST
+    // ==========================================================
+
+    _activeRequestId =
+        cleanRequestId;
+
+    // ==========================================================
+    // CALLBACK PROTECTION
+    // ==========================================================
+    //
+    // Firestore listener multiple times trigger हो सकता है।
+    // Accepted callback एक ही बार देना है।
+    // ==========================================================
+
+    bool acceptedCallbackSent =
+        false;
+
+    bool expiredCallbackSent =
+        false;
+
+    bool cancelledCallbackSent =
+        false;
+
+    // ==========================================================
+    // REQUEST REF
+    // ==========================================================
 
     final DocumentReference<
         Map<String, dynamic>> requestRef =
@@ -361,10 +523,13 @@ class InstaWalkSearchService {
             .collection(
               walkRequestsCollection,
             )
-            .doc(requestId);
+            .doc(
+              cleanRequestId,
+            );
 
-    _activeRequestId =
-        requestId;
+    // ==========================================================
+    // LISTEN
+    // ==========================================================
 
     _requestSubscription =
         requestRef.snapshots().listen(
@@ -395,12 +560,21 @@ class InstaWalkSearchService {
         // ======================================================
 
         if (status == 'accepted') {
+          if (acceptedCallbackSent) {
+            return;
+          }
+
+          acceptedCallbackSent = true;
+
           final InstaWalkAcceptedData accepted =
               InstaWalkAcceptedData.fromMap(
             data,
           );
 
-          onAccepted(accepted);
+          onAccepted(
+            accepted,
+          );
+
           return;
         }
 
@@ -409,7 +583,14 @@ class InstaWalkSearchService {
         // ======================================================
 
         if (status == 'expired') {
+          if (expiredCallbackSent) {
+            return;
+          }
+
+          expiredCallbackSent = true;
+
           onExpired?.call();
+
           return;
         }
 
@@ -420,24 +601,45 @@ class InstaWalkSearchService {
         if (status == 'cancelled' ||
             status == 'owner_cancelled' ||
             status == 'walker_cancelled') {
+          if (cancelledCallbackSent) {
+            return;
+          }
+
+          cancelledCallbackSent = true;
+
           onCancelled?.call();
+
           return;
         }
       },
-      onError: (Object error) {
-        onError?.call(error);
+      onError: (
+        Object error,
+      ) {
+        onError?.call(
+          error,
+        );
       },
     );
   }
 
   // ============================================================
-  // GET REQUEST STATUS
+  // GET REQUEST STATE
   // ============================================================
 
   Future<InstaWalkRequestState>
       getRequestState(
     String requestId,
   ) async {
+    final String cleanRequestId =
+        requestId.trim();
+
+    if (cleanRequestId.isEmpty) {
+      return const InstaWalkRequestState(
+        status:
+            InstaWalkRequestStatus.notFound,
+      );
+    }
+
     try {
       final DocumentSnapshot<
           Map<String, dynamic>> snapshot =
@@ -445,7 +647,9 @@ class InstaWalkSearchService {
               .collection(
                 walkRequestsCollection,
               )
-              .doc(requestId)
+              .doc(
+                cleanRequestId,
+              )
               .get();
 
       if (!snapshot.exists) {
@@ -472,44 +676,92 @@ class InstaWalkSearchService {
                   .toLowerCase() ??
               '';
 
-      switch (status) {
-        case 'searching':
-          return InstaWalkRequestState(
-            status:
-                InstaWalkRequestStatus.searching,
-            data: data,
-          );
+      // ========================================================
+      // SEARCHING
+      // ========================================================
 
-        case 'accepted':
-          return InstaWalkRequestState(
-            status:
-                InstaWalkRequestStatus.accepted,
-            data: data,
-          );
+      if (status == 'searching') {
+        // ------------------------------------------------------
+        // LOCAL EXPIRY SAFETY
+        // ------------------------------------------------------
 
-        case 'expired':
+        final DateTime? expiresAt =
+            _readExpiresAt(
+          data,
+        );
+
+        if (expiresAt != null &&
+            DateTime.now()
+                .isAfter(
+              expiresAt,
+            )) {
           return InstaWalkRequestState(
             status:
                 InstaWalkRequestStatus.expired,
-            data: data,
+            data:
+                data,
           );
+        }
 
-        case 'cancelled':
-        case 'owner_cancelled':
-        case 'walker_cancelled':
-          return InstaWalkRequestState(
-            status:
-                InstaWalkRequestStatus.cancelled,
-            data: data,
-          );
-
-        default:
-          return InstaWalkRequestState(
-            status:
-                InstaWalkRequestStatus.unknown,
-            data: data,
-          );
+        return InstaWalkRequestState(
+          status:
+              InstaWalkRequestStatus.searching,
+          data:
+              data,
+        );
       }
+
+      // ========================================================
+      // ACCEPTED
+      // ========================================================
+
+      if (status == 'accepted') {
+        return InstaWalkRequestState(
+          status:
+              InstaWalkRequestStatus.accepted,
+          data:
+              data,
+        );
+      }
+
+      // ========================================================
+      // EXPIRED
+      // ========================================================
+
+      if (status == 'expired') {
+        return InstaWalkRequestState(
+          status:
+              InstaWalkRequestStatus.expired,
+          data:
+              data,
+        );
+      }
+
+      // ========================================================
+      // CANCELLED
+      // ========================================================
+
+      if (status == 'cancelled' ||
+          status == 'owner_cancelled' ||
+          status == 'walker_cancelled') {
+        return InstaWalkRequestState(
+          status:
+              InstaWalkRequestStatus.cancelled,
+          data:
+              data,
+        );
+      }
+
+      // ========================================================
+      // UNKNOWN
+      // ========================================================
+
+      return InstaWalkRequestState(
+        status:
+            InstaWalkRequestStatus.unknown,
+        data:
+            data,
+      );
     } on FirebaseException catch (e) {
       return InstaWalkRequestState(
         status:
@@ -517,12 +769,162 @@ class InstaWalkSearchService {
         errorMessage:
             _firebaseErrorMessage(e),
       );
-    } catch (e) {
+    } catch (_) {
       return const InstaWalkRequestState(
         status:
             InstaWalkRequestStatus.error,
         errorMessage:
             'Unable to check walk request.',
+      );
+    }
+  }
+
+  // ============================================================
+  // RECOVER ACTIVE REQUEST
+  // ============================================================
+  ///
+  /// Home -> Walks -> Home या app restart के बाद Owner का
+  /// active Insta Walk request ढूंढने के लिए।
+  ///
+  /// यह Owner की अपनी request ही खोजता है।
+  ///
+  /// Priority:
+  ///
+  /// searching
+  /// फिर accepted
+  ///
+  /// Expired/cancelled request वापस active नहीं होगी।
+  // ============================================================
+
+  Future<InstaWalkRequestState>
+      recoverActiveRequest() async {
+    final User? user =
+        _auth.currentUser;
+
+    if (user == null) {
+      return const InstaWalkRequestState(
+        status:
+            InstaWalkRequestStatus.notFound,
+      );
+    }
+
+    try {
+      final QuerySnapshot<
+          Map<String, dynamic>> snapshot =
+          await _firestore
+              .collection(
+                walkRequestsCollection,
+              )
+              .where(
+                'ownerAuthUid',
+                isEqualTo: user.uid,
+              )
+              .where(
+                'searchType',
+                isEqualTo: 'insta_walk',
+              )
+              .orderBy(
+                'createdAt',
+                descending: true,
+              )
+              .limit(10)
+              .get();
+
+      if (snapshot.docs.isEmpty) {
+        _activeRequestId = null;
+
+        return const InstaWalkRequestState(
+          status:
+              InstaWalkRequestStatus.notFound,
+        );
+      }
+
+      // ========================================================
+      // SEARCH ACTIVE REQUEST
+      // ========================================================
+
+      for (final QueryDocumentSnapshot<
+          Map<String, dynamic>> doc
+          in snapshot.docs) {
+        final Map<String, dynamic> data =
+            doc.data();
+
+        final String status =
+            data['status']
+                    ?.toString()
+                    .trim()
+                    .toLowerCase() ??
+                '';
+
+        // ------------------------------------------------------
+        // ACCEPTED
+        // ------------------------------------------------------
+
+        if (status == 'accepted') {
+          _activeRequestId =
+              doc.id;
+
+          return InstaWalkRequestState(
+            status:
+                InstaWalkRequestStatus.accepted,
+            data:
+                data,
+          );
+        }
+
+        // ------------------------------------------------------
+        // SEARCHING
+        // ------------------------------------------------------
+
+        if (status == 'searching') {
+          final DateTime? expiresAt =
+              _readExpiresAt(
+            data,
+          );
+
+          // ----------------------------------------------------
+          // EXPIRED LOCALLY
+          // ----------------------------------------------------
+
+          if (expiresAt != null &&
+              DateTime.now()
+                  .isAfter(
+                expiresAt,
+              )) {
+            continue;
+          }
+
+          _activeRequestId =
+              doc.id;
+
+          return InstaWalkRequestState(
+            status:
+                InstaWalkRequestStatus.searching,
+            data:
+                data,
+          );
+        }
+      }
+
+      _activeRequestId = null;
+
+      return const InstaWalkRequestState(
+        status:
+            InstaWalkRequestStatus.notFound,
+      );
+    } on FirebaseException catch (e) {
+      return InstaWalkRequestState(
+        status:
+            InstaWalkRequestStatus.error,
+        errorMessage:
+            _firebaseErrorMessage(e),
+      );
+    } catch (_) {
+      return const InstaWalkRequestState(
+        status:
+            InstaWalkRequestStatus.error,
+        errorMessage:
+            'Unable to recover Insta Walk request.',
       );
     }
   }
@@ -542,6 +944,9 @@ class InstaWalkSearchService {
       return false;
     }
 
+    final String cleanId =
+        id.trim();
+
     try {
       final DocumentReference<
           Map<String, dynamic>> requestRef =
@@ -549,7 +954,9 @@ class InstaWalkSearchService {
               .collection(
                 walkRequestsCollection,
               )
-              .doc(id);
+              .doc(
+                cleanId,
+              );
 
       final DocumentSnapshot<
           Map<String, dynamic>> snapshot =
@@ -571,19 +978,25 @@ class InstaWalkSearchService {
               '';
 
       // ========================================================
-      // ACCEPTED REQUEST CANCEL नहीं होगी यहाँ से
+      // ACCEPTED CANNOT BE CANCELLED BY SEARCH CANCEL
       // ========================================================
 
       if (status == 'accepted') {
         return false;
       }
 
+      // ========================================================
+      // ONLY SEARCHING CAN BE CANCELLED
+      // ========================================================
+
       if (status == 'searching') {
         await requestRef.update({
           'status':
               'owner_cancelled',
+
           'cancelledAt':
               FieldValue.serverTimestamp(),
+
           'cancelledBy':
               'owner',
         });
@@ -614,6 +1027,9 @@ class InstaWalkSearchService {
       return false;
     }
 
+    final String cleanId =
+        id.trim();
+
     try {
       final DocumentReference<
           Map<String, dynamic>> requestRef =
@@ -621,7 +1037,9 @@ class InstaWalkSearchService {
               .collection(
                 walkRequestsCollection,
               )
-              .doc(id);
+              .doc(
+                cleanId,
+              );
 
       final DocumentSnapshot<
           Map<String, dynamic>> snapshot =
@@ -643,7 +1061,15 @@ class InstaWalkSearchService {
               '';
 
       // ========================================================
-      // केवल SEARCHING request expire होगी
+      // ACCEPTED NEVER EXPIRES FROM THIS SEARCH METHOD
+      // ========================================================
+
+      if (status == 'accepted') {
+        return false;
+      }
+
+      // ========================================================
+      // ONLY SEARCHING REQUEST EXPIRES
       // ========================================================
 
       if (status != 'searching') {
@@ -653,6 +1079,7 @@ class InstaWalkSearchService {
       await requestRef.update({
         'status':
             'expired',
+
         'expiredAt':
             FieldValue.serverTimestamp(),
       });
@@ -668,18 +1095,19 @@ class InstaWalkSearchService {
   }
 
   // ============================================================
-  // CHECK LOCAL EXPIRY
-  // ============================================================
-  ///
-  /// यह method app दोबारा open होने पर useful है।
-  ///
-  /// Firestore का expiresAt देखकर पता चलता है कि request अभी
-  /// valid है या नहीं।
+  // CHECK REQUEST EXPIRY
   // ============================================================
 
   Future<bool> isRequestExpired(
     String requestId,
   ) async {
+    final String cleanRequestId =
+        requestId.trim();
+
+    if (cleanRequestId.isEmpty) {
+      return true;
+    }
+
     try {
       final DocumentSnapshot<
           Map<String, dynamic>> snapshot =
@@ -687,7 +1115,9 @@ class InstaWalkSearchService {
               .collection(
                 walkRequestsCollection,
               )
-              .doc(requestId)
+              .doc(
+                cleanRequestId,
+              )
               .get();
 
       if (!snapshot.exists) {
@@ -708,27 +1138,116 @@ class InstaWalkSearchService {
                   .toLowerCase() ??
               '';
 
+      // ========================================================
+      // ACCEPTED
+      // ========================================================
+
       if (status == 'accepted') {
         return false;
       }
+
+      // ========================================================
+      // ALREADY EXPIRED
+      // ========================================================
 
       if (status == 'expired') {
         return true;
       }
 
-      final dynamic expiresAt =
-          data['expiresAt'];
+      // ========================================================
+      // CANCELLED
+      // ========================================================
 
-      if (expiresAt is Timestamp) {
-        return DateTime.now()
-            .isAfter(
-          expiresAt.toDate(),
-        );
+      if (status == 'cancelled' ||
+          status == 'owner_cancelled' ||
+          status == 'walker_cancelled') {
+        return true;
       }
 
-      return false;
+      // ========================================================
+      // CHECK expiresAt
+      // ========================================================
+
+      final DateTime? expiresAt =
+          _readExpiresAt(
+        data,
+      );
+
+      if (expiresAt == null) {
+        return false;
+      }
+
+      return DateTime.now()
+          .isAfter(
+        expiresAt,
+      );
     } catch (_) {
       return false;
+    }
+  }
+
+  // ============================================================
+  // GET REMAINING TIME
+  // ============================================================
+
+  Future<Duration?> getRemainingTime(
+    String requestId,
+  ) async {
+    try {
+      final DocumentSnapshot<
+          Map<String, dynamic>> snapshot =
+          await _firestore
+              .collection(
+                walkRequestsCollection,
+              )
+              .doc(
+                requestId.trim(),
+              )
+              .get();
+
+      if (!snapshot.exists) {
+        return null;
+      }
+
+      final Map<String, dynamic>? data =
+          snapshot.data();
+
+      if (data == null) {
+        return null;
+      }
+
+      final String status =
+          data['status']
+                  ?.toString()
+                  .trim()
+                  .toLowerCase() ??
+              '';
+
+      if (status != 'searching') {
+        return null;
+      }
+
+      final DateTime? expiresAt =
+          _readExpiresAt(
+        data,
+      );
+
+      if (expiresAt == null) {
+        return null;
+      }
+
+      final Duration remaining =
+          expiresAt.difference(
+        DateTime.now(),
+      );
+
+      if (remaining.isNegative) {
+        return Duration.zero;
+      }
+
+      return remaining;
+    } catch (_) {
+      return null;
     }
   }
 
@@ -736,11 +1255,41 @@ class InstaWalkSearchService {
   // CLEAR ACTIVE REQUEST
   // ============================================================
 
+  Future<void> clearActiveRequest() async {
+    await _clearActiveRequest();
+  }
+
   Future<void> _clearActiveRequest() async {
     await _requestSubscription?.cancel();
 
     _requestSubscription = null;
+
     _activeRequestId = null;
+  }
+
+  // ============================================================
+  // READ EXPIRES AT
+  // ============================================================
+
+  DateTime? _readExpiresAt(
+    Map<String, dynamic>? data,
+  ) {
+    if (data == null) {
+      return null;
+    }
+
+    final dynamic value =
+        data['expiresAt'];
+
+    if (value is Timestamp) {
+      return value.toDate();
+    }
+
+    if (value is DateTime) {
+      return value;
+    }
+
+    return null;
   }
 
   // ============================================================
@@ -763,6 +1312,9 @@ class InstaWalkSearchService {
       case 'not-found':
         return 'Walk request was not found.';
 
+      case 'unauthenticated':
+        return 'Please login again.';
+
       default:
         return 'Unable to process Insta Walk request.';
     }
@@ -775,9 +1327,13 @@ class InstaWalkSearchService {
 
 class InstaWalkSearchResult {
   final bool success;
+
   final String? requestId;
+
   final DateTime? expiresAt;
+
   final String? message;
+
   final String? errorCode;
 
   const InstaWalkSearchResult({
@@ -805,6 +1361,13 @@ class InstaWalkSearchResult {
           message: message,
           errorCode: errorCode,
         );
+
+  bool get hasError =>
+      !success;
+
+  bool get hasRequestId =>
+      requestId != null &&
+      requestId!.trim().isNotEmpty;
 }
 
 // =================================================================
@@ -813,12 +1376,17 @@ class InstaWalkSearchResult {
 
 class InstaWalkAcceptedData {
   final String requestId;
+
   final String ownerId;
+
   final String ownerAuthUid;
+
   final String ownerName;
 
   final String walkerUid;
+
   final String walkerId;
+
   final String walkerName;
 
   final DateTime? acceptedAt;
@@ -848,45 +1416,74 @@ class InstaWalkAcceptedData {
     if (acceptedAtValue is Timestamp) {
       acceptedAt =
           acceptedAtValue.toDate();
+    } else if (acceptedAtValue is DateTime) {
+      acceptedAt =
+          acceptedAtValue;
     }
+
+    final String walkerUid =
+        data['walkerUid']
+                ?.toString()
+                .trim()
+                .isNotEmpty ==
+            true
+            ? data['walkerUid']
+                  .toString()
+                  .trim()
+            : data['acceptedBy']
+                    ?.toString()
+                    .trim() ??
+                '';
 
     return InstaWalkAcceptedData(
       requestId:
           data['requestId']
-                  ?.toString() ??
+                  ?.toString()
+                  .trim() ??
               '',
 
       ownerId:
           data['ownerId']
-                  ?.toString() ??
+                  ?.toString()
+                  .trim() ??
               '',
 
       ownerAuthUid:
           data['ownerAuthUid']
-                  ?.toString() ??
+                  ?.toString()
+                  .trim() ??
               '',
 
       ownerName:
           data['ownerName']
-                  ?.toString() ??
-              'Dog Owner',
+                  ?.toString()
+                  .trim()
+                  .isNotEmpty ==
+              true
+          ? data['ownerName']
+                .toString()
+                .trim()
+          : 'Dog Owner',
 
       walkerUid:
-          data['walkerUid']
-                  ?.toString() ??
-              data['acceptedBy']
-                  ?.toString() ??
-              '',
+          walkerUid,
 
       walkerId:
           data['walkerId']
-                  ?.toString() ??
+                  ?.toString()
+                  .trim() ??
               '',
 
       walkerName:
           data['walkerName']
-                  ?.toString() ??
-              'Walker',
+                  ?.toString()
+                  .trim()
+                  .isNotEmpty ==
+              true
+          ? data['walkerName']
+                .toString()
+                .trim()
+          : 'Walker',
 
       acceptedAt:
           acceptedAt,
@@ -897,6 +1494,9 @@ class InstaWalkAcceptedData {
       ),
     );
   }
+
+  bool get hasWalker =>
+      walkerUid.isNotEmpty;
 }
 
 // =================================================================
@@ -930,6 +1530,10 @@ class InstaWalkRequestState {
     this.errorMessage,
   });
 
+  // ==============================================================
+  // STATUS HELPERS
+  // ==============================================================
+
   bool get isSearching =>
       status ==
       InstaWalkRequestStatus.searching;
@@ -946,7 +1550,83 @@ class InstaWalkRequestState {
       status ==
       InstaWalkRequestStatus.cancelled;
 
+  bool get isNotFound =>
+      status ==
+      InstaWalkRequestStatus.notFound;
+
+  bool get isUnknown =>
+      status ==
+      InstaWalkRequestStatus.unknown;
+
   bool get hasError =>
       status ==
       InstaWalkRequestStatus.error;
+
+  // ==============================================================
+  // REQUEST ID
+  // ==============================================================
+
+  String? get requestId {
+    final String value =
+        data?['requestId']
+                ?.toString()
+                .trim() ??
+            '';
+
+    return value.isEmpty
+        ? null
+        : value;
+  }
+
+  // ==============================================================
+  // EXPIRY
+  // ==============================================================
+
+  DateTime? get expiresAt {
+    final dynamic value =
+        data?['expiresAt'];
+
+    if (value is Timestamp) {
+      return value.toDate();
+    }
+
+    if (value is DateTime) {
+      return value;
+    }
+
+    return null;
+  }
+
+  // ==============================================================
+  // SEARCH TYPE
+  // ==============================================================
+
+  String get searchType =>
+      data?['searchType']
+              ?.toString()
+              .trim() ??
+          '';
+
+  // ==============================================================
+  // OWNER ID
+  // ==============================================================
+
+  String get ownerId =>
+      data?['ownerId']
+              ?.toString()
+              .trim() ??
+          '';
+
+  // ==============================================================
+  // WALKER UID
+  // ==============================================================
+
+  String get walkerUid =>
+      data?['walkerUid']
+              ?.toString()
+              .trim() ??
+          data?['acceptedBy']
+                  ?.toString()
+                  .trim() ??
+              '';
 }
