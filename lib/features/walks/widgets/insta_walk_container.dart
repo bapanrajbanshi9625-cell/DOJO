@@ -41,13 +41,6 @@ class _InstaWalkContainerState
       FirebaseFirestore.instance;
 
   // =========================================================
-  // COLLECTION
-  // =========================================================
-
-  static const String _ownerProfilesCollection =
-      'ownerProfiles';
-
-  // =========================================================
   // SEARCH SETTINGS
   // =========================================================
 
@@ -64,7 +57,9 @@ class _InstaWalkContainerState
   Timer? _timer;
 
   bool _searching = false;
+
   bool _searchFinished = false;
+
   bool _checkingAddress = false;
 
   int _secondsLeft =
@@ -90,16 +85,116 @@ class _InstaWalkContainerState
 
     _searchService =
         InstaWalkSearchService(
-      firestore: _firestore,
-      auth: FirebaseAuth.instance,
+      firestore:
+          _firestore,
+      auth:
+          FirebaseAuth.instance,
     );
 
     _radarController =
         AnimationController(
       vsync: this,
       duration:
-          const Duration(seconds: 2),
+          const Duration(
+        seconds: 2,
+      ),
     );
+
+    _recoverExistingSearch();
+  }
+
+  // =========================================================
+  // RECOVER EXISTING REQUEST
+  // =========================================================
+
+  Future<void> _recoverExistingSearch() async {
+    final InstaWalkRequestState state =
+        await _searchService
+            .recoverActiveRequest();
+
+    if (!mounted) {
+      return;
+    }
+
+    if (state.isAccepted) {
+      final Map<String, dynamic>? data =
+          state.data;
+
+      if (data != null) {
+        _requestId =
+            state.requestId;
+
+        _handleWalkerAccepted(
+          InstaWalkAcceptedData.fromMap(
+            data,
+          ),
+        );
+      }
+
+      return;
+    }
+
+    if (state.isSearching) {
+      final String? requestId =
+          state.requestId;
+
+      if (requestId == null ||
+          requestId.isEmpty) {
+        return;
+      }
+
+      final Duration? remaining =
+          await _searchService
+              .getRemainingTime(
+        requestId,
+      );
+
+      if (!mounted) {
+        return;
+      }
+
+      if (remaining == null ||
+          remaining <= Duration.zero) {
+        await _searchService
+            .expireRequest(
+          requestId:
+              requestId,
+        );
+
+        _finishSearch(
+          showNoWalkerMessage:
+              true,
+        );
+
+        return;
+      }
+
+      _requestId =
+          requestId;
+
+      setState(() {
+        _searching = true;
+        _searchFinished = false;
+        _checkingAddress = false;
+
+        _secondsLeft =
+            remaining.inSeconds
+                .clamp(
+                  0,
+                  _searchDurationSeconds,
+                );
+      });
+
+      _radarController.repeat();
+
+      await _listenForRequest(
+        requestId,
+      );
+
+      _startTimer();
+
+      return;
+    }
   }
 
   // =========================================================
@@ -121,9 +216,11 @@ class _InstaWalkContainerState
   // FIND OWNER PROFILE
   // =========================================================
 
-  Future<QueryDocumentSnapshot<Map<String, dynamic>>?>
+  Future<QueryDocumentSnapshot<
+      Map<String, dynamic>>?>
       _findOwnerProfile() async {
-    return _searchService.findOwnerProfile();
+    return _searchService
+        .findOwnerProfile();
   }
 
   // =========================================================
@@ -133,7 +230,8 @@ class _InstaWalkContainerState
   Future<Position?> _getOwnerLocation() async {
     try {
       final bool serviceEnabled =
-          await Geolocator.isLocationServiceEnabled();
+          await Geolocator
+              .isLocationServiceEnabled();
 
       if (!serviceEnabled) {
         _showMessage(
@@ -144,12 +242,14 @@ class _InstaWalkContainerState
       }
 
       LocationPermission permission =
-          await Geolocator.checkPermission();
+          await Geolocator
+              .checkPermission();
 
       if (permission ==
           LocationPermission.denied) {
         permission =
-            await Geolocator.requestPermission();
+            await Geolocator
+                .requestPermission();
       }
 
       if (permission ==
@@ -163,16 +263,8 @@ class _InstaWalkContainerState
         return null;
       }
 
-      final Position position =
-          await Geolocator.getCurrentPosition(
-        locationSettings:
-            const LocationSettings(
-          accuracy:
-              LocationAccuracy.high,
-        ),
-      );
-
-      return position;
+      return await Geolocator
+          .getCurrentPosition();
     } catch (e) {
       debugPrint(
         'Insta Walk location error: $e',
@@ -197,7 +289,9 @@ class _InstaWalkContainerState
     }
 
     final User? user =
-        FirebaseAuth.instance.currentUser;
+        FirebaseAuth
+            .instance
+            .currentUser;
 
     if (user == null) {
       _showMessage(
@@ -329,7 +423,8 @@ class _InstaWalkContainerState
       }
 
       if (ownerName.isEmpty) {
-        ownerName = 'Dog Owner';
+        ownerName =
+            'Dog Owner';
       }
 
       // =====================================================
@@ -357,13 +452,16 @@ class _InstaWalkContainerState
       });
 
       // =====================================================
-      // START SERVICE SEARCH
+      // START SEARCH
       // =====================================================
 
       await _startSearch(
-        ownerId: ownerId,
-        ownerName: ownerName,
-        address: address,
+        ownerId:
+            ownerId,
+        ownerName:
+            ownerName,
+        address:
+            address,
         ownerPosition:
             ownerPosition,
       );
@@ -382,7 +480,8 @@ class _InstaWalkContainerState
       });
 
       _showMessage(
-        e.code == 'permission-denied'
+        e.code ==
+                'permission-denied'
             ? 'You do not have permission to access your owner profile.'
             : 'Unable to check owner profile. Please try again.',
       );
@@ -406,7 +505,7 @@ class _InstaWalkContainerState
   }
 
   // =========================================================
-  // START SEARCH USING SERVICE
+  // START SEARCH
   // =========================================================
 
   Future<void> _startSearch({
@@ -417,19 +516,22 @@ class _InstaWalkContainerState
   }) async {
     _timer?.cancel();
 
-    await _searchService.dispose();
-
     try {
       // =====================================================
-      // CREATE REQUEST THROUGH SERVICE
+      // CREATE REQUEST
       // =====================================================
 
       final InstaWalkSearchResult result =
-          await _searchService.startSearch(
-        ownerId: ownerId,
-        ownerName: ownerName,
-        address: address,
-        ownerLocation: GeoPoint(
+          await _searchService
+              .startSearch(
+        ownerId:
+            ownerId,
+        ownerName:
+            ownerName,
+        address:
+            address,
+        ownerLocation:
+            GeoPoint(
           ownerPosition.latitude,
           ownerPosition.longitude,
         ),
@@ -440,7 +542,7 @@ class _InstaWalkContainerState
       }
 
       // =====================================================
-      // REQUEST FAILED
+      // FAILED
       // =====================================================
 
       if (!result.success) {
@@ -461,7 +563,7 @@ class _InstaWalkContainerState
       }
 
       // =====================================================
-      // REQUEST CREATED
+      // REQUEST ID
       // =====================================================
 
       final String? requestId =
@@ -481,7 +583,8 @@ class _InstaWalkContainerState
         return;
       }
 
-      _requestId = requestId;
+      _requestId =
+          requestId;
 
       setState(() {
         _checkingAddress = false;
@@ -492,13 +595,13 @@ class _InstaWalkContainerState
       });
 
       // =====================================================
-      // RADAR ON
+      // RADAR
       // =====================================================
 
       _radarController.repeat();
 
       // =====================================================
-      // LISTEN THROUGH SERVICE
+      // LISTENER
       // =====================================================
 
       await _listenForRequest(
@@ -506,7 +609,7 @@ class _InstaWalkContainerState
       );
 
       // =====================================================
-      // START LOCAL DISPLAY TIMER
+      // TIMER
       // =====================================================
 
       _startTimer();
@@ -534,51 +637,40 @@ class _InstaWalkContainerState
   }
 
   // =========================================================
-  // LISTEN THROUGH SERVICE
+  // LISTEN
   // =========================================================
 
   Future<void> _listenForRequest(
     String requestId,
   ) async {
-    await _searchService.listenForRequest(
-      requestId: requestId,
-
-      // =====================================================
-      // ACCEPTED
-      // =====================================================
+    await _searchService
+        .listenForRequest(
+      requestId:
+          requestId,
 
       onAccepted:
-          (InstaWalkAcceptedData data) {
+          (
+        InstaWalkAcceptedData data,
+      ) {
         _handleWalkerAccepted(
           data,
         );
       },
 
-      // =====================================================
-      // EXPIRED
-      // =====================================================
-
       onExpired: () {
         _finishSearch(
-          showNoWalkerMessage: true,
+          showNoWalkerMessage:
+              true,
         );
       },
-
-      // =====================================================
-      // CANCELLED
-      // =====================================================
 
       onCancelled: () {
         _handleRequestCancelled();
       },
 
-      // =====================================================
-      // ERROR
-      // =====================================================
-
       onError: (Object error) {
         debugPrint(
-          'Insta Walk service listener error: $error',
+          'Insta Walk listener error: $error',
         );
       },
     );
@@ -607,13 +699,6 @@ class _InstaWalkContainerState
           _searchDurationSeconds;
     });
 
-    // =====================================================
-    // IMPORTANT
-    //
-    // Service ने accepted data verify किया है।
-    // Walker की information अब available है।
-    // =====================================================
-
     debugPrint(
       'Insta Walk accepted. '
       'walkerUid=${data.walkerUid}, '
@@ -624,7 +709,9 @@ class _InstaWalkContainerState
     widget.onWalkerFound?.call();
 
     _showMessage(
-      data.walkerName.trim().isEmpty
+      data.walkerName
+              .trim()
+              .isEmpty
           ? 'Walker accepted your walk request.'
           : '${data.walkerName} accepted your walk request.',
     );
@@ -660,7 +747,7 @@ class _InstaWalkContainerState
   }
 
   // =========================================================
-  // REQUEST CANCELLED
+  // CANCELLED
   // =========================================================
 
   void _handleRequestCancelled() {
@@ -687,19 +774,15 @@ class _InstaWalkContainerState
   // =========================================================
   // TIMER
   // =========================================================
-  //
-  // यह सिर्फ UI countdown है।
-  //
-  // वास्तविक request validity Firestore expiresAt
-  // पर आधारित है।
-  // =========================================================
 
   void _startTimer() {
     _timer?.cancel();
 
     _timer = Timer.periodic(
       const Duration(seconds: 1),
-      (Timer timer) async {
+      (
+        Timer timer,
+      ) async {
         if (!mounted) {
           timer.cancel();
           return;
@@ -710,6 +793,10 @@ class _InstaWalkContainerState
           return;
         }
 
+        // ====================================================
+        // LOCAL DISPLAY COUNTDOWN
+        // ====================================================
+
         if (_secondsLeft <= 1) {
           timer.cancel();
 
@@ -719,8 +806,6 @@ class _InstaWalkContainerState
             return;
           }
 
-          // Listener भी expired event भेज सकता है।
-          // UI को यहाँ भी safely finish करते हैं।
           _radarController.stop();
           _radarController.reset();
 
@@ -729,6 +814,10 @@ class _InstaWalkContainerState
             _searchFinished = true;
             _secondsLeft = 0;
           });
+
+          _showMessage(
+            'No walker accepted the request.',
+          );
 
           return;
         }
@@ -741,7 +830,7 @@ class _InstaWalkContainerState
   }
 
   // =========================================================
-  // EXPIRE THROUGH SERVICE
+  // EXPIRE
   // =========================================================
 
   Future<void> _expireRequest() async {
@@ -754,8 +843,10 @@ class _InstaWalkContainerState
     }
 
     final bool expired =
-        await _searchService.expireRequest(
-      requestId: requestId,
+        await _searchService
+            .expireRequest(
+      requestId:
+          requestId,
     );
 
     debugPrint(
@@ -769,7 +860,9 @@ class _InstaWalkContainerState
 
   Future<void> _retrySearch() async {
     final User? user =
-        FirebaseAuth.instance.currentUser;
+        FirebaseAuth
+            .instance
+            .currentUser;
 
     if (user == null) {
       _showMessage(
@@ -800,12 +893,18 @@ class _InstaWalkContainerState
     final String minutes =
         (_secondsLeft ~/ 60)
             .toString()
-            .padLeft(2, '0');
+            .padLeft(
+              2,
+              '0',
+            );
 
     final String seconds =
         (_secondsLeft % 60)
             .toString()
-            .padLeft(2, '0');
+            .padLeft(
+              2,
+              '0',
+            );
 
     return '$minutes:$seconds';
   }
@@ -821,7 +920,9 @@ class _InstaWalkContainerState
       return;
     }
 
-    ScaffoldMessenger.of(context)
+    ScaffoldMessenger.of(
+      context,
+    )
       ..hideCurrentSnackBar()
       ..showSnackBar(
         SnackBar(
@@ -830,11 +931,15 @@ class _InstaWalkContainerState
           behavior:
               SnackBarBehavior.floating,
           margin:
-              const EdgeInsets.all(16),
+              const EdgeInsets.all(
+            16,
+          ),
           shape:
               RoundedRectangleBorder(
             borderRadius:
-                BorderRadius.circular(14),
+                BorderRadius.circular(
+              14,
+            ),
           ),
         ),
       );
@@ -857,9 +962,12 @@ class _InstaWalkContainerState
         8,
       ),
       child: Container(
-        width: double.infinity,
+        width:
+            double.infinity,
         padding:
-            const EdgeInsets.all(20),
+            const EdgeInsets.all(
+          20,
+        ),
         decoration:
             BoxDecoration(
           gradient:
@@ -874,16 +982,23 @@ class _InstaWalkContainerState
                 Alignment.bottomRight,
           ),
           borderRadius:
-              BorderRadius.circular(24),
+              BorderRadius.circular(
+            24,
+          ),
           boxShadow: [
             BoxShadow(
               color:
-                  Colors.black.withValues(
+                  Colors.black
+                      .withValues(
                 alpha: .08,
               ),
-              blurRadius: 18,
+              blurRadius:
+                  18,
               offset:
-                  const Offset(0, 7),
+                  const Offset(
+                0,
+                7,
+              ),
             ),
           ],
         ),
@@ -908,8 +1023,9 @@ class _InstaWalkContainerState
                       alpha: .18,
                     ),
                     borderRadius:
-                        BorderRadius
-                            .circular(16),
+                        BorderRadius.circular(
+                      16,
+                    ),
                   ),
                   child:
                       const Icon(
@@ -965,10 +1081,10 @@ class _InstaWalkContainerState
               height: 16,
             ),
 
-            const Text(
-              'We search for an online and available walker within 3 km.',
+            Text(
+              'We search for an online and available walker within ${_searchDistanceKm.toStringAsFixed(0)} km.',
               style:
-                  TextStyle(
+                  const TextStyle(
                 color:
                     Colors.white,
                 fontSize:
@@ -1003,15 +1119,16 @@ class _InstaWalkContainerState
 
   Widget _findButton() {
     return SizedBox(
-      width: double.infinity,
-      height: 50,
+      width:
+          double.infinity,
+      height:
+          50,
       child:
           ElevatedButton.icon(
         onPressed:
             _checkingAddress
                 ? null
                 : _findWalker,
-
         icon:
             _checkingAddress
                 ? const SizedBox(
@@ -1033,8 +1150,8 @@ class _InstaWalkContainerState
                     Icons
                         .search_rounded,
                   ),
-
-        label: Text(
+        label:
+            Text(
           _checkingAddress
               ? 'Checking Address...'
               : 'Find a Walker',
@@ -1044,7 +1161,6 @@ class _InstaWalkContainerState
                 FontWeight.w800,
           ),
         ),
-
         style:
             ElevatedButton.styleFrom(
           backgroundColor:
@@ -1059,7 +1175,8 @@ class _InstaWalkContainerState
               const Color(
             0xFFE45D32,
           ),
-          elevation: 0,
+          elevation:
+              0,
           shape:
               RoundedRectangleBorder(
             borderRadius:
@@ -1094,11 +1211,9 @@ class _InstaWalkContainerState
                 ),
               ),
             ),
-
             const SizedBox(
               width: 10,
             ),
-
             const Expanded(
               child: Text(
                 'Searching for a walker...',
@@ -1111,7 +1226,6 @@ class _InstaWalkContainerState
                 ),
               ),
             ),
-
             Text(
               _timerText(),
               style:
@@ -1139,9 +1253,12 @@ class _InstaWalkContainerState
         ),
 
         Container(
-          width: double.infinity,
+          width:
+              double.infinity,
           padding:
-              const EdgeInsets.all(13),
+              const EdgeInsets.all(
+            13,
+          ),
           decoration:
               BoxDecoration(
             color:
@@ -1161,10 +1278,12 @@ class _InstaWalkContainerState
                     .location_on_outlined,
                 color:
                     Colors.white,
-                size: 18,
+                size:
+                    18,
               ),
               SizedBox(
-                width: 7,
+                width:
+                    7,
               ),
               Expanded(
                 child: Text(
@@ -1189,13 +1308,15 @@ class _InstaWalkContainerState
         ),
 
         Text(
-          'Maximum search distance: 3 km',
-          style: TextStyle(
+          'Maximum search distance: ${_searchDistanceKm.toStringAsFixed(0)} km',
+          style:
+              TextStyle(
             color:
                 Colors.white.withValues(
               alpha: .75,
             ),
-            fontSize: 10,
+            fontSize:
+                10,
           ),
         ),
       ],
@@ -1222,11 +1343,17 @@ class _InstaWalkContainerState
 
     return ClipRRect(
       borderRadius:
-          BorderRadius.circular(16),
-      child: SizedBox(
-        height: 145,
-        width: double.infinity,
-        child: Stack(
+          BorderRadius.circular(
+        16,
+      ),
+      child:
+          SizedBox(
+        height:
+            145,
+        width:
+            double.infinity,
+        child:
+            Stack(
           children: [
             // =================================================
             // MAP
@@ -1254,7 +1381,7 @@ class _InstaWalkContainerState
                 ),
 
                 // ===========================================
-                // 3 KM SEARCH AREA
+                // SEARCH CIRCLE
                 // ===========================================
 
                 CircleLayer(
@@ -1295,8 +1422,10 @@ class _InstaWalkContainerState
                     Marker(
                       point:
                           ownerPoint,
-                      width: 34,
-                      height: 34,
+                      width:
+                          34,
+                      height:
+                          34,
                       child:
                           Container(
                         decoration:
@@ -1311,7 +1440,8 @@ class _InstaWalkContainerState
                               Border.all(
                             color:
                                 Colors.white,
-                            width: 3,
+                            width:
+                                3,
                           ),
                           boxShadow:
                               const [
@@ -1373,8 +1503,10 @@ class _InstaWalkContainerState
             // =================================================
 
             Positioned(
-              left: 10,
-              top: 9,
+              left:
+                  10,
+              top:
+                  9,
               child:
                   Container(
                 padding:
@@ -1433,12 +1565,14 @@ class _InstaWalkContainerState
             ),
 
             // =================================================
-            // 3 KM LABEL
+            // DISTANCE LABEL
             // =================================================
 
             Positioned(
-              right: 10,
-              bottom: 9,
+              right:
+                  10,
+              bottom:
+                  9,
               child:
                   Container(
                 padding:
@@ -1463,10 +1597,10 @@ class _InstaWalkContainerState
                   ),
                 ),
                 child:
-                    const Text(
-                  'Within 3 km',
+                    Text(
+                  'Within ${_searchDistanceKm.toStringAsFixed(0)} km',
                   style:
-                      TextStyle(
+                      const TextStyle(
                     fontSize:
                         10,
                     fontWeight:
@@ -1486,7 +1620,7 @@ class _InstaWalkContainerState
   }
 
   // =========================================================
-  // SEARCH FINISHED
+  // FINISHED
   // =========================================================
 
   Widget _retryContainer() {
@@ -1499,10 +1633,12 @@ class _InstaWalkContainerState
                   .person_search_rounded,
               color:
                   Colors.white,
-              size: 21,
+              size:
+                  21,
             ),
             SizedBox(
-              width: 8,
+              width:
+                  8,
             ),
             Expanded(
               child:
@@ -1521,12 +1657,15 @@ class _InstaWalkContainerState
         ),
 
         const SizedBox(
-          height: 12,
+          height:
+              12,
         ),
 
         SizedBox(
-          width: double.infinity,
-          height: 50,
+          width:
+              double.infinity,
+          height:
+              50,
           child:
               ElevatedButton.icon(
             onPressed:
@@ -1600,7 +1739,7 @@ class _RadarPainter
             .43;
 
     // ==========================================================
-    // RADAR RINGS
+    // RINGS
     // ==========================================================
 
     final Paint ringPaint =
@@ -1637,7 +1776,7 @@ class _RadarPainter
         maxRadius *
             (0.35 +
                 progress *
-                    .65);
+                    0.65);
 
     final Paint pulsePaint =
         Paint()
@@ -1650,8 +1789,7 @@ class _RadarPainter
             0xFFE45D32,
           ).withValues(
             alpha:
-                (1 -
-                        progress) *
+                (1 - progress) *
                     .45,
           );
 
@@ -1714,8 +1852,7 @@ class _RadarPainter
     covariant _RadarPainter
         oldDelegate,
   ) {
-    return oldDelegate
-            .progress !=
+    return oldDelegate.progress !=
         progress;
   }
 }
