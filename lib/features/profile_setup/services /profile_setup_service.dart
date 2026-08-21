@@ -54,25 +54,26 @@ class ProfileSetupService {
       }
 
       if (permission == LocationPermission.denied ||
-          permission ==
-              LocationPermission.deniedForever) {
+          permission == LocationPermission.deniedForever) {
         return null;
       }
 
       // ----------------------------------------------------------
       // CURRENT POSITION
       // ----------------------------------------------------------
+      //
+      // IMPORTANT:
+      // This project uses the Geolocator API where
+      // desiredAccuracy is supported.
+      //
+      // ----------------------------------------------------------
 
       return await Geolocator.getCurrentPosition(
-        locationSettings:
-            const LocationSettings(
-          accuracy:
-              LocationAccuracy.high,
-        ),
+        desiredAccuracy: LocationAccuracy.high,
       );
     } catch (e) {
-      // Location failure should NOT
-      // stop profile saving.
+      // Location failure should NOT stop
+      // profile saving.
       return null;
     }
   }
@@ -139,8 +140,7 @@ class ProfileSetupService {
     // ----------------------------------------------------------
 
     String? ownerId =
-        await OwnerIdService.instance
-            .getExistingOwnerId(
+        await OwnerIdService.instance.getExistingOwnerId(
       uid: uid,
     );
 
@@ -149,14 +149,12 @@ class ProfileSetupService {
     // ----------------------------------------------------------
 
     ownerId ??=
-        await OwnerIdService.instance
-            .getOrCreateOwnerId(
+        await OwnerIdService.instance.getOrCreateOwnerId(
       uid: uid,
       phoneNumber: phoneNumber,
     );
 
-    ownerId =
-        ownerId.trim();
+    ownerId = ownerId.trim();
 
     if (ownerId.isEmpty) {
       throw FirebaseException(
@@ -196,8 +194,8 @@ class ProfileSetupService {
     // OWNER PROFILE REFERENCE
     // ==========================================================
 
-    final DocumentReference<
-        Map<String, dynamic>> ownerProfileRef =
+    final DocumentReference<Map<String, dynamic>>
+        ownerProfileRef =
         _firestore
             .collection(
               _ownerProfilesCollection,
@@ -271,16 +269,11 @@ class ProfileSetupService {
     // CURRENT LOCATION
     // ==========================================================
     //
-    // Permission मिलने पर:
-    //
-    // latitude
-    // longitude
-    // location
-    // locationAccuracy
-    //
+    // Permission मिलने पर latitude, longitude और location
     // Firestore में save होंगे.
     //
     // Permission न मिलने पर profile फिर भी save होगी.
+    //
     // ==========================================================
 
     if (position != null) {
@@ -356,8 +349,7 @@ class ProfileSetupService {
   // CHECK PROFILE COMPLETED
   // ============================================================
 
-  static Future<bool>
-      isProfileCompleted() async {
+  static Future<bool> isProfileCompleted() async {
     final User? user =
         FirebaseAuth.instance.currentUser;
 
@@ -377,8 +369,7 @@ class ProfileSetupService {
     // ----------------------------------------------------------
 
     final String? ownerId =
-        await OwnerIdService.instance
-            .getExistingOwnerId(
+        await OwnerIdService.instance.getExistingOwnerId(
       uid: uid,
     );
 
@@ -391,8 +382,8 @@ class ProfileSetupService {
     // GET OWNER PROFILE
     // ----------------------------------------------------------
 
-    final DocumentSnapshot<
-        Map<String, dynamic>> snapshot =
+    final DocumentSnapshot<Map<String, dynamic>>
+        snapshot =
         await _firestore
             .collection(
               _ownerProfilesCollection,
@@ -407,8 +398,7 @@ class ProfileSetupService {
     final Map<String, dynamic>? data =
         snapshot.data();
 
-    return data?['profileCompleted'] ==
-        true;
+    return data?['profileCompleted'] == true;
   }
 
   // ============================================================
@@ -433,8 +423,7 @@ class ProfileSetupService {
     }
 
     final String? ownerId =
-        await OwnerIdService.instance
-            .getExistingOwnerId(
+        await OwnerIdService.instance.getExistingOwnerId(
       uid: uid,
     );
 
@@ -457,10 +446,10 @@ class ProfileSetupService {
   //
   // Home/Profile से current location
   // refresh करने के लिए.
+  //
   // ============================================================
 
-  static Future<void>
-      updateCurrentLocation() async {
+  static Future<void> updateCurrentLocation() async {
     final User? user =
         FirebaseAuth.instance.currentUser;
 
@@ -476,8 +465,7 @@ class ProfileSetupService {
     }
 
     final String? ownerId =
-        await OwnerIdService.instance
-            .getExistingOwnerId(
+        await OwnerIdService.instance.getExistingOwnerId(
       uid: uid,
     );
 
