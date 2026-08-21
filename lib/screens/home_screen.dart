@@ -40,7 +40,6 @@ class HomeScreen extends StatefulWidget {
 }
 
 class _HomeScreenState extends State<HomeScreen> {
-  //
   // =====================================================
   // HOME DATA SERVICE
   // =====================================================
@@ -56,32 +55,67 @@ class _HomeScreenState extends State<HomeScreen> {
       HomeLiveWalkService.instance;
 
   // =====================================================
+  // OPEN FULL INSTA WALK
+  // =====================================================
+
+  void _openInstaWalk() {
+    if (!mounted) return;
+
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => const Scaffold(
+          backgroundColor: HomeScreen.background,
+          appBar: CustomAppBar(),
+          body: SafeArea(
+            child: SingleChildScrollView(
+              physics: AlwaysScrollableScrollPhysics(),
+              padding: EdgeInsets.only(
+                bottom: 24,
+              ),
+              child: InstaWalkContainer(
+                fullScreen: true,
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  // =====================================================
   // GENERATE OWNER QR
   // =====================================================
 
   Future<void> _openMyQRCode() async {
-    final User? user = FirebaseAuth.instance.currentUser;
+    final User? user =
+        FirebaseAuth.instance.currentUser;
 
     if (user == null) {
       if (!mounted) return;
 
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text('Please login first.'),
+          content: Text(
+            'Please login first.',
+          ),
         ),
       );
 
       return;
     }
 
-    final String ownerUid = user.uid.trim();
+    final String ownerUid =
+        user.uid.trim();
 
     if (ownerUid.isEmpty) {
       if (!mounted) return;
 
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text('Owner UID is missing.'),
+          content: Text(
+            'Owner UID is missing.',
+          ),
         ),
       );
 
@@ -113,7 +147,8 @@ class _HomeScreenState extends State<HomeScreen> {
       'phoneNumber': ownerPhone,
     };
 
-    final String qrPayload = jsonEncode(qrData);
+    final String qrPayload =
+        jsonEncode(qrData);
 
     try {
       await FirebaseFirestore.instance
@@ -134,9 +169,12 @@ class _HomeScreenState extends State<HomeScreen> {
           'scanned': false,
           'scannedBy': null,
           'scannedAt': null,
-          'updatedAt': FieldValue.serverTimestamp(),
+          'updatedAt':
+              FieldValue.serverTimestamp(),
         },
-        SetOptions(merge: true),
+        SetOptions(
+          merge: true,
+        ),
       );
 
       debugPrint(
@@ -177,7 +215,8 @@ class _HomeScreenState extends State<HomeScreen> {
   ) {
     if (!mounted) return;
 
-    final String walkId = _readString(
+    final String walkId =
+        _readString(
       data,
       const [
         'walkId',
@@ -186,7 +225,8 @@ class _HomeScreenState extends State<HomeScreen> {
       ],
     );
 
-    final String walkerUid = _readString(
+    final String walkerUid =
+        _readString(
       data,
       const [
         'walkerUid',
@@ -195,7 +235,8 @@ class _HomeScreenState extends State<HomeScreen> {
       ],
     );
 
-    final String walkerName = _readString(
+    final String walkerName =
+        _readString(
       data,
       const [
         'walkerName',
@@ -203,7 +244,8 @@ class _HomeScreenState extends State<HomeScreen> {
       ],
     );
 
-    final String walkerPhone = _readString(
+    final String walkerPhone =
+        _readString(
       data,
       const [
         'walkerPhone',
@@ -231,9 +273,13 @@ class _HomeScreenState extends State<HomeScreen> {
           walkId: walkId,
           walkerUid: walkerUid,
           walkerName:
-              walkerName.isEmpty ? 'Walker' : walkerName,
+              walkerName.isEmpty
+                  ? 'Walker'
+                  : walkerName,
           walkerPhone:
-              walkerPhone.isEmpty ? null : walkerPhone,
+              walkerPhone.isEmpty
+                  ? null
+                  : walkerPhone,
         ),
       ),
     );
@@ -247,11 +293,13 @@ class _HomeScreenState extends State<HomeScreen> {
     Map<String, dynamic> data,
     List<String> keys,
   ) {
-    for (final key in keys) {
-      final value = data[key];
+    for (final String key in keys) {
+      final dynamic value =
+          data[key];
 
       if (value != null) {
-        final result = value.toString().trim();
+        final String result =
+            value.toString().trim();
 
         if (result.isNotEmpty) {
           return result;
@@ -275,32 +323,42 @@ class _HomeScreenState extends State<HomeScreen> {
       context: context,
       builder: (ctx) {
         return AlertDialog(
-          backgroundColor: const Color(0xFFF7F8FA),
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(20),
+          backgroundColor:
+              const Color(0xFFF7F8FA),
+          shape:
+              RoundedRectangleBorder(
+            borderRadius:
+                BorderRadius.circular(20),
           ),
           title: Text(
             title,
-            style: const TextStyle(
+            style:
+                const TextStyle(
               color: HomeScreen.navy,
-              fontWeight: FontWeight.w900,
+              fontWeight:
+                  FontWeight.w900,
             ),
           ),
           content: Text(
             content,
-            style: const TextStyle(
+            style:
+                const TextStyle(
               color: HomeScreen.slate,
               height: 1.5,
             ),
           ),
           actions: [
             TextButton(
-              onPressed: () => Navigator.pop(ctx),
+              onPressed: () =>
+                  Navigator.pop(ctx),
               child: const Text(
                 'CLOSE',
-                style: TextStyle(
-                  color: HomeScreen.orange,
-                  fontWeight: FontWeight.bold,
+                style:
+                    TextStyle(
+                  color:
+                      HomeScreen.orange,
+                  fontWeight:
+                      FontWeight.bold,
                 ),
               ),
             ),
@@ -311,24 +369,7 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   // =====================================================
-  // CONVERT DATA MODEL → UI MAP
-  // =====================================================
-  //
-  // IMPORTANT:
-  //
-  // home_data.HomePastWalk
-  //     = Firestore/data model
-  //
-  // HomePastWalk
-  //     = UI widget
-  //
-  // दोनों का नाम same है इसलिए service को
-  // "home_data" alias दिया गया है.
-  //
-  // NOTE:
-  // Current HomePastWalk service model does not expose
-  // a route getter. Therefore route is supplied safely
-  // as an empty value for the UI.
+  // CONVERT PAST WALK DATA
   // =====================================================
 
   List<Map<String, dynamic>> _pastWalkMaps(
@@ -344,11 +385,12 @@ class _HomeScreenState extends State<HomeScreen> {
           'walkerName': walk.walkerName,
           'dogName': walk.dogName,
           'distanceKm': walk.distanceKm,
-          'durationMinutes': walk.durationMinutes,
+          'durationMinutes':
+              walk.durationMinutes,
           'date': walk.date,
           'status': walk.status,
 
-          // Current data model has no route getter.
+          // Current model has no route getter.
           'route': '',
         };
       },
@@ -362,12 +404,17 @@ class _HomeScreenState extends State<HomeScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: HomeScreen.background,
+      backgroundColor:
+          HomeScreen.background,
+
       appBar: const CustomAppBar(),
 
       body: SingleChildScrollView(
-        physics: const AlwaysScrollableScrollPhysics(),
-        padding: const EdgeInsets.fromLTRB(
+        physics:
+            const AlwaysScrollableScrollPhysics(),
+
+        padding:
+            const EdgeInsets.fromLTRB(
           15,
           15,
           15,
@@ -375,7 +422,9 @@ class _HomeScreenState extends State<HomeScreen> {
         ),
 
         child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
+          crossAxisAlignment:
+              CrossAxisAlignment.start,
+
           children: [
             // =========================================
             // WELCOME
@@ -384,36 +433,64 @@ class _HomeScreenState extends State<HomeScreen> {
             const HomeWelcomeCard(),
 
             // =========================================
+            // INSTA WALK
+            // =========================================
+
+            const SizedBox(
+              height: 14,
+            ),
+
+            InstaWalkContainer(
+              fullScreen: false,
+              onWalkerFound:
+                  _openInstaWalk,
+            ),
+
+            // =========================================
             // LIVE WALK
             // =========================================
 
-            const SizedBox(height: 14),
+            const SizedBox(
+              height: 14,
+            ),
 
             StreamBuilder<
-                QuerySnapshot<Map<String, dynamic>>>(
-              stream: _liveWalkService.liveWalkStream(),
+                QuerySnapshot<
+                    Map<String, dynamic>>>(
+              stream:
+                  _liveWalkService
+                      .liveWalkStream(),
 
-              builder: (context, snapshot) {
+              builder:
+                  (context, snapshot) {
                 if (snapshot.hasError) {
-                  return const SizedBox.shrink();
+                  return const SizedBox
+                      .shrink();
                 }
 
                 if (!snapshot.hasData) {
-                  return const SizedBox.shrink();
+                  return const SizedBox
+                      .shrink();
                 }
 
-                final liveWalkData =
-                    _liveWalkService.getLiveWalkData(
+                final Map<String, dynamic>?
+                    liveWalkData =
+                    _liveWalkService
+                        .getLiveWalkData(
                   snapshot.data!,
                 );
 
-                if (liveWalkData == null) {
-                  return const SizedBox.shrink();
+                if (liveWalkData ==
+                    null) {
+                  return const SizedBox
+                      .shrink();
                 }
 
                 return HomeLiveWalkBar(
                   onTap: () {
-                    _openLiveWalk(liveWalkData);
+                    _openLiveWalk(
+                      liveWalkData,
+                    );
                   },
                 );
               },
@@ -423,13 +500,18 @@ class _HomeScreenState extends State<HomeScreen> {
             // WEEKLY PROCESSING
             // =========================================
 
-            const SizedBox(height: 19),
-
-            const HomeSectionTitle(
-              title: 'This week processing',
+            const SizedBox(
+              height: 19,
             ),
 
-            const SizedBox(height: 9),
+            const HomeSectionTitle(
+              title:
+                  'This week processing',
+            ),
+
+            const SizedBox(
+              height: 9,
+            ),
 
             HomeWeeklyProcessing(
               onDetails: (
@@ -448,43 +530,71 @@ class _HomeScreenState extends State<HomeScreen> {
             // PAST WALK
             // =========================================
 
-            const SizedBox(height: 19),
+            const SizedBox(
+              height: 19,
+            ),
 
             const HomeSectionTitle(
               title: 'Past Walk',
             ),
 
-            const SizedBox(height: 9),
+            const SizedBox(
+              height: 9,
+            ),
 
             StreamBuilder<
-                List<home_data.HomePastWalk>>(
-              stream: _homeDataService.pastWalksStream(
+                List<
+                    home_data.HomePastWalk>>(
+              stream:
+                  _homeDataService
+                      .pastWalksStream(
                 limit: 20,
               ),
 
-              builder: (context, snapshot) {
+              builder:
+                  (context, snapshot) {
                 // -------------------------------------
                 // ERROR
                 // -------------------------------------
 
                 if (snapshot.hasError) {
                   return Container(
-                    width: double.infinity,
-                    padding: const EdgeInsets.all(18),
-                    decoration: BoxDecoration(
-                      color: HomeScreen.card,
-                      borderRadius: BorderRadius.circular(14),
-                      border: Border.all(
-                        color: const Color(0xFFD4D9DF),
+                    width:
+                        double.infinity,
+                    padding:
+                        const EdgeInsets
+                            .all(18),
+                    decoration:
+                        BoxDecoration(
+                      color:
+                          HomeScreen.card,
+                      borderRadius:
+                          BorderRadius
+                              .circular(
+                        14,
+                      ),
+                      border:
+                          Border.all(
+                        color:
+                            const Color(
+                          0xFFD4D9DF,
+                        ),
                       ),
                     ),
-                    child: const Text(
+                    child:
+                        const Text(
                       'Unable to load past walks.',
-                      textAlign: TextAlign.center,
-                      style: TextStyle(
-                        color: HomeScreen.slate,
-                        fontSize: 12,
-                        fontWeight: FontWeight.w600,
+                      textAlign:
+                          TextAlign.center,
+                      style:
+                          TextStyle(
+                        color:
+                            HomeScreen.slate,
+                        fontSize:
+                            12,
+                        fontWeight:
+                            FontWeight
+                                .w600,
                       ),
                     ),
                   );
@@ -494,14 +604,21 @@ class _HomeScreenState extends State<HomeScreen> {
                 // LOADING
                 // -------------------------------------
 
-                if (snapshot.connectionState ==
-                    ConnectionState.waiting) {
+                if (snapshot
+                        .connectionState ==
+                    ConnectionState
+                        .waiting) {
                   return const SizedBox(
                     height: 70,
-                    child: Center(
-                      child: CircularProgressIndicator(
-                        strokeWidth: 2,
-                        color: HomeScreen.orange,
+                    child:
+                        Center(
+                      child:
+                          CircularProgressIndicator(
+                        strokeWidth:
+                            2,
+                        color:
+                            HomeScreen
+                                .orange,
                       ),
                     ),
                   );
@@ -511,16 +628,23 @@ class _HomeScreenState extends State<HomeScreen> {
                 // DATA
                 // -------------------------------------
 
-                final List<home_data.HomePastWalk> walks =
+                final List<
+                        home_data.HomePastWalk>
+                    walks =
                     snapshot.data ??
-                        <home_data.HomePastWalk>[];
+                        <home_data
+                            .HomePastWalk>[];
 
                 // -------------------------------------
-                // UI WIDGET
+                // UI
                 // -------------------------------------
 
                 return HomePastWalk(
-                  walks: _pastWalkMaps(walks),
+                  walks:
+                      _pastWalkMaps(
+                    walks,
+                  ),
+
                   onDetails: (
                     title,
                     content,
@@ -539,31 +663,38 @@ class _HomeScreenState extends State<HomeScreen> {
       ),
 
       // ===============================================
-      // BOTTOM BUTTON
+      // BOTTOM QR BUTTON
       // ===============================================
 
       floatingActionButtonLocation:
-          FloatingActionButtonLocation.centerFloat,
+          FloatingActionButtonLocation
+              .centerFloat,
 
       floatingActionButton:
           StreamBuilder<
-              QuerySnapshot<Map<String, dynamic>>>(
-        stream: _liveWalkService.liveWalkStream(),
+              QuerySnapshot<
+                  Map<String, dynamic>>>(
+        stream:
+            _liveWalkService
+                .liveWalkStream(),
 
-        builder: (context, snapshot) {
+        builder:
+            (context, snapshot) {
           final bool live =
               snapshot.hasData &&
-              _liveWalkService.isLiveWalk(
+              _liveWalkService
+                  .isLiveWalk(
                 snapshot.data!,
               );
 
           // =========================================
           // LIVE WALK
-          // QR BUTTON HIDDEN
+          // QR HIDDEN
           // =========================================
 
           if (live) {
-            return const SizedBox.shrink();
+            return const SizedBox
+                .shrink();
           }
 
           // =========================================
@@ -571,21 +702,32 @@ class _HomeScreenState extends State<HomeScreen> {
           // QR BUTTON
           // =========================================
 
-          return FloatingActionButton.extended(
-            backgroundColor: HomeScreen.orange,
-            foregroundColor: Colors.white,
+          return FloatingActionButton
+              .extended(
+            backgroundColor:
+                HomeScreen.orange,
+
+            foregroundColor:
+                Colors.white,
+
             elevation: 8,
 
-            onPressed: _openMyQRCode,
+            onPressed:
+                _openMyQRCode,
 
-            icon: const Icon(
+            icon:
+                const Icon(
               Icons.qr_code_2,
             ),
 
-            label: const Text(
+            label:
+                const Text(
               'Generate QR Code',
-              style: TextStyle(
-                fontWeight: FontWeight.w900,
+              style:
+                  TextStyle(
+                fontWeight:
+                    FontWeight
+                        .w900,
               ),
             ),
           );
