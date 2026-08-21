@@ -1,5 +1,3 @@
-"lib/screens/generate_qr_screen.dart"
-
 import 'dart:convert';
 
 import 'package:cloud_firestore/cloud_firestore.dart';
@@ -9,19 +7,16 @@ import 'package:geolocator/geolocator.dart';
 import 'package:qr_flutter/qr_flutter.dart';
 
 class GenerateQRButton extends StatelessWidget {
-  /// ==========================================================
-  /// LIVE WALK STATE
-  ///
-  /// false = Generate QR Code
-  /// true  = Live Walk bar
-  /// ==========================================================
+  // ==========================================================
+  // LIVE WALK STATE
+  // ==========================================================
+
   final bool isLiveWalk;
 
-  /// ==========================================================
-  /// LIVE WALK TAP
-  ///
-  /// Existing navigation callback.
-  /// ==========================================================
+  // ==========================================================
+  // LIVE WALK CALLBACK
+  // ==========================================================
+
   final VoidCallback? onLiveWalkTap;
 
   const GenerateQRButton({
@@ -36,64 +31,50 @@ class GenerateQRButton extends StatelessWidget {
   //
   // IMPORTANT:
   //
-  // This location is captured ONLY once while generating QR.
+  // This captures location only once.
   //
-  // It is a SAVED / DESTINATION location.
+  // It is a saved destination snapshot.
   //
-  // It is NOT a live location stream.
+  // There is:
+  // - no stream
+  // - no listener
+  // - no background tracking
   //
-  // Walker will receive this saved location only.
-  //
-  // Owner's live location will NEVER be sent to Walker.
   // ==========================================================
 
   Future<Position?> _getOwnerLocation() async {
     try {
-      // --------------------------------------------------------
-      // LOCATION SERVICE
-      // --------------------------------------------------------
-
       final bool serviceEnabled =
-          await Geolocator.isLocationServiceEnabled();
+          await Geolocator
+              .isLocationServiceEnabled();
 
       if (!serviceEnabled) {
         return null;
       }
 
-      // --------------------------------------------------------
-      // PERMISSION
-      // --------------------------------------------------------
-
       LocationPermission permission =
           await Geolocator.checkPermission();
 
-      if (permission == LocationPermission.denied) {
+      if (permission ==
+          LocationPermission.denied) {
         permission =
             await Geolocator.requestPermission();
       }
 
-      if (permission == LocationPermission.denied ||
-          permission == LocationPermission.deniedForever) {
+      if (permission ==
+              LocationPermission.denied ||
+          permission ==
+              LocationPermission.deniedForever) {
         return null;
       }
 
-      // --------------------------------------------------------
-      // CURRENT POSITION
-      // --------------------------------------------------------
-      //
-      // Do NOT use locationSettings here.
-      //
-      // This keeps compatibility with the Geolocator version
-      // currently used by the project.
-      // --------------------------------------------------------
-
-      return await Geolocator.getCurrentPosition();
+      return await Geolocator
+          .getCurrentPosition();
     } catch (e) {
       debugPrint(
         'Owner location error: $e',
       );
 
-      // Location failure must NOT stop QR generation.
       return null;
     }
   }
@@ -106,14 +87,24 @@ class GenerateQRButton extends StatelessWidget {
     BuildContext context,
   ) async {
     final User? user =
-        FirebaseAuth.instance.currentUser;
+        FirebaseAuth
+            .instance
+            .currentUser;
+
+    // ========================================================
+    // LOGIN
+    // ========================================================
 
     if (user == null) {
-      if (!context.mounted) return;
+      if (!context.mounted) {
+        return;
+      }
 
-      ScaffoldMessenger.of(context).showSnackBar(
+      ScaffoldMessenger.of(context)
+          .showSnackBar(
         const SnackBar(
-          content: Text(
+          content:
+              Text(
             'Owner is not logged in.',
           ),
         ),
@@ -130,11 +121,15 @@ class GenerateQRButton extends StatelessWidget {
         user.uid.trim();
 
     if (ownerUid.isEmpty) {
-      if (!context.mounted) return;
+      if (!context.mounted) {
+        return;
+      }
 
-      ScaffoldMessenger.of(context).showSnackBar(
+      ScaffoldMessenger.of(context)
+          .showSnackBar(
         const SnackBar(
-          content: Text(
+          content:
+              Text(
             'Owner UID is missing.',
           ),
         ),
@@ -148,7 +143,10 @@ class GenerateQRButton extends StatelessWidget {
     // ========================================================
 
     final String ownerName =
-        user.displayName?.trim().isNotEmpty == true
+        user.displayName
+                    ?.trim()
+                    .isNotEmpty ==
+                true
             ? user.displayName!.trim()
             : 'Owner';
 
@@ -157,7 +155,10 @@ class GenerateQRButton extends StatelessWidget {
     // ========================================================
 
     final String ownerPhone =
-        user.phoneNumber?.trim().isNotEmpty == true
+        user.phoneNumber
+                    ?.trim()
+                    .isNotEmpty ==
+                true
             ? user.phoneNumber!.trim()
             : '';
 
@@ -169,16 +170,7 @@ class GenerateQRButton extends StatelessWidget {
         'WALK_${DateTime.now().millisecondsSinceEpoch}';
 
     // ========================================================
-    // GET SAVED OWNER LOCATION
-    // ========================================================
-    //
-    // This is captured once.
-    //
-    // No listener.
-    // No stream.
-    // No continuous update.
-    //
-    // Walker will only use this location as destination.
+    // LOCATION SNAPSHOT
     // ========================================================
 
     final Position? ownerPosition =
@@ -188,7 +180,8 @@ class GenerateQRButton extends StatelessWidget {
     // LOCATION DATA
     // ========================================================
 
-    final Map<String, dynamic> ownerLocation =
+    final Map<String, dynamic>
+        ownerLocation =
         <String, dynamic>{};
 
     if (ownerPosition != null) {
@@ -203,19 +196,26 @@ class GenerateQRButton extends StatelessWidget {
     }
 
     // ========================================================
-    // REAL QR DATA
+    // QR DATA
     // ========================================================
     //
-    // IMPORTANT:
+    // IMPORTANT PRIVACY:
     //
-    // ownerLocation is a SNAPSHOT.
+    // Phone number is intentionally NOT included
+    // inside the QR payload.
     //
-    // It does not represent Owner LIVE location.
+    // The QR contains identity information only.
+    //
+    // Walker can obtain authorized phone data
+    // from Firestore after successful scan/connection.
+    //
     // ========================================================
 
-    final Map<String, dynamic> qrData =
+    final Map<String, dynamic>
+        qrData =
         <String, dynamic>{
-      'type': 'owner',
+      'type':
+          'owner',
 
       'ownerUid':
           ownerUid,
@@ -223,30 +223,23 @@ class GenerateQRButton extends StatelessWidget {
       'ownerName':
           ownerName,
 
-      'ownerPhone':
-          ownerPhone,
-
       'walkId':
           walkId,
 
-      // ------------------------------------------------------
-      // SAVED OWNER DESTINATION
-      // ------------------------------------------------------
+      // ======================================================
+      // SAVED DESTINATION SNAPSHOT
+      // ======================================================
 
       if (ownerPosition != null)
         'ownerLocation':
             ownerLocation,
 
-      // ------------------------------------------------------
-      // LOCATION TYPE
-      // ------------------------------------------------------
-
       'ownerLocationType':
           'saved',
 
-      // ------------------------------------------------------
-      // WALK TRACKING STATE
-      // ------------------------------------------------------
+      // ======================================================
+      // TRACKING STATE
+      // ======================================================
 
       'walkerTracking':
           false,
@@ -262,20 +255,25 @@ class GenerateQRButton extends StatelessWidget {
         jsonEncode(qrData);
 
     // ========================================================
-    // SAVE TO FIRESTORE
+    // FIRESTORE
     // ========================================================
 
     try {
-      await FirebaseFirestore.instance
-          .collection('qr_codes')
-          .doc(ownerUid)
+      await FirebaseFirestore
+          .instance
+          .collection(
+            'qr_codes',
+          )
+          .doc(
+            ownerUid,
+          )
           .set(
         <String, dynamic>{
           ...qrData,
 
-          // --------------------------------------------------
+          // ==================================================
           // COMPATIBILITY FIELDS
-          // --------------------------------------------------
+          // ==================================================
 
           'uid':
               ownerUid,
@@ -286,19 +284,23 @@ class GenerateQRButton extends StatelessWidget {
           'name':
               ownerName,
 
+          // Kept in Firestore for existing
+          // owner/walker compatibility.
+          //
+          // NOT included in qrData payload.
           'phoneNumber':
               ownerPhone,
 
-          // --------------------------------------------------
+          // ==================================================
           // QR PAYLOAD
-          // --------------------------------------------------
+          // ==================================================
 
           'qrData':
               qrPayload,
 
-          // --------------------------------------------------
+          // ==================================================
           // SCAN STATE
-          // --------------------------------------------------
+          // ==================================================
 
           'scanned':
               false,
@@ -309,9 +311,9 @@ class GenerateQRButton extends StatelessWidget {
           'scannedAt':
               null,
 
-          // --------------------------------------------------
+          // ==================================================
           // TRACKING STATE
-          // --------------------------------------------------
+          // ==================================================
 
           'trackingStarted':
               false,
@@ -319,19 +321,22 @@ class GenerateQRButton extends StatelessWidget {
           'trackingEnded':
               false,
 
-          // --------------------------------------------------
-          // LOCATION SNAPSHOT TIMESTAMP
-          // --------------------------------------------------
+          // ==================================================
+          // LOCATION SNAPSHOT TIME
+          // ==================================================
 
           if (ownerPosition != null)
             'ownerLocationSavedAt':
-                FieldValue.serverTimestamp(),
+                FieldValue
+                    .serverTimestamp(),
 
           'updatedAt':
-              FieldValue.serverTimestamp(),
+              FieldValue
+                  .serverTimestamp(),
         },
         SetOptions(
-          merge: true,
+          merge:
+              true,
         ),
       );
 
@@ -347,31 +352,43 @@ class GenerateQRButton extends StatelessWidget {
         );
       } else {
         debugPrint(
-          'Owner location was not available. '
+          'Owner location unavailable. '
           'QR generated without location.',
         );
       }
     } catch (e) {
-      // QR फिर भी दिखाई देगा।
+      // ======================================================
+      // IMPORTANT
+      //
+      // Firestore failure does not stop QR display.
+      // ======================================================
+
       debugPrint(
         'Firebase QR save error: $e',
       );
     }
 
-    if (!context.mounted) return;
+    if (!context.mounted) {
+      return;
+    }
 
     // ========================================================
     // OPEN QR BOTTOM SHEET
     // ========================================================
 
     await showModalBottomSheet(
-      context: context,
+      context:
+          context,
       backgroundColor:
           Colors.transparent,
-      isScrollControlled: true,
-      isDismissible: true,
-      enableDrag: true,
-      builder: (_) {
+      isScrollControlled:
+          true,
+      isDismissible:
+          true,
+      enableDrag:
+          true,
+      builder:
+          (_) {
         return OwnerQRBottomSheet(
           ownerUid:
               ownerUid,
@@ -401,7 +418,9 @@ class GenerateQRButton extends StatelessWidget {
     // ========================================================
 
     if (isLiveWalk) {
-      return _liveWalkBar(context);
+      return _liveWalkBar(
+        context,
+      );
     }
 
     // ========================================================
@@ -410,24 +429,28 @@ class GenerateQRButton extends StatelessWidget {
 
     return FloatingActionButton.extended(
       backgroundColor:
-          const Color(0xFFF4511E),
-
+          const Color(
+        0xFFF4511E,
+      ),
       foregroundColor:
           Colors.white,
-
-      elevation: 8,
-
-      onPressed: () =>
-          _generateQR(context),
-
-      icon: const Icon(
+      elevation:
+          8,
+      onPressed:
+          () => _generateQR(
+            context,
+          ),
+      icon:
+          const Icon(
         Icons.qr_code_2,
-        size: 25,
+        size:
+            25,
       ),
-
-      label: const Text(
+      label:
+          const Text(
         'Generate QR Code',
-        style: TextStyle(
+        style:
+            TextStyle(
           fontWeight:
               FontWeight.w900,
         ),
@@ -445,68 +468,75 @@ class GenerateQRButton extends StatelessWidget {
     return Padding(
       padding:
           const EdgeInsets.symmetric(
-        horizontal: 15,
+        horizontal:
+            15,
       ),
-
-      child: SizedBox(
+      child:
+          SizedBox(
         width:
             double.infinity,
-
-        height: 56,
-
-        child: Material(
+        height:
+            56,
+        child:
+            Material(
           color:
               Colors.transparent,
-
-          child: InkWell(
+          child:
+              InkWell(
             onTap:
                 onLiveWalkTap,
-
             borderRadius:
-                BorderRadius.circular(16),
-
-            child: Ink(
+                BorderRadius.circular(
+              16,
+            ),
+            child:
+                Ink(
               decoration:
                   BoxDecoration(
                 gradient:
                     const LinearGradient(
                   begin:
                       Alignment.centerLeft,
-
                   end:
                       Alignment.centerRight,
-
                   colors: [
-                    Color(0xFF1B8F4D),
-                    Color(0xFF126B39),
+                    Color(
+                      0xFF1B8F4D,
+                    ),
+                    Color(
+                      0xFF126B39,
+                    ),
                   ],
                 ),
-
                 borderRadius:
-                    BorderRadius.circular(16),
-
+                    BorderRadius.circular(
+                  16,
+                ),
                 boxShadow: [
                   BoxShadow(
                     color:
                         const Color(
                       0xFF126B39,
                     ).withValues(
-                      alpha: .22,
+                      alpha:
+                          .22,
                     ),
-
                     blurRadius:
                         12,
-
                     offset:
-                        const Offset(0, 5),
+                        const Offset(
+                      0,
+                      5,
+                    ),
                   ),
                 ],
               ),
-
-              child: Row(
+              child:
+                  Row(
                 children: [
                   const SizedBox(
-                    width: 14,
+                    width:
+                        14,
                   ),
 
                   // ==================================================
@@ -514,37 +544,37 @@ class GenerateQRButton extends StatelessWidget {
                   // ==================================================
 
                   Container(
-                    width: 38,
-                    height: 38,
-
+                    width:
+                        38,
+                    height:
+                        38,
                     decoration:
                         BoxDecoration(
                       color:
                           Colors.white
                               .withValues(
-                        alpha: .15,
+                        alpha:
+                            .15,
                       ),
-
                       borderRadius:
                           BorderRadius.circular(
                         11,
                       ),
                     ),
-
                     child:
                         const Icon(
                       Icons
                           .directions_walk_rounded,
-
                       color:
                           Colors.white,
-
-                      size: 21,
+                      size:
+                          21,
                     ),
                   ),
 
                   const SizedBox(
-                    width: 11,
+                    width:
+                        11,
                   ),
 
                   // ==================================================
@@ -552,57 +582,53 @@ class GenerateQRButton extends StatelessWidget {
                   // ==================================================
 
                   const Expanded(
-                    child: Column(
+                    child:
+                        Column(
                       mainAxisAlignment:
-                          MainAxisAlignment.center,
-
+                          MainAxisAlignment
+                              .center,
                       crossAxisAlignment:
-                          CrossAxisAlignment.start,
-
+                          CrossAxisAlignment
+                              .start,
                       children: [
                         Text(
                           'Live Walk',
-
-                          maxLines: 1,
-
+                          maxLines:
+                              1,
                           overflow:
-                              TextOverflow.ellipsis,
-
+                              TextOverflow
+                                  .ellipsis,
                           style:
                               TextStyle(
                             color:
                                 Colors.white,
-
                             fontSize:
                                 15,
-
                             fontWeight:
-                                FontWeight.w900,
+                                FontWeight
+                                    .w900,
                           ),
                         ),
-
                         SizedBox(
-                          height: 1,
+                          height:
+                              1,
                         ),
-
                         Text(
                           'Tap to See',
-
-                          maxLines: 1,
-
+                          maxLines:
+                              1,
                           overflow:
-                              TextOverflow.ellipsis,
-
+                              TextOverflow
+                                  .ellipsis,
                           style:
                               TextStyle(
                             color:
                                 Colors.white70,
-
                             fontSize:
                                 10,
-
                             fontWeight:
-                                FontWeight.w600,
+                                FontWeight
+                                    .w600,
                           ),
                         ),
                       ],
@@ -614,35 +640,35 @@ class GenerateQRButton extends StatelessWidget {
                   // ==================================================
 
                   Container(
-                    width: 32,
-                    height: 32,
-
+                    width:
+                        32,
+                    height:
+                        32,
                     decoration:
                         BoxDecoration(
                       color:
                           Colors.white
                               .withValues(
-                        alpha: .10,
+                        alpha:
+                            .10,
                       ),
-
                       shape:
                           BoxShape.circle,
                     ),
-
                     child:
                         const Icon(
                       Icons
                           .arrow_forward_ios_rounded,
-
                       color:
                           Colors.white,
-
-                      size: 14,
+                      size:
+                          14,
                     ),
                   ),
 
                   const SizedBox(
-                    width: 12,
+                    width:
+                        12,
                   ),
                 ],
               ),
@@ -661,22 +687,21 @@ class GenerateQRButton extends StatelessWidget {
 class OwnerQRBottomSheet
     extends StatelessWidget {
   final String ownerUid;
+
   final String ownerName;
+
   final String ownerPhone;
+
   final String walkId;
+
   final String qrPayload;
 
   const OwnerQRBottomSheet({
     super.key,
-
     required this.ownerUid,
-
     required this.ownerName,
-
     required this.ownerPhone,
-
     required this.walkId,
-
     required this.qrPayload,
   });
 
@@ -684,11 +709,19 @@ class OwnerQRBottomSheet
   Widget build(
     BuildContext context,
   ) {
+    final String shortUid =
+        ownerUid.substring(
+      0,
+      ownerUid.length > 8
+          ? 8
+          : ownerUid.length,
+    );
+
     return SafeArea(
-      child: Container(
+      child:
+          Container(
         width:
             double.infinity,
-
         padding:
             const EdgeInsets.fromLTRB(
           24,
@@ -696,44 +729,43 @@ class OwnerQRBottomSheet
           24,
           30,
         ),
-
         decoration:
             const BoxDecoration(
           color:
               Colors.white,
-
           borderRadius:
               BorderRadius.vertical(
             top:
-                Radius.circular(30),
+                Radius.circular(
+              30,
+            ),
           ),
         ),
-
-        child: Column(
+        child:
+            Column(
           mainAxisSize:
               MainAxisSize.min,
-
           children: [
             // ==================================================
             // HANDLE
             // ==================================================
 
             Container(
-              width: 45,
-              height: 5,
-
+              width:
+                  45,
+              height:
+                  5,
               margin:
                   const EdgeInsets.only(
-                bottom: 18,
+                bottom:
+                    18,
               ),
-
               decoration:
                   BoxDecoration(
                 color:
                     const Color(
                   0xffd1d5db,
                 ),
-
                 borderRadius:
                     BorderRadius.circular(
                   20,
@@ -748,46 +780,47 @@ class OwnerQRBottomSheet
             Row(
               children: [
                 const Expanded(
-                  child: Text(
+                  child:
+                      Text(
                     'My QR Code',
-
                     textAlign:
                         TextAlign.center,
-
                     style:
                         TextStyle(
                       fontSize:
                           20,
-
                       fontWeight:
                           FontWeight.w800,
-
                       color:
-                          Color(0xff111827),
+                          Color(
+                        0xff111827,
+                      ),
                     ),
                   ),
                 ),
 
                 IconButton(
-                  onPressed: () {
+                  onPressed:
+                      () {
                     Navigator.pop(
                       context,
                     );
                   },
-
                   icon:
                       const Icon(
                     Icons.close,
-
                     color:
-                        Color(0xff4b5563),
+                        Color(
+                      0xff4b5563,
+                    ),
                   ),
                 ),
               ],
             ),
 
             const SizedBox(
-              height: 8,
+              height:
+                  8,
             ),
 
             // ==================================================
@@ -796,15 +829,12 @@ class OwnerQRBottomSheet
 
             Text(
               ownerName,
-
               textAlign:
                   TextAlign.center,
-
               style:
                   const TextStyle(
                 fontSize:
                     17,
-
                 fontWeight:
                     FontWeight.w700,
               ),
@@ -812,25 +842,26 @@ class OwnerQRBottomSheet
 
             if (ownerPhone.isNotEmpty) ...[
               const SizedBox(
-                height: 3,
+                height:
+                    3,
               ),
-
               Text(
                 ownerPhone,
-
                 style:
                     const TextStyle(
                   fontSize:
                       13,
-
                   color:
-                      Color(0xff6b7280),
+                      Color(
+                    0xff6b7280,
+                  ),
                 ),
               ),
             ],
 
             const SizedBox(
-              height: 20,
+              height:
+                  20,
             ),
 
             // ==================================================
@@ -838,24 +869,22 @@ class OwnerQRBottomSheet
             // ==================================================
 
             Container(
-              width: 230,
-              height: 230,
-
+              width:
+                  230,
+              height:
+                  230,
               padding:
                   const EdgeInsets.all(
                 14,
               ),
-
               decoration:
                   BoxDecoration(
                 color:
                     Colors.white,
-
                 borderRadius:
                     BorderRadius.circular(
                   20,
                 ),
-
                 border:
                     Border.all(
                   color:
@@ -863,42 +892,39 @@ class OwnerQRBottomSheet
                     0xffe5e7eb,
                   ),
                 ),
-
                 boxShadow:
                     const [
                   BoxShadow(
                     color:
                         Colors.black12,
-
                     blurRadius:
                         18,
-
                     offset:
-                        Offset(0, 6),
+                        Offset(
+                      0,
+                      6,
+                    ),
                   ),
                 ],
               ),
-
-              child: QrImageView(
+              child:
+                  QrImageView(
                 data:
                     qrPayload,
-
                 version:
                     QrVersions.auto,
-
                 size:
                     200,
-
                 backgroundColor:
                     Colors.white,
-
                 errorCorrectionLevel:
                     QrErrorCorrectLevel.H,
               ),
             ),
 
             const SizedBox(
-              height: 18,
+              height:
+                  18,
             ),
 
             // ==================================================
@@ -907,58 +933,58 @@ class OwnerQRBottomSheet
 
             const Text(
               'Scan this QR code to connect with the Owner.',
-
               textAlign:
                   TextAlign.center,
-
               style:
                   TextStyle(
                 fontSize:
                     13,
-
                 color:
-                    Color(0xff6b7280),
+                    Color(
+                  0xff6b7280,
+                ),
               ),
             ),
 
             const SizedBox(
-              height: 12,
+              height:
+                  12,
             ),
 
             // ==================================================
-            // WAITING STATUS
+            // WAITING
             // ==================================================
 
             Container(
               padding:
-                  const EdgeInsets.symmetric(
-                horizontal: 14,
-                vertical: 9,
+                  const EdgeInsets
+                      .symmetric(
+                horizontal:
+                    14,
+                vertical:
+                    9,
               ),
-
               decoration:
                   BoxDecoration(
                 color:
                     const Color(
                   0xfff0fdf4,
                 ),
-
                 borderRadius:
                     BorderRadius.circular(
                   30,
                 ),
               ),
-
               child:
                   const Row(
                 mainAxisSize:
                     MainAxisSize.min,
-
                 children: [
                   SizedBox(
-                    width: 8,
-                    height: 8,
-
+                    width:
+                        8,
+                    height:
+                        8,
                     child:
                         DecoratedBox(
                       decoration:
@@ -967,30 +993,27 @@ class OwnerQRBottomSheet
                             Color(
                           0xff22c55e,
                         ),
-
                         shape:
                             BoxShape.circle,
                       ),
                     ),
                   ),
-
                   SizedBox(
-                    width: 8,
+                    width:
+                        8,
                   ),
-
                   Text(
                     'Waiting for Walker to scan...',
-
                     style:
                         TextStyle(
                       fontSize:
                           12,
-
                       fontWeight:
                           FontWeight.w600,
-
                       color:
-                          Color(0xff166534),
+                          Color(
+                        0xff166534,
+                      ),
                     ),
                   ),
                 ],
@@ -998,7 +1021,8 @@ class OwnerQRBottomSheet
             ),
 
             const SizedBox(
-              height: 12,
+              height:
+                  12,
             ),
 
             // ==================================================
@@ -1007,25 +1031,24 @@ class OwnerQRBottomSheet
 
             Text(
               'Walk ID: $walkId',
-
               maxLines:
                   1,
-
               overflow:
                   TextOverflow.ellipsis,
-
               style:
                   const TextStyle(
                 fontSize:
                     10,
-
                 color:
-                    Color(0xff9ca3af),
+                    Color(
+                  0xff9ca3af,
+                ),
               ),
             ),
 
             const SizedBox(
-              height: 5,
+              height:
+                  5,
             ),
 
             // ==================================================
@@ -1033,15 +1056,15 @@ class OwnerQRBottomSheet
             // ==================================================
 
             Text(
-              'Owner UID: ${ownerUid.substring(0, ownerUid.length > 8 ? 8 : ownerUid.length)}...',
-
+              'Owner UID: $shortUid...',
               style:
                   const TextStyle(
                 fontSize:
                     9,
-
                 color:
-                    Color(0xffd1d5db),
+                    Color(
+                  0xffd1d5db,
+                ),
               ),
             ),
           ],
