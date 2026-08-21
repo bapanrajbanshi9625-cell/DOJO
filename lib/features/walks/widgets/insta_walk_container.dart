@@ -1,8 +1,12 @@
 import 'dart:async';
+import 'dart:math' as math;
 
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_map/flutter_map.dart';
+import 'package:geolocator/geolocator.dart';
+import 'package:latlong2/latlong.dart';
 
 import '../../../screens/address_screen.dart';
 
@@ -20,20 +24,11 @@ class InstaWalkContainer extends StatefulWidget {
 }
 
 class _InstaWalkContainerState
-    extends State<InstaWalkContainer> {
-  Timer? _timer;
-
-  bool _searching = false;
-  bool _searchFinished = false;
-  bool _checkingAddress = false;
-
-  int _secondsLeft = 120;
-
-  String? _requestId;
-
-  StreamSubscription<
-      DocumentSnapshot<Map<String, dynamic>>>?
-      _requestSubscription;
+    extends State<InstaWalkContainer>
+    with SingleTickerProviderStateMixin {
+  // =========================================================
+  // FIREBASE
+  // =========================================================
 
   final FirebaseFirestore _firestore =
       FirebaseFirestore.instance;
@@ -44,7 +39,51 @@ class _InstaWalkContainerState
   static const String _walkRequestsCollection =
       'walk_requests';
 
+  // =========================================================
+  // SEARCH SETTINGS
+  // =========================================================
+
   static const double _searchDistanceKm = 3.0;
+
+  static const int _searchDurationSeconds = 120;
+
+  // =========================================================
+  // STATE
+  // =========================================================
+
+  Timer? _timer;
+
+  StreamSubscription<
+      DocumentSnapshot<Map<String, dynamic>>>?
+      _requestSubscription;
+
+  bool _searching = false;
+  bool _searchFinished = false;
+  bool _checkingAddress = false;
+
+  int _secondsLeft = _searchDurationSeconds;
+
+  String? _requestId;
+
+  Position? _ownerPosition;
+
+  // =========================================================
+  // RADAR ANIMATION
+  // =========================================================
+
+  late final AnimationController _radarController;
+
+  @override
+  void initState() {
+    super.initState();
+
+    _radarController = AnimationController(
+      vsync: this,
+      duration: const Duration(
+        seconds: 2,
+      ),
+    );
+  }
 
   // =========================================================
   // DISPOSE
@@ -54,6 +93,8 @@ class _InstaWalkContainerState
   void dispose() {
     _timer?.cancel();
     _requestSubscription?.cancel();
+    _radarController.dispose();
+
     super.dispose();
   }
 
@@ -70,9 +111,12 @@ class _InstaWalkContainerState
       return null;
     }
 
-    final QuerySnapshot<Map<String, dynamic>>
-        query = await _firestore
-            .collection(_ownerProfilesCollection)
+    final QuerySnapshot<
+        Map<String, dynamic>> query =
+        await _firestore
+            .collection(
+              _ownerProfilesCollection,
+            )
             .where(
               'authUid',
               isEqualTo: user.uid,
@@ -88,6 +132,67 @@ class _InstaWalkContainerState
   }
 
   // =========================================================
+  // GET OWNER CURRENT LOCATION
+  // =========================================================
+
+  Future<Position?> _getOwnerLocation() async {
+    try {
+      final bool serviceEnabled =
+          await Geolocator.isLocationServiceEnabled();
+
+      if (!serviceEnabled) {
+        _showMessage(
+          'Please turn on location service.',
+        );
+
+        return null;
+      }
+
+      LocationPermission permission =
+          await Geolocator.checkPermission();
+
+      if (permission ==
+          LocationPermission.denied) {
+        permission =
+            await Geolocator.requestPermission();
+      }
+
+      if (permission ==
+              LocationPermission.denied ||
+          permission ==
+              LocationPermission
+                  .deniedForever) {
+        _showMessage(
+          'Location permission is required for Insta Walk.',
+        );
+
+        return null;
+      }
+
+      final Position position =
+          await Geolocator.getCurrentPosition(
+        locationSettings:
+            const LocationSettings(
+          accuracy:
+              LocationAccuracy.high,
+        ),
+      );
+
+      return position;
+    } catch (e) {
+      debugPrint(
+        'Insta Walk location error: $e',
+      );
+
+      _showMessage(
+        'Unable to get your current location.',
+      );
+
+      return null;
+    }
+  }
+
+  // =========================================================
   // FIND WALKER
   // =========================================================
 
@@ -100,7 +205,10 @@ class _InstaWalkContainerState
         FirebaseAuth.instance.currentUser;
 
     if (user == null) {
-      _showMessage('Please login first.');
+      _showMessage(
+        'Please login first.',
+      );
+
       return;
     }
 
@@ -115,7 +223,7 @@ class _InstaWalkContainerState
 
     try {
       // =====================================================
-      // FIND OWNER PROFILE BY authUid
+      // OWNER PROFILE
       // =====================================================
 
       final QueryDocumentSnapshot<
@@ -125,10 +233,6 @@ class _InstaWalkContainerState
       if (!mounted) {
         return;
       }
-
-      // =====================================================
-      // OWNER PROFILE NOT FOUND
-      // =====================================================
 
       if (ownerDoc == null) {
         setState(() {
@@ -169,10 +273,6 @@ class _InstaWalkContainerState
 
       // =====================================================
       // ADDRESS
-      //
-      // Supports:
-      // address
-      // Adress
       // =====================================================
 
       String address =
@@ -210,11 +310,6 @@ class _InstaWalkContainerState
           return;
         }
 
-        // ===================================================
-        // ADDRESS SCREEN SE RETURN KE BAAD
-        // PROFILE DOBARA CHECK
-        // ===================================================
-
         await _findWalker();
 
         return;
@@ -243,6 +338,29 @@ class _InstaWalkContainerState
       }
 
       // =====================================================
+      // GET OWNER GPS
+      // =====================================================
+
+      final Position? ownerPosition =
+          await _getOwnerLocation();
+
+      if (!mounted) {
+        return;
+      }
+
+      if (ownerPosition == null) {
+        setState(() {
+          _checkingAddress = false;
+        });
+
+        return;
+      }
+
+      setState(() {
+        _ownerPosition = ownerPosition;
+      });
+
+      // =====================================================
       // START SEARCH
       // =====================================================
 
@@ -251,6 +369,10 @@ class _InstaWalkContainerState
         ownerAuthUid: user.uid,
         ownerName: ownerName,
         address: address,
+        ownerLatitude:
+            ownerPosition.latitude,
+        ownerLongitude:
+            ownerPosition.longitude,
       );
     } on FirebaseException catch (e) {
       debugPrint(
@@ -299,25 +421,25 @@ class _InstaWalkContainerState
     required String ownerAuthUid,
     required String ownerName,
     required String address,
+    required double ownerLatitude,
+    required double ownerLongitude,
   }) async {
     _timer?.cancel();
     await _requestSubscription?.cancel();
 
-    final DateTime now = DateTime.now();
+    final DateTime now =
+        DateTime.now();
 
     final DateTime expiresAt =
         now.add(
-      const Duration(minutes: 2),
+      const Duration(
+        seconds: _searchDurationSeconds,
+      ),
     );
 
     try {
       // =====================================================
-      // CREATE WALK REQUEST
-      //
-      // IMPORTANT:
-      // These field names exactly match the Firestore rules.
-      //
-      // NO GPS fields are required here.
+      // CREATE REQUEST
       // =====================================================
 
       final DocumentReference<
@@ -329,56 +451,99 @@ class _InstaWalkContainerState
               .doc();
 
       await requestRef.set({
-        // ---------------------------------------------------
+        // ===================================================
         // OWNER
-        // ---------------------------------------------------
+        // ===================================================
 
         'ownerId': ownerId,
         'ownerAuthUid': ownerAuthUid,
 
-        // ---------------------------------------------------
-        // REQUEST SENDER
-        // ---------------------------------------------------
+        // ===================================================
+        // SENDER
+        // ===================================================
 
         'senderUid': ownerAuthUid,
         'senderRole': 'owner',
 
-        // ---------------------------------------------------
+        // ===================================================
         // OWNER NAME
-        // ---------------------------------------------------
+        // ===================================================
 
         'ownerName': ownerName,
 
-        // ---------------------------------------------------
-        // ADDRESS
-        // ---------------------------------------------------
+        // ===================================================
+        // DESTINATION / ADDRESS
+        // ===================================================
 
         'address': address,
 
-        // ---------------------------------------------------
-        // SEARCH
-        // ---------------------------------------------------
+        // ===================================================
+        // OWNER LOCATION
+        //
+        // Walker matching ke liye.
+        // Ye owner ka LIVE tracking nahi hai.
+        // Ye request ke waqt saved location hai.
+        // ===================================================
+
+        'ownerLocation': GeoPoint(
+          ownerLatitude,
+          ownerLongitude,
+        ),
+
+        'ownerLatitude': ownerLatitude,
+        'ownerLongitude': ownerLongitude,
+
+        // ===================================================
+        // SEARCH RADIUS
+        // ===================================================
+
+        'searchRadiusKm':
+            _searchDistanceKm,
+
+        'distanceKm':
+            _searchDistanceKm,
+
+        'locationType':
+            'owner_pickup_location',
+
+        // ===================================================
+        // REQUEST STATUS
+        // ===================================================
 
         'status': 'searching',
-        'distanceKm': _searchDistanceKm,
 
-        // ---------------------------------------------------
+        // ===================================================
         // TIME
-        // ---------------------------------------------------
+        // ===================================================
 
         'createdAt':
             FieldValue.serverTimestamp(),
 
         'expiresAt':
-            Timestamp.fromDate(expiresAt),
+            Timestamp.fromDate(
+          expiresAt,
+        ),
 
-        // ---------------------------------------------------
+        // ===================================================
         // WALKER
-        // ---------------------------------------------------
+        //
+        // Owner ko accept hone se pehle
+        // koi walker information nahi milegi.
+        // ===================================================
 
         'acceptedBy': null,
         'walkerUid': null,
         'walkerId': null,
+
+        // ===================================================
+        // WALKER LOCATION
+        //
+        // Accept hone ke baad fill hoga.
+        // ===================================================
+
+        'walkerLocation': null,
+        'walkerLatitude': null,
+        'walkerLongitude': null,
       });
 
       if (!mounted) {
@@ -389,11 +554,29 @@ class _InstaWalkContainerState
         _checkingAddress = false;
         _searching = true;
         _searchFinished = false;
-        _secondsLeft = 120;
-        _requestId = requestRef.id;
+        _secondsLeft =
+            _searchDurationSeconds;
+        _requestId =
+            requestRef.id;
       });
 
-      _listenForRequest(requestRef);
+      // =====================================================
+      // START RADAR
+      // =====================================================
+
+      _radarController.repeat();
+
+      // =====================================================
+      // LISTEN FOR ACCEPT
+      // =====================================================
+
+      _listenForRequest(
+        requestRef,
+      );
+
+      // =====================================================
+      // START TIMER
+      // =====================================================
 
       _startTimer();
     } on FirebaseException catch (e) {
@@ -410,6 +593,8 @@ class _InstaWalkContainerState
         _checkingAddress = false;
         _searching = false;
       });
+
+      _radarController.stop();
 
       _showMessage(
         e.code == 'permission-denied'
@@ -430,6 +615,8 @@ class _InstaWalkContainerState
         _searching = false;
       });
 
+      _radarController.stop();
+
       _showMessage(
         'Unable to create walk request. Please try again.',
       );
@@ -441,8 +628,8 @@ class _InstaWalkContainerState
   // =========================================================
 
   void _listenForRequest(
-    DocumentReference<Map<String, dynamic>>
-        requestRef,
+    DocumentReference<
+        Map<String, dynamic>> requestRef,
   ) {
     _requestSubscription?.cancel();
 
@@ -452,7 +639,8 @@ class _InstaWalkContainerState
         DocumentSnapshot<
             Map<String, dynamic>> snapshot,
       ) {
-        if (!mounted || !snapshot.exists) {
+        if (!mounted ||
+            !snapshot.exists) {
           return;
         }
 
@@ -474,7 +662,10 @@ class _InstaWalkContainerState
         // ===================================================
 
         if (status == 'accepted') {
-          _handleWalkerAccepted(data);
+          _handleWalkerAccepted(
+            data,
+          );
+
           return;
         }
 
@@ -486,6 +677,7 @@ class _InstaWalkContainerState
             status == 'owner_cancelled' ||
             status == 'walker_cancelled') {
           _handleRequestCancelled();
+
           return;
         }
 
@@ -495,6 +687,7 @@ class _InstaWalkContainerState
 
         if (status == 'expired') {
           _finishSearch();
+
           return;
         }
       },
@@ -507,12 +700,57 @@ class _InstaWalkContainerState
   }
 
   // =========================================================
+  // WALKER ACCEPTED
+  // =========================================================
+
+  void _handleWalkerAccepted(
+    Map<String, dynamic> data,
+  ) {
+    _timer?.cancel();
+    _requestSubscription?.cancel();
+
+    // =======================================================
+    // RADAR OFF
+    // =======================================================
+
+    _radarController.stop();
+    _radarController.reset();
+
+    if (!mounted) {
+      return;
+    }
+
+    setState(() {
+      _searching = false;
+      _searchFinished = false;
+      _secondsLeft =
+          _searchDurationSeconds;
+    });
+
+    // =======================================================
+    // IMPORTANT
+    //
+    // Owner ko Walker ki information
+    // sirf ACCEPTED ke baad milegi.
+    // =======================================================
+
+    widget.onWalkerFound?.call();
+
+    _showMessage(
+      'Walker accepted your walk request.',
+    );
+  }
+
+  // =========================================================
   // FINISH SEARCH
   // =========================================================
 
   void _finishSearch() {
     _timer?.cancel();
     _requestSubscription?.cancel();
+
+    _radarController.stop();
+    _radarController.reset();
 
     if (!mounted) {
       return;
@@ -526,39 +764,15 @@ class _InstaWalkContainerState
   }
 
   // =========================================================
-  // WALKER ACCEPTED
-  // =========================================================
-
-  void _handleWalkerAccepted(
-    Map<String, dynamic> data,
-  ) {
-    _timer?.cancel();
-    _requestSubscription?.cancel();
-
-    if (!mounted) {
-      return;
-    }
-
-    setState(() {
-      _searching = false;
-      _searchFinished = false;
-      _secondsLeft = 120;
-    });
-
-    widget.onWalkerFound?.call();
-
-    _showMessage(
-      'Walker accepted your walk request.',
-    );
-  }
-
-  // =========================================================
   // REQUEST CANCELLED
   // =========================================================
 
   void _handleRequestCancelled() {
     _timer?.cancel();
     _requestSubscription?.cancel();
+
+    _radarController.stop();
+    _radarController.reset();
 
     if (!mounted) {
       return;
@@ -604,6 +818,9 @@ class _InstaWalkContainerState
             return;
           }
 
+          _radarController.stop();
+          _radarController.reset();
+
           setState(() {
             _searching = false;
             _searchFinished = true;
@@ -625,7 +842,8 @@ class _InstaWalkContainerState
   // =========================================================
 
   Future<void> _expireRequest() async {
-    final String? requestId = _requestId;
+    final String? requestId =
+        _requestId;
 
     if (requestId == null ||
         requestId.trim().isEmpty) {
@@ -690,7 +908,10 @@ class _InstaWalkContainerState
         FirebaseAuth.instance.currentUser;
 
     if (user == null) {
-      _showMessage('Please login first.');
+      _showMessage(
+        'Please login first.',
+      );
+
       return;
     }
 
@@ -727,7 +948,9 @@ class _InstaWalkContainerState
   // MESSAGE
   // =========================================================
 
-  void _showMessage(String message) {
+  void _showMessage(
+    String message,
+  ) {
     if (!mounted) {
       return;
     }
@@ -755,9 +978,12 @@ class _InstaWalkContainerState
   // =========================================================
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(
+    BuildContext context,
+  ) {
     return Padding(
-      padding: const EdgeInsets.fromLTRB(
+      padding:
+          const EdgeInsets.fromLTRB(
         20,
         18,
         20,
@@ -765,8 +991,10 @@ class _InstaWalkContainerState
       ),
       child: Container(
         width: double.infinity,
-        padding: const EdgeInsets.all(20),
-        decoration: BoxDecoration(
+        padding:
+            const EdgeInsets.all(20),
+        decoration:
+            BoxDecoration(
           gradient:
               const LinearGradient(
             colors: [
@@ -783,7 +1011,9 @@ class _InstaWalkContainerState
           boxShadow: [
             BoxShadow(
               color:
-                  Colors.black.withOpacity(.08),
+                  Colors.black.withValues(
+                alpha: .08,
+              ),
               blurRadius: 18,
               offset:
                   const Offset(0, 7),
@@ -807,7 +1037,9 @@ class _InstaWalkContainerState
                       BoxDecoration(
                     color:
                         Colors.white
-                            .withOpacity(.18),
+                            .withValues(
+                      alpha: .18,
+                    ),
                     borderRadius:
                         BorderRadius
                             .circular(16),
@@ -820,9 +1052,11 @@ class _InstaWalkContainerState
                     size: 29,
                   ),
                 ),
+
                 const SizedBox(
                   width: 13,
                 ),
+
                 const Expanded(
                   child: Column(
                     crossAxisAlignment:
@@ -901,11 +1135,13 @@ class _InstaWalkContainerState
     return SizedBox(
       width: double.infinity,
       height: 50,
-      child: ElevatedButton.icon(
+      child:
+          ElevatedButton.icon(
         onPressed:
             _checkingAddress
                 ? null
                 : _findWalker,
+
         icon: _checkingAddress
             ? const SizedBox(
                 height: 18,
@@ -923,30 +1159,39 @@ class _InstaWalkContainerState
             : const Icon(
                 Icons.search_rounded,
               ),
+
         label: Text(
           _checkingAddress
               ? 'Checking Address...'
               : 'Find a Walker',
-          style: const TextStyle(
+          style:
+              const TextStyle(
             fontWeight:
                 FontWeight.w800,
           ),
         ),
+
         style:
             ElevatedButton.styleFrom(
           backgroundColor:
               Colors.white,
           foregroundColor:
-              const Color(0xFFE45D32),
+              const Color(
+            0xFFE45D32,
+          ),
           disabledBackgroundColor:
               Colors.white,
           disabledForegroundColor:
-              const Color(0xFFE45D32),
+              const Color(
+            0xFFE45D32,
+          ),
           elevation: 0,
           shape:
               RoundedRectangleBorder(
             borderRadius:
-                BorderRadius.circular(15),
+                BorderRadius.circular(
+              15,
+            ),
           ),
         ),
       ),
@@ -975,9 +1220,11 @@ class _InstaWalkContainerState
                 ),
               ),
             ),
+
             const SizedBox(
               width: 10,
             ),
+
             const Expanded(
               child: Text(
                 'Searching for a walker...',
@@ -989,9 +1236,11 @@ class _InstaWalkContainerState
                 ),
               ),
             ),
+
             Text(
               _timerText(),
-              style: const TextStyle(
+              style:
+                  const TextStyle(
                 color:
                     Colors.white,
                 fontSize: 18,
@@ -1006,14 +1255,27 @@ class _InstaWalkContainerState
           height: 14,
         ),
 
+        // =====================================================
+        // MAP + RADAR
+        // =====================================================
+
+        if (_ownerPosition != null)
+          _searchMapRadar(),
+
+        const SizedBox(
+          height: 12,
+        ),
+
         Container(
           width: double.infinity,
           padding:
               const EdgeInsets.all(13),
           decoration:
               BoxDecoration(
-            color: Colors.white
-                .withOpacity(.13),
+            color:
+                Colors.white.withValues(
+              alpha: .13,
+            ),
             borderRadius:
                 BorderRadius.circular(
               14,
@@ -1050,14 +1312,16 @@ class _InstaWalkContainerState
         ),
 
         const SizedBox(
-          height: 12,
+          height: 10,
         ),
 
         Text(
           'Maximum search distance: 3 km',
           style: TextStyle(
-            color: Colors.white
-                .withOpacity(.75),
+            color:
+                Colors.white.withValues(
+              alpha: .75,
+            ),
             fontSize: 10,
           ),
         ),
@@ -1066,7 +1330,271 @@ class _InstaWalkContainerState
   }
 
   // =========================================================
-  // SEARCH FINISHED UI
+  // MAP + RADAR
+  // =========================================================
+
+  Widget _searchMapRadar() {
+    final Position? position =
+        _ownerPosition;
+
+    if (position == null) {
+      return const SizedBox.shrink();
+    }
+
+    final LatLng ownerPoint =
+        LatLng(
+      position.latitude,
+      position.longitude,
+    );
+
+    return ClipRRect(
+      borderRadius:
+          BorderRadius.circular(16),
+      child: SizedBox(
+        height: 145,
+        width: double.infinity,
+        child: Stack(
+          children: [
+            // =================================================
+            // MAP
+            // =================================================
+
+            FlutterMap(
+              options:
+                  MapOptions(
+                initialCenter:
+                    ownerPoint,
+                initialZoom: 14.5,
+                interactionOptions:
+                    const InteractionOptions(
+                  flags:
+                      InteractiveFlag.none,
+                ),
+              ),
+              children: [
+                TileLayer(
+                  urlTemplate:
+                      'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
+                  userAgentPackageName:
+                      'com.doojowalker.app',
+                ),
+
+                // ===========================================
+                // 3 KM SEARCH AREA
+                // ===========================================
+
+                CircleLayer(
+                  circles: [
+                    CircleMarker(
+                      point:
+                          ownerPoint,
+                      radius:
+                          3000,
+                      useRadiusInMeter:
+                          true,
+                      color:
+                          const Color(
+                        0xFFE45D32,
+                      ).withValues(
+                        alpha: .07,
+                      ),
+                      borderColor:
+                          const Color(
+                        0xFFE45D32,
+                      ).withValues(
+                        alpha: .45,
+                      ),
+                      borderStrokeWidth:
+                          1.5,
+                    ),
+                  ],
+                ),
+
+                // ===========================================
+                // OWNER MARKER
+                // ===========================================
+
+                MarkerLayer(
+                  markers: [
+                    Marker(
+                      point:
+                          ownerPoint,
+                      width: 34,
+                      height: 34,
+                      child:
+                          Container(
+                        decoration:
+                            BoxDecoration(
+                          color:
+                              const Color(
+                            0xFFE45D32,
+                          ),
+                          shape:
+                              BoxShape.circle,
+                          border:
+                              Border.all(
+                            color:
+                                Colors.white,
+                            width: 3,
+                          ),
+                          boxShadow: const [
+                            BoxShadow(
+                              color:
+                                  Colors.black26,
+                              blurRadius:
+                                  7,
+                            ),
+                          ],
+                        ),
+                        child:
+                            const Icon(
+                          Icons
+                              .home_rounded,
+                          color:
+                              Colors.white,
+                          size: 17,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+
+            // =================================================
+            // RADAR ANIMATION
+            // =================================================
+
+            Positioned.fill(
+              child:
+                  IgnorePointer(
+                child:
+                    AnimatedBuilder(
+                  animation:
+                      _radarController,
+                  builder:
+                      (
+                    BuildContext context,
+                    Widget? child,
+                  ) {
+                    return CustomPaint(
+                      painter:
+                          _RadarPainter(
+                        progress:
+                            _radarController
+                                .value,
+                      ),
+                    );
+                  },
+                ),
+              ),
+            ),
+
+            // =================================================
+            // SEARCHING LABEL
+            // =================================================
+
+            Positioned(
+              left: 10,
+              top: 9,
+              child: Container(
+                padding:
+                    const EdgeInsets
+                        .symmetric(
+                  horizontal: 10,
+                  vertical: 6,
+                ),
+                decoration:
+                    BoxDecoration(
+                  color:
+                      Colors.black
+                          .withValues(
+                    alpha: .55,
+                  ),
+                  borderRadius:
+                      BorderRadius.circular(
+                    20,
+                  ),
+                ),
+                child:
+                    const Row(
+                  mainAxisSize:
+                      MainAxisSize.min,
+                  children: [
+                    Icon(
+                      Icons
+                          .radar_rounded,
+                      color:
+                          Colors.white,
+                      size: 15,
+                    ),
+                    SizedBox(
+                      width: 5,
+                    ),
+                    Text(
+                      'Searching nearby',
+                      style:
+                          TextStyle(
+                        color:
+                            Colors.white,
+                        fontSize: 10,
+                        fontWeight:
+                            FontWeight.w700,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+
+            // =================================================
+            // 3 KM LABEL
+            // =================================================
+
+            Positioned(
+              right: 10,
+              bottom: 9,
+              child: Container(
+                padding:
+                    const EdgeInsets
+                        .symmetric(
+                  horizontal: 9,
+                  vertical: 5,
+                ),
+                decoration:
+                    BoxDecoration(
+                  color:
+                      Colors.white
+                          .withValues(
+                    alpha: .92,
+                  ),
+                  borderRadius:
+                      BorderRadius.circular(
+                    15,
+                  ),
+                ),
+                child:
+                    const Text(
+                  'Within 3 km',
+                  style:
+                      TextStyle(
+                    fontSize: 10,
+                    fontWeight:
+                        FontWeight.w800,
+                    color:
+                        Color(0xFF263746),
+                  ),
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  // =========================================================
+  // SEARCH FINISHED
   // =========================================================
 
   Widget _retryContainer() {
@@ -1114,7 +1642,8 @@ class _InstaWalkContainerState
               Icons
                   .refresh_rounded,
             ),
-            label: const Text(
+            label:
+                const Text(
               'Re-search',
               style:
                   TextStyle(
@@ -1142,5 +1671,141 @@ class _InstaWalkContainerState
         ),
       ],
     );
+  }
+}
+
+// ================================================================
+// RADAR PAINTER
+// ================================================================
+
+class _RadarPainter
+    extends CustomPainter {
+  final double progress;
+
+  _RadarPainter({
+    required this.progress,
+  });
+
+  @override
+  void paint(
+    Canvas canvas,
+    Size size,
+  ) {
+    final Offset center =
+        Offset(
+      size.width / 2,
+      size.height / 2,
+    );
+
+    final double maxRadius =
+        math.min(
+              size.width,
+              size.height,
+            ) *
+            .43;
+
+    // ==========================================================
+    // RADAR RINGS
+    // ==========================================================
+
+    final Paint ringPaint =
+        Paint()
+          ..style =
+              PaintingStyle.stroke
+          ..strokeWidth = 1
+          ..color =
+              const Color(
+            0xFFE45D32,
+          ).withValues(
+            alpha: .28,
+          );
+
+    for (int i = 1; i <= 3; i++) {
+      canvas.drawCircle(
+        center,
+        maxRadius * i / 3,
+        ringPaint,
+      );
+    }
+
+    // ==========================================================
+    // PULSE
+    // ==========================================================
+
+    final double pulseRadius =
+        maxRadius *
+            (0.35 +
+                progress * .65);
+
+    final Paint pulsePaint =
+        Paint()
+          ..style =
+              PaintingStyle.stroke
+          ..strokeWidth = 2
+          ..color =
+              const Color(
+            0xFFE45D32,
+          ).withValues(
+            alpha:
+                (1 - progress) *
+                    .45,
+          );
+
+    canvas.drawCircle(
+      center,
+      pulseRadius,
+      pulsePaint,
+    );
+
+    // ==========================================================
+    // SWEEP
+    // ==========================================================
+
+    final double sweepAngle =
+        progress *
+            math.pi *
+            2;
+
+    final Paint sweepPaint =
+        Paint()
+          ..shader =
+              SweepGradient(
+            startAngle:
+                sweepAngle - .9,
+            endAngle:
+                sweepAngle,
+            colors: [
+              const Color(
+                0xFFE45D32,
+              ).withValues(
+                alpha: 0,
+              ),
+              const Color(
+                0xFFE45D32,
+              ).withValues(
+                alpha: .38,
+              ),
+            ],
+          ).createShader(
+            Rect.fromCircle(
+              center: center,
+              radius:
+                  maxRadius,
+            ),
+          );
+
+    canvas.drawCircle(
+      center,
+      maxRadius,
+      sweepPaint,
+    );
+  }
+
+  @override
+  bool shouldRepaint(
+    covariant _RadarPainter oldDelegate,
+  ) {
+    return oldDelegate.progress !=
+        progress;
   }
 }
