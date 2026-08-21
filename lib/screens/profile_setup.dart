@@ -2,10 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 
 import '../models/pet_data.dart';
-import '../services/profile_setup_service.dart';
 import '../screens/main_navigation_screen.dart';
 
 import '../features/profile_setup/profile_setup_data.dart';
+import '../features/profile_setup/services/profile_setup_service.dart';
 
 import '../features/profile_setup/widgets/profile_welcome_card.dart';
 import '../features/profile_setup/widgets/profile_section_card.dart';
