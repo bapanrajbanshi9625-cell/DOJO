@@ -16,14 +16,21 @@ import 'insta_walk_searching.dart';
 class InstaWalkContainer extends StatefulWidget {
   final VoidCallback? onWalkerFound;
 
-  /// false = Home compact card
-  /// true  = Full Insta Walk screen
+  /// Home compact mode:
+  /// false = small premium Insta Walk patti
+  ///
+  /// Full screen mode:
+  /// true = complete Insta Walk interface
   final bool fullScreen;
+
+  /// Called when compact Home patti is tapped.
+  final VoidCallback? onTap;
 
   const InstaWalkContainer({
     super.key,
     this.onWalkerFound,
     this.fullScreen = false,
+    this.onTap,
   });
 
   @override
@@ -41,7 +48,7 @@ class _InstaWalkContainerState
   late final InstaWalkSearchService _service;
 
   // ==========================================================
-  // TIMERS
+  // TIMER
   // ==========================================================
 
   Timer? _timer;
@@ -53,7 +60,7 @@ class _InstaWalkContainerState
   late final AnimationController _radarController;
 
   // ==========================================================
-  // UI STATE
+  // SEARCH STATE
   // ==========================================================
 
   bool _searching = false;
@@ -74,13 +81,13 @@ class _InstaWalkContainerState
   String? _requestId;
 
   // ==========================================================
-  // OWNER LOCATION
+  // LOCATION
   // ==========================================================
 
   Position? _ownerPosition;
 
   // ==========================================================
-  // OWNER / PET
+  // PET
   // ==========================================================
 
   String _petName = 'Your Pet';
@@ -104,9 +111,7 @@ class _InstaWalkContainerState
 
     _radarController = AnimationController(
       vsync: this,
-      duration: const Duration(
-        seconds: 2,
-      ),
+      duration: const Duration(seconds: 2),
     );
 
     _recoverSearch();
@@ -119,9 +124,7 @@ class _InstaWalkContainerState
   @override
   void dispose() {
     _timer?.cancel();
-
     _service.dispose();
-
     _radarController.dispose();
 
     super.dispose();
@@ -136,18 +139,18 @@ class _InstaWalkContainerState
         FirebaseAuth.instance.currentUser;
 
     if (user == null) {
-      if (mounted) {
-        setState(() {
-          _recovering = false;
-        });
-      }
+      if (!mounted) return;
+
+      setState(() {
+        _recovering = false;
+      });
 
       return;
     }
 
     try {
       // ======================================================
-      // FIND OWNER PROFILE
+      // OWNER PROFILE
       // ======================================================
 
       final QueryDocumentSnapshot<
@@ -207,7 +210,7 @@ class _InstaWalkContainerState
       }
 
       // ======================================================
-      // FIND ACTIVE FIRESTORE REQUEST
+      // ACTIVE REQUEST
       // ======================================================
 
       final InstaWalkRequestState? active =
@@ -230,7 +233,7 @@ class _InstaWalkContainerState
       }
 
       // ======================================================
-      // ACTIVE SEARCH
+      // SEARCHING REQUEST
       // ======================================================
 
       if (active.isSearching) {
@@ -251,7 +254,7 @@ class _InstaWalkContainerState
         }
 
         // ====================================================
-        // CALCULATE REAL REMAINING TIME
+        // REAL REMAINING TIME
         // ====================================================
 
         Duration remaining =
@@ -273,23 +276,21 @@ class _InstaWalkContainerState
         );
 
         // ====================================================
-        // STORE RECOVERED STATE
+        // SAVE STATE
         // ====================================================
 
         _requestId = requestId;
 
         _currentDuration = remaining;
 
-        _ownerPosition =
-            recoveredPosition;
+        _ownerPosition = recoveredPosition;
 
         setState(() {
           _recovering = false;
           _searching = true;
           _searchFinished = false;
           _checkingAddress = false;
-          _secondsLeft =
-              remaining.inSeconds;
+          _secondsLeft = remaining.inSeconds;
         });
 
         // ====================================================
@@ -299,7 +300,7 @@ class _InstaWalkContainerState
         _radarController.repeat();
 
         // ====================================================
-        // FIRESTORE LISTENER
+        // LISTENER
         // ====================================================
 
         await _service.listenForRequest(
@@ -310,8 +311,7 @@ class _InstaWalkContainerState
           },
           onCancelled: () {
             _finishSearch(
-              message:
-                  'Walk request was cancelled.',
+              message: 'Walk request was cancelled.',
             );
           },
           onError: (Object error) {
@@ -322,10 +322,6 @@ class _InstaWalkContainerState
         );
 
         if (!mounted) return;
-
-        // ====================================================
-        // START RECOVERED TIMER
-        // ====================================================
 
         _startTimer();
 
@@ -398,10 +394,7 @@ class _InstaWalkContainerState
         FirebaseAuth.instance.currentUser;
 
     if (user == null) {
-      _message(
-        'Please login first.',
-      );
-
+      _message('Please login first.');
       return;
     }
 
@@ -454,9 +447,7 @@ class _InstaWalkContainerState
           _checkingAddress = false;
         });
 
-        _message(
-          'Owner ID not found.',
-        );
+        _message('Owner ID not found.');
 
         return;
       }
@@ -511,10 +502,6 @@ class _InstaWalkContainerState
         setState(() {
           _checkingAddress = false;
         });
-
-        // ====================================================
-        // TRY AGAIN AFTER ADDRESS SETUP
-        // ====================================================
 
         return;
       }
@@ -677,7 +664,7 @@ class _InstaWalkContainerState
     }
 
     // ========================================================
-    // SAVE REQUEST
+    // REQUEST
     // ========================================================
 
     _requestId =
@@ -685,12 +672,10 @@ class _InstaWalkContainerState
 
     _currentDuration =
         result.duration ??
-            InstaWalkSearchService
-                .normalSearchDuration;
+            InstaWalkSearchService.normalSearchDuration;
 
     Duration remaining =
-        result.expiresAt!
-            .difference(
+        result.expiresAt!.difference(
       DateTime.now(),
     );
 
@@ -699,15 +684,14 @@ class _InstaWalkContainerState
     }
 
     // ========================================================
-    // UI
+    // STATE
     // ========================================================
 
     setState(() {
       _checkingAddress = false;
       _searching = true;
       _searchFinished = false;
-      _secondsLeft =
-          remaining.inSeconds;
+      _secondsLeft = remaining.inSeconds;
     });
 
     // ========================================================
@@ -717,7 +701,7 @@ class _InstaWalkContainerState
     _radarController.repeat();
 
     // ========================================================
-    // FIRESTORE LISTENER
+    // LISTENER
     // ========================================================
 
     await _service.listenForRequest(
@@ -728,8 +712,7 @@ class _InstaWalkContainerState
       },
       onCancelled: () {
         _finishSearch(
-          message:
-              'Walk request was cancelled.',
+          message: 'Walk request was cancelled.',
         );
       },
       onError: (Object error) {
@@ -758,8 +741,7 @@ class _InstaWalkContainerState
     _timer = Timer.periodic(
       const Duration(seconds: 1),
       (timer) async {
-        if (!mounted ||
-            !_searching) {
+        if (!mounted || !_searching) {
           timer.cancel();
           return;
         }
@@ -767,8 +749,7 @@ class _InstaWalkContainerState
         if (_secondsLeft <= 1) {
           timer.cancel();
 
-          final String? id =
-              _requestId;
+          final String? id = _requestId;
 
           if (id != null &&
               id.trim().isNotEmpty) {
@@ -824,7 +805,7 @@ class _InstaWalkContainerState
   }
 
   // ==========================================================
-  // FINISH
+  // FINISH SEARCH
   // ==========================================================
 
   void _finishSearch({
@@ -886,9 +867,7 @@ class _InstaWalkContainerState
   // MESSAGE
   // ==========================================================
 
-  void _message(
-    String text,
-  ) {
+  void _message(String text) {
     if (!mounted) return;
 
     ScaffoldMessenger.of(context)
@@ -896,14 +875,10 @@ class _InstaWalkContainerState
       ..showSnackBar(
         SnackBar(
           content: Text(text),
-          behavior:
-              SnackBarBehavior.floating,
-          margin:
-              const EdgeInsets.all(16),
-          shape:
-              RoundedRectangleBorder(
-            borderRadius:
-                BorderRadius.circular(14),
+          behavior: SnackBarBehavior.floating,
+          margin: const EdgeInsets.all(16),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(14),
           ),
         ),
       );
@@ -918,8 +893,7 @@ class _InstaWalkContainerState
     List<String> keys,
   ) {
     for (final String key in keys) {
-      final dynamic value =
-          data[key];
+      final dynamic value = data[key];
 
       if (value == null) {
         continue;
@@ -973,81 +947,230 @@ class _InstaWalkContainerState
   // ==========================================================
 
   @override
-  Widget build(
-    BuildContext context,
-  ) {
-    return Padding(
-      padding: widget.fullScreen
-          ? const EdgeInsets.fromLTRB(
-              16,
-              12,
-              16,
-              20,
-            )
-          : const EdgeInsets.fromLTRB(
-              20,
-              18,
-              20,
-              8,
+  Widget build(BuildContext context) {
+    // ========================================================
+    // FULL SCREEN
+    // ========================================================
+
+    if (widget.fullScreen) {
+      return _buildFullScreen();
+    }
+
+    // ========================================================
+    // COMPACT HOME PATTI
+    // ========================================================
+
+    return _buildCompactPatti();
+  }
+
+  // ==========================================================
+  // COMPACT HOME PATTI
+  // ==========================================================
+
+  Widget _buildCompactPatti() {
+    final Widget patti = Container(
+      width: double.infinity,
+      height: 68,
+      padding: const EdgeInsets.symmetric(
+        horizontal: 15,
+      ),
+      decoration: BoxDecoration(
+        gradient: const LinearGradient(
+          colors: [
+            Color(0xFF243746),
+            Color(0xFF304E5A),
+            Color(0xFF376A70),
+          ],
+          begin: Alignment.centerLeft,
+          end: Alignment.centerRight,
+        ),
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(
+          color: const Color(0xFF65D6C8)
+              .withValues(alpha: .20),
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(
+              alpha: .10,
             ),
+            blurRadius: 16,
+            offset: const Offset(0, 6),
+          ),
+        ],
+      ),
+      child: Row(
+        children: [
+          // ==================================================
+          // ICON
+          // ==================================================
+
+          Container(
+            width: 40,
+            height: 40,
+            decoration: BoxDecoration(
+              color: const Color(0xFF65D6C8)
+                  .withValues(alpha: .14),
+              shape: BoxShape.circle,
+              border: Border.all(
+                color: const Color(0xFF65D6C8)
+                    .withValues(alpha: .20),
+              ),
+            ),
+            child: const Icon(
+              Icons.flash_on_rounded,
+              color: Color(0xFF8FFFEF),
+              size: 21,
+            ),
+          ),
+
+          const SizedBox(width: 11),
+
+          // ==================================================
+          // PET
+          // ==================================================
+
+          Expanded(
+            child: Column(
+              mainAxisAlignment:
+                  MainAxisAlignment.center,
+              crossAxisAlignment:
+                  CrossAxisAlignment.start,
+              children: [
+                const Text(
+                  'Insta Walk',
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontSize: 14,
+                    fontWeight: FontWeight.w900,
+                  ),
+                ),
+
+                const SizedBox(height: 3),
+
+                Text(
+                  _searching
+                      ? 'Finding walker for $_petName'
+                      : _petName,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(
+                    color: Colors.white70,
+                    fontSize: 11,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ],
+            ),
+          ),
+
+          const SizedBox(width: 8),
+
+          // ==================================================
+          // STATUS
+          // ==================================================
+
+          if (_searching)
+            Container(
+              padding: const EdgeInsets.symmetric(
+                horizontal: 8,
+                vertical: 5,
+              ),
+              decoration: BoxDecoration(
+                color: const Color(0xFF65D6C8)
+                    .withValues(alpha: .14),
+                borderRadius:
+                    BorderRadius.circular(20),
+              ),
+              child: const Text(
+                'LIVE',
+                style: TextStyle(
+                  color: Color(0xFF8FFFEF),
+                  fontSize: 8,
+                  fontWeight: FontWeight.w900,
+                ),
+              ),
+            )
+          else
+            const Icon(
+              Icons.chevron_right_rounded,
+              color: Colors.white70,
+              size: 23,
+            ),
+        ],
+      ),
+    );
+
+    if (widget.onTap == null) {
+      return patti;
+    }
+
+    return GestureDetector(
+      onTap: widget.onTap,
+      behavior: HitTestBehavior.opaque,
+      child: patti,
+    );
+  }
+
+  // ==========================================================
+  // FULL SCREEN
+  // ==========================================================
+
+  Widget _buildFullScreen() {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(
+        16,
+        8,
+        16,
+        20,
+      ),
       child: Container(
         width: double.infinity,
-        padding: const EdgeInsets.all(
-          20,
-        ),
+        padding: const EdgeInsets.all(20),
         decoration: BoxDecoration(
-          gradient:
-              const LinearGradient(
+          gradient: const LinearGradient(
             colors: [
               Color(0xFF243746),
               Color(0xFF304E5A),
               Color(0xFF376A70),
             ],
-            begin:
-                Alignment.topLeft,
-            end:
-                Alignment.bottomRight,
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
           ),
-          borderRadius:
-              BorderRadius.circular(25),
+          borderRadius: BorderRadius.circular(25),
           border: Border.all(
-            color:
-                const Color(0xFF65D6C8)
-                    .withValues(
-              alpha: .18,
-            ),
+            color: const Color(0xFF65D6C8)
+                .withValues(alpha: .18),
           ),
           boxShadow: [
             BoxShadow(
-              color:
-                  Colors.black.withValues(
+              color: Colors.black.withValues(
                 alpha: .10,
               ),
               blurRadius: 20,
-              offset:
-                  const Offset(0, 8),
+              offset: const Offset(0, 8),
             ),
           ],
         ),
-        child: _buildContent(),
+        child: _buildFullScreenContent(),
       ),
     );
   }
 
   // ==========================================================
-  // CONTENT
+  // FULL SCREEN CONTENT
   // ==========================================================
 
-  Widget _buildContent() {
+  Widget _buildFullScreenContent() {
     if (_recovering) {
       return const SizedBox(
-        height: 150,
+        height: 180,
         child: Center(
-          child:
-              CircularProgressIndicator(
+          child: CircularProgressIndicator(
             strokeWidth: 2.5,
-            color:
-                Color(0xFF65D6C8),
+            color: Color(0xFF65D6C8),
           ),
         ),
       );
@@ -1059,26 +1182,20 @@ class _InstaWalkContainerState
       children: [
         _header(),
 
-        const SizedBox(
-          height: 15,
-        ),
+        const SizedBox(height: 16),
 
         Text(
           _searching
               ? 'Searching available walkers near your current location.'
               : 'Find an available walker nearby instantly.',
-          style:
-              const TextStyle(
-            color:
-                Colors.white70,
-            fontSize: 12.5,
-            height: 1.45,
+          style: const TextStyle(
+            color: Colors.white70,
+            fontSize: 13,
+            height: 1.5,
           ),
         ),
 
-        const SizedBox(
-          height: 16,
-        ),
+        const SizedBox(height: 20),
 
         // ====================================================
         // SEARCH BUTTON
@@ -1086,17 +1203,17 @@ class _InstaWalkContainerState
 
         if (!_searching &&
             !_searchFinished)
-          InstaWalkSearchButton(
-            loading:
-                _checkingAddress,
-            text:
-                _checkingAddress
-                    ? 'Checking location...'
-                    : 'Find a Walker Now',
-            onPressed:
-                _checkingAddress
-                    ? null
-                    : _findWalker,
+          SizedBox(
+            width: double.infinity,
+            child: InstaWalkSearchButton(
+              loading: _checkingAddress,
+              text: _checkingAddress
+                  ? 'Checking location...'
+                  : 'Find a Walker Now',
+              onPressed: _checkingAddress
+                  ? null
+                  : _findWalker,
+            ),
           ),
 
         // ====================================================
@@ -1112,8 +1229,7 @@ class _InstaWalkContainerState
 
         if (_searchFinished)
           InstaWalkRetry(
-            onRetry:
-                _retrySearch,
+            onRetry: _retrySearch,
           ),
       ],
     );
@@ -1124,91 +1240,62 @@ class _InstaWalkContainerState
   // ==========================================================
 
   Widget _buildSearching() {
-    // If location snapshot is available,
-    // show the existing map/radar widget.
     if (_ownerPosition != null) {
       return InstaWalkSearching(
-        timerText:
-            _timerText(),
-        map:
-            InstaWalkMapRadar(
+        timerText: _timerText(),
+        map: InstaWalkMapRadar(
           ownerPoint: LatLng(
-            _ownerPosition!
-                .latitude,
-            _ownerPosition!
-                .longitude,
+            _ownerPosition!.latitude,
+            _ownerPosition!.longitude,
           ),
           searchRadiusKm:
-              InstaWalkSearchService
-                  .searchRadiusKm,
+              InstaWalkSearchService.searchRadiusKm,
           radarAnimation:
               _radarController,
         ),
       );
     }
 
-    // ========================================================
-    // FALLBACK
-    //
-    // This protects the UI if an old Firestore request does
-    // not contain ownerLocation.
-    // ========================================================
-
     return Container(
       width: double.infinity,
-      padding:
-          const EdgeInsets.all(20),
+      padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
-        color:
-            Colors.black.withValues(
+        color: Colors.black.withValues(
           alpha: .12,
         ),
-        borderRadius:
-            BorderRadius.circular(18),
+        borderRadius: BorderRadius.circular(18),
       ),
       child: Column(
         children: [
           const SizedBox(
             width: 52,
             height: 52,
-            child:
-                CircularProgressIndicator(
+            child: CircularProgressIndicator(
               strokeWidth: 3,
-              color:
-                  Color(0xFF65D6C8),
+              color: Color(0xFF65D6C8),
             ),
           ),
 
-          const SizedBox(
-            height: 14,
-          ),
+          const SizedBox(height: 14),
 
           Text(
             'Searching nearby walkers',
-            textAlign:
-                TextAlign.center,
-            style:
-                const TextStyle(
+            textAlign: TextAlign.center,
+            style: const TextStyle(
               color: Colors.white,
               fontSize: 15,
-              fontWeight:
-                  FontWeight.w800,
+              fontWeight: FontWeight.w800,
             ),
           ),
 
-          const SizedBox(
-            height: 6,
-          ),
+          const SizedBox(height: 6),
 
           Text(
             _timerText(),
-            style:
-                const TextStyle(
-              color:
-                  Color(0xFF8FFFEF),
+            style: const TextStyle(
+              color: Color(0xFF8FFFEF),
               fontSize: 22,
-              fontWeight:
-                  FontWeight.w900,
+              fontWeight: FontWeight.w900,
             ),
           ),
         ],
@@ -1226,66 +1313,47 @@ class _InstaWalkContainerState
         Container(
           width: 52,
           height: 52,
-          decoration:
-              BoxDecoration(
-            gradient:
-                const LinearGradient(
+          decoration: BoxDecoration(
+            gradient: const LinearGradient(
               colors: [
                 Color(0xFF65D6C8),
                 Color(0xFF8FFFEF),
               ],
             ),
             borderRadius:
-                BorderRadius.circular(
-              17,
-            ),
+                BorderRadius.circular(17),
             boxShadow: [
               BoxShadow(
-                color:
-                    const Color(
-                  0xFF65D6C8,
-                ).withValues(
-                  alpha: .25,
-                ),
+                color: const Color(0xFF65D6C8)
+                    .withValues(alpha: .25),
                 blurRadius: 12,
               ),
             ],
           ),
-          child:
-              const Icon(
+          child: const Icon(
             Icons.flash_on_rounded,
-            color:
-                Color(0xFF243746),
+            color: Color(0xFF243746),
             size: 29,
           ),
         ),
 
-        const SizedBox(
-          width: 13,
-        ),
+        const SizedBox(width: 13),
 
         Expanded(
-          child:
-              Column(
+          child: Column(
             crossAxisAlignment:
-                CrossAxisAlignment
-                    .start,
+                CrossAxisAlignment.start,
             children: [
               const Text(
                 'Insta Walk',
-                style:
-                    TextStyle(
-                  color:
-                      Colors.white,
+                style: TextStyle(
+                  color: Colors.white,
                   fontSize: 21,
-                  fontWeight:
-                      FontWeight.w900,
+                  fontWeight: FontWeight.w900,
                 ),
               ),
 
-              const SizedBox(
-                height: 3,
-              ),
+              const SizedBox(height: 3),
 
               Text(
                 _searching
@@ -1293,15 +1361,11 @@ class _InstaWalkContainerState
                     : 'Find a walker right now',
                 maxLines: 1,
                 overflow:
-                    TextOverflow
-                        .ellipsis,
-                style:
-                    const TextStyle(
-                  color:
-                      Colors.white60,
+                    TextOverflow.ellipsis,
+                style: const TextStyle(
+                  color: Colors.white60,
                   fontSize: 12,
-                  fontWeight:
-                      FontWeight.w500,
+                  fontWeight: FontWeight.w500,
                 ),
               ),
             ],
@@ -1309,74 +1373,47 @@ class _InstaWalkContainerState
         ),
 
         Container(
-          padding:
-              const EdgeInsets
-                  .symmetric(
+          padding: const EdgeInsets.symmetric(
             horizontal: 9,
             vertical: 6,
           ),
-          decoration:
-              BoxDecoration(
-            color:
-                const Color(
-              0xFF65D6C8,
-            ).withValues(
-              alpha: .12,
-            ),
+          decoration: BoxDecoration(
+            color: const Color(0xFF65D6C8)
+                .withValues(alpha: .12),
             borderRadius:
-                BorderRadius.circular(
-              20,
-            ),
-            border:
-                Border.all(
-              color:
-                  const Color(
-                0xFF65D6C8,
-              ).withValues(
-                alpha: .25,
-              ),
+                BorderRadius.circular(20),
+            border: Border.all(
+              color: const Color(0xFF65D6C8)
+                  .withValues(alpha: .25),
             ),
           ),
-          child:
-              Row(
+          child: Row(
             mainAxisSize:
                 MainAxisSize.min,
             children: [
               Container(
                 width: 8,
                 height: 8,
-                decoration:
-                    BoxDecoration(
-                  color:
-                      _searching
-                          ? const Color(
-                              0xFF65D6C8,
-                            )
-                          : Colors.white54,
-                  shape:
-                      BoxShape.circle,
+                decoration: BoxDecoration(
+                  color: _searching
+                      ? const Color(0xFF65D6C8)
+                      : Colors.white54,
+                  shape: BoxShape.circle,
                 ),
               ),
 
-              const SizedBox(
-                width: 5,
-              ),
+              const SizedBox(width: 5),
 
               Text(
                 _searching
                     ? 'LIVE'
                     : 'READY',
-                style:
-                    TextStyle(
-                  color:
-                      _searching
-                          ? const Color(
-                              0xFF8FFFEF,
-                            )
-                          : Colors.white70,
+                style: TextStyle(
+                  color: _searching
+                      ? const Color(0xFF8FFFEF)
+                      : Colors.white70,
                   fontSize: 9,
-                  fontWeight:
-                      FontWeight.w900,
+                  fontWeight: FontWeight.w900,
                 ),
               ),
             ],
