@@ -6,7 +6,6 @@ import 'package:flutter/material.dart';
 import '../core/constants/app_colors.dart';
 import '../features/home/services/home_live_walk_service.dart';
 import '../features/home/widgets/home_live_walk_bar.dart';
-import '../features/walks/walks_screen.dart';
 import 'home_screen.dart';
 import 'live_walk_screen.dart';
 import 'menu_screen.dart';
