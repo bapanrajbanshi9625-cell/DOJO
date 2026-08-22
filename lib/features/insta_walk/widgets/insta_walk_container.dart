@@ -1,3 +1,6 @@
+// File location:
+// lib/features/insta_walk/widgets/insta_walk_container.dart
+
 import 'dart:async';
 
 import 'package:cloud_firestore/cloud_firestore.dart';
@@ -16,19 +19,24 @@ import 'insta_walk_searching.dart';
 class InstaWalkContainer extends StatefulWidget {
   final VoidCallback? onWalkerFound;
 
-  /// Home compact mode:
-  /// false = small premium Insta Walk patti
+  /// Called whenever Insta Walk becomes:
   ///
-  /// Full screen mode:
+  /// true  = searching / accepted / active
+  /// false = finished / cancelled / expired / inactive
+  final ValueChanged<bool>? onActiveChanged;
+
+  /// false = compact navigation-bar patti
+  ///
   /// true = complete Insta Walk interface
   final bool fullScreen;
 
-  /// Called when compact Home patti is tapped.
+  /// Called when compact Insta Walk patti is tapped.
   final VoidCallback? onTap;
 
   const InstaWalkContainer({
     super.key,
     this.onWalkerFound,
+    this.onActiveChanged,
     this.fullScreen = false,
     this.onTap,
   });
@@ -67,6 +75,12 @@ class _InstaWalkContainerState
   bool _searchFinished = false;
   bool _checkingAddress = false;
   bool _recovering = true;
+
+  // ==========================================================
+  // ACTIVE STATE
+  // ==========================================================
+
+  bool _activeReported = false;
 
   // ==========================================================
   // TIMER STATE
@@ -131,6 +145,20 @@ class _InstaWalkContainerState
   }
 
   // ==========================================================
+  // ACTIVE STATE REPORTER
+  // ==========================================================
+
+  void _setActive(bool active) {
+    if (_activeReported == active) {
+      return;
+    }
+
+    _activeReported = active;
+
+    widget.onActiveChanged?.call(active);
+  }
+
+  // ==========================================================
   // RECOVER ACTIVE INSTA WALK
   // ==========================================================
 
@@ -144,6 +172,8 @@ class _InstaWalkContainerState
       setState(() {
         _recovering = false;
       });
+
+      _setActive(false);
 
       return;
     }
@@ -163,6 +193,8 @@ class _InstaWalkContainerState
         setState(() {
           _recovering = false;
         });
+
+        _setActive(false);
 
         return;
       }
@@ -206,6 +238,8 @@ class _InstaWalkContainerState
           _recovering = false;
         });
 
+        _setActive(false);
+
         return;
       }
 
@@ -227,7 +261,11 @@ class _InstaWalkContainerState
       if (active == null) {
         setState(() {
           _recovering = false;
+          _searching = false;
+          _searchFinished = false;
         });
+
+        _setActive(false);
 
         return;
       }
@@ -250,6 +288,8 @@ class _InstaWalkContainerState
             _recovering = false;
           });
 
+          _setActive(false);
+
           return;
         }
 
@@ -264,6 +304,29 @@ class _InstaWalkContainerState
 
         if (remaining.isNegative) {
           remaining = Duration.zero;
+        }
+
+        // ====================================================
+        // EXPIRED ALREADY
+        // ====================================================
+
+        if (remaining.inSeconds <= 0) {
+          await _service.expireRequest(
+            requestId: requestId,
+          );
+
+          if (!mounted) return;
+
+          setState(() {
+            _recovering = false;
+            _searching = false;
+            _searchFinished = false;
+            _secondsLeft = 0;
+          });
+
+          _setActive(false);
+
+          return;
         }
 
         // ====================================================
@@ -292,6 +355,13 @@ class _InstaWalkContainerState
           _checkingAddress = false;
           _secondsLeft = remaining.inSeconds;
         });
+
+        // ====================================================
+        // IMPORTANT:
+        // ACTIVE = TRUE
+        // ====================================================
+
+        _setActive(true);
 
         // ====================================================
         // RADAR
@@ -329,7 +399,7 @@ class _InstaWalkContainerState
       }
 
       // ======================================================
-      // ACCEPTED
+      // ACCEPTED / ACTIVE
       // ======================================================
 
       if (active.isAccepted) {
@@ -354,6 +424,13 @@ class _InstaWalkContainerState
           _secondsLeft = 0;
         });
 
+        // ====================================================
+        // IMPORTANT:
+        // ACCEPTED = ACTIVE
+        // ====================================================
+
+        _setActive(true);
+
         widget.onWalkerFound?.call();
 
         return;
@@ -366,6 +443,8 @@ class _InstaWalkContainerState
       setState(() {
         _recovering = false;
       });
+
+      _setActive(false);
     } catch (e) {
       debugPrint(
         'Insta Walk recovery error: $e',
@@ -376,6 +455,8 @@ class _InstaWalkContainerState
       setState(() {
         _recovering = false;
       });
+
+      _setActive(false);
     }
   }
 
@@ -474,7 +555,7 @@ class _InstaWalkContainerState
       // ADDRESS
       // ======================================================
 
-      String address =
+      final String address =
           _readFirstString(
         data,
         const [
@@ -655,6 +736,8 @@ class _InstaWalkContainerState
         _searching = false;
       });
 
+      _setActive(false);
+
       _message(
         result.message ??
             'Unable to start search.',
@@ -695,6 +778,13 @@ class _InstaWalkContainerState
     });
 
     // ========================================================
+    // IMPORTANT:
+    // SEARCH STARTED = ACTIVE
+    // ========================================================
+
+    _setActive(true);
+
+    // ========================================================
     // RADAR
     // ========================================================
 
@@ -723,10 +813,6 @@ class _InstaWalkContainerState
     );
 
     if (!mounted) return;
-
-    // ========================================================
-    // TIMER
-    // ========================================================
 
     _startTimer();
   }
@@ -792,6 +878,12 @@ class _InstaWalkContainerState
       _secondsLeft = 0;
     });
 
+    // ========================================================
+    // ACCEPTED = STILL ACTIVE
+    // ========================================================
+
+    _setActive(true);
+
     widget.onWalkerFound?.call();
 
     final String name =
@@ -823,6 +915,12 @@ class _InstaWalkContainerState
       _searchFinished = true;
       _secondsLeft = 0;
     });
+
+    // ========================================================
+    // FINISHED = HIDE PATTI
+    // ========================================================
+
+    _setActive(false);
 
     _message(
       message ??
@@ -948,23 +1046,15 @@ class _InstaWalkContainerState
 
   @override
   Widget build(BuildContext context) {
-    // ========================================================
-    // FULL SCREEN
-    // ========================================================
-
     if (widget.fullScreen) {
       return _buildFullScreen();
     }
-
-    // ========================================================
-    // COMPACT HOME PATTI
-    // ========================================================
 
     return _buildCompactPatti();
   }
 
   // ==========================================================
-  // COMPACT HOME PATTI
+  // COMPACT NAVIGATION PATTI
   // ==========================================================
 
   Widget _buildCompactPatti() {
@@ -1027,7 +1117,7 @@ class _InstaWalkContainerState
           const SizedBox(width: 11),
 
           // ==================================================
-          // PET
+          // CONTENT
           // ==================================================
 
           Expanded(
@@ -1040,7 +1130,8 @@ class _InstaWalkContainerState
                 const Text(
                   'Insta Walk',
                   maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
+                  overflow:
+                      TextOverflow.ellipsis,
                   style: TextStyle(
                     color: Colors.white,
                     fontSize: 14,
@@ -1053,9 +1144,10 @@ class _InstaWalkContainerState
                 Text(
                   _searching
                       ? 'Finding walker for $_petName'
-                      : _petName,
+                      : 'Walker is active',
                   maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
+                  overflow:
+                      TextOverflow.ellipsis,
                   style: const TextStyle(
                     color: Colors.white70,
                     fontSize: 11,
@@ -1072,33 +1164,36 @@ class _InstaWalkContainerState
           // STATUS
           // ==================================================
 
-          if (_searching)
-            Container(
-              padding: const EdgeInsets.symmetric(
-                horizontal: 8,
-                vertical: 5,
-              ),
-              decoration: BoxDecoration(
-                color: const Color(0xFF65D6C8)
-                    .withValues(alpha: .14),
-                borderRadius:
-                    BorderRadius.circular(20),
-              ),
-              child: const Text(
-                'LIVE',
-                style: TextStyle(
-                  color: Color(0xFF8FFFEF),
-                  fontSize: 8,
-                  fontWeight: FontWeight.w900,
-                ),
-              ),
-            )
-          else
-            const Icon(
-              Icons.chevron_right_rounded,
-              color: Colors.white70,
-              size: 23,
+          Container(
+            padding: const EdgeInsets.symmetric(
+              horizontal: 8,
+              vertical: 5,
             ),
+            decoration: BoxDecoration(
+              color: const Color(0xFF65D6C8)
+                  .withValues(alpha: .14),
+              borderRadius:
+                  BorderRadius.circular(20),
+            ),
+            child: Text(
+              _searching
+                  ? 'LIVE'
+                  : 'ACTIVE',
+              style: const TextStyle(
+                color: Color(0xFF8FFFEF),
+                fontSize: 8,
+                fontWeight: FontWeight.w900,
+              ),
+            ),
+          ),
+
+          const SizedBox(width: 4),
+
+          const Icon(
+            Icons.chevron_right_rounded,
+            color: Colors.white70,
+            size: 23,
+          ),
         ],
       ),
     );
@@ -1263,7 +1358,8 @@ class _InstaWalkContainerState
         color: Colors.black.withValues(
           alpha: .12,
         ),
-        borderRadius: BorderRadius.circular(18),
+        borderRadius:
+            BorderRadius.circular(18),
       ),
       child: Column(
         children: [
@@ -1278,10 +1374,10 @@ class _InstaWalkContainerState
 
           const SizedBox(height: 14),
 
-          Text(
+          const Text(
             'Searching nearby walkers',
             textAlign: TextAlign.center,
-            style: const TextStyle(
+            style: TextStyle(
               color: Colors.white,
               fontSize: 15,
               fontWeight: FontWeight.w800,
@@ -1358,7 +1454,7 @@ class _InstaWalkContainerState
               Text(
                 _searching
                     ? 'Finding a walker for $_petName'
-                    : 'Find a walker right now',
+                    : 'Walker is active',
                 maxLines: 1,
                 overflow:
                     TextOverflow.ellipsis,
@@ -1397,7 +1493,7 @@ class _InstaWalkContainerState
                 decoration: BoxDecoration(
                   color: _searching
                       ? const Color(0xFF65D6C8)
-                      : Colors.white54,
+                      : const Color(0xFF65D6C8),
                   shape: BoxShape.circle,
                 ),
               ),
@@ -1407,11 +1503,9 @@ class _InstaWalkContainerState
               Text(
                 _searching
                     ? 'LIVE'
-                    : 'READY',
-                style: TextStyle(
-                  color: _searching
-                      ? const Color(0xFF8FFFEF)
-                      : Colors.white70,
+                    : 'ACTIVE',
+                style: const TextStyle(
+                  color: Color(0xFF8FFFEF),
                   fontSize: 9,
                   fontWeight: FontWeight.w900,
                 ),
