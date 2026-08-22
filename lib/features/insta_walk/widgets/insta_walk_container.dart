@@ -22,18 +22,12 @@ part 'insta_walk_view.dart';
 // ============================================================
 
 class InstaWalkContainer extends StatefulWidget {
-  /// Called when a walker is found / accepted.
   final VoidCallback? onWalkerFound;
 
-  /// true = searching / accepted / active
-  /// false = finished / cancelled / expired / inactive
   final ValueChanged<bool>? onActiveChanged;
 
-  /// false = compact Insta Walk patti
-  /// true = complete Insta Walk interface
   final bool fullScreen;
 
-  /// Called when compact Insta Walk patti is tapped.
   final VoidCallback? onTap;
 
   const InstaWalkContainer({
@@ -81,6 +75,12 @@ class _InstaWalkContainerState extends State<InstaWalkContainer>
   bool _searchFinished = false;
   bool _checkingAddress = false;
   bool _recovering = true;
+
+  // ==========================================================
+  // STOP LOADING
+  // ==========================================================
+
+  bool _stopping = false;
 
   // ==========================================================
   // ACTIVE STATE
@@ -195,6 +195,7 @@ class _InstaWalkContainerState extends State<InstaWalkContainer>
     _requestId = null;
     _secondsLeft = 0;
     _ownerPosition = null;
+    _stopping = false;
 
     if (!mounted) {
       return;
@@ -210,12 +211,155 @@ class _InstaWalkContainerState extends State<InstaWalkContainer>
     _setActive(false);
   }
 
-  // ==========================================================
+  // ============================================================
+  // STOP SEARCH
+  //
+  // THIS IS THE METHOD CONNECTED TO
+  // InstaWalkStopButton
+  // ============================================================
+
+  Future<void> _stopSearch() async {
+    if (_stopping) {
+      return;
+    }
+
+    final String? requestId = _requestId;
+
+    if (requestId == null ||
+        requestId.trim().isEmpty) {
+      _resetSearchState();
+      return;
+    }
+
+    if (!_searching) {
+      return;
+    }
+
+    if (!mounted) {
+      return;
+    }
+
+    setState(() {
+      _stopping = true;
+    });
+
+    try {
+      final bool cancelled =
+          await _service.cancelSearch(
+        requestId: requestId,
+      );
+
+      if (!mounted) {
+        return;
+      }
+
+      if (cancelled) {
+        _stopTimer();
+        _stopRadar();
+
+        _requestId = null;
+        _ownerPosition = null;
+
+        setState(() {
+          _searching = false;
+          _searchFinished = false;
+          _checkingAddress = false;
+          _recovering = false;
+          _secondsLeft = 0;
+          _stopping = false;
+        });
+
+        _setActive(false);
+
+        _message('Insta Walk search stopped.');
+        return;
+      }
+
+      // --------------------------------------------------------
+      // If cancel failed, check current Firestore state.
+      // This protects against race condition where walker
+      // accepted at the same time.
+      // --------------------------------------------------------
+
+      final InstaWalkRequestState state =
+          await _service.getRequestState(requestId);
+
+      if (!mounted) {
+        return;
+      }
+
+      if (state.isAccepted) {
+        _stopping = false;
+
+        _walkerAccepted(
+          InstaWalkAcceptedData.fromMap(
+            state.data ?? <String, dynamic>{},
+          ),
+        );
+
+        _message(
+          'Walker already accepted this request.',
+        );
+
+        return;
+      }
+
+      if (state.isExpired ||
+          state.isCancelled ||
+          state.status ==
+              InstaWalkRequestStatus.notFound) {
+        _stopTimer();
+        _stopRadar();
+
+        _requestId = null;
+
+        setState(() {
+          _searching = false;
+          _searchFinished = false;
+          _checkingAddress = false;
+          _recovering = false;
+          _secondsLeft = 0;
+          _stopping = false;
+        });
+
+        _setActive(false);
+
+        return;
+      }
+
+      setState(() {
+        _stopping = false;
+      });
+
+      _message(
+        'Unable to stop search. Please try again.',
+      );
+    } catch (e) {
+      debugPrint(
+        'Insta Walk stop search error: $e',
+      );
+
+      if (!mounted) {
+        return;
+      }
+
+      setState(() {
+        _stopping = false;
+      });
+
+      _message(
+        'Unable to stop search. Please try again.',
+      );
+    }
+  }
+
+  // ============================================================
   // SEARCH RECOVERY
-  // ==========================================================
+  // ============================================================
 
   Future<void> _recoverSearch() async {
-    final User? user = FirebaseAuth.instance.currentUser;
+    final User? user =
+        FirebaseAuth.instance.currentUser;
 
     if (user == null) {
       if (!mounted) return;
@@ -233,7 +377,8 @@ class _InstaWalkContainerState extends State<InstaWalkContainer>
     }
 
     try {
-      final QueryDocumentSnapshot<Map<String, dynamic>>? ownerDoc =
+      final QueryDocumentSnapshot<
+          Map<String, dynamic>>? ownerDoc =
           await _service.findOwnerProfile();
 
       if (!mounted) return;
@@ -251,7 +396,8 @@ class _InstaWalkContainerState extends State<InstaWalkContainer>
         return;
       }
 
-      final Map<String, dynamic> ownerData = ownerDoc.data();
+      final Map<String, dynamic> ownerData =
+          ownerDoc.data();
 
       _petName = _readFirstString(
         ownerData,
@@ -267,7 +413,8 @@ class _InstaWalkContainerState extends State<InstaWalkContainer>
         _petName = 'Your Pet';
       }
 
-      final String ownerId = _readFirstString(
+      final String ownerId =
+          _readFirstString(
         ownerData,
         const [
           'ownerId',
@@ -328,7 +475,9 @@ class _InstaWalkContainerState extends State<InstaWalkContainer>
 
       _setActive(false);
     } catch (e) {
-      debugPrint('Insta Walk recovery error: $e');
+      debugPrint(
+        'Insta Walk recovery error: $e',
+      );
 
       if (!mounted) return;
 
@@ -351,8 +500,11 @@ class _InstaWalkContainerState extends State<InstaWalkContainer>
   Future<void> _recoverSearchingRequest(
     InstaWalkRequestState active,
   ) async {
-    final String? requestId = active.requestId;
-    final DateTime? expiresAt = active.expiresAt;
+    final String? requestId =
+        active.requestId;
+
+    final DateTime? expiresAt =
+        active.expiresAt;
 
     if (requestId == null ||
         requestId.trim().isEmpty ||
@@ -370,7 +522,9 @@ class _InstaWalkContainerState extends State<InstaWalkContainer>
     }
 
     Duration remaining =
-        expiresAt.difference(DateTime.now());
+        expiresAt.difference(
+      DateTime.now(),
+    );
 
     if (remaining.isNegative) {
       remaining = Duration.zero;
@@ -405,6 +559,7 @@ class _InstaWalkContainerState extends State<InstaWalkContainer>
     }
 
     _requestId = requestId;
+
     _ownerPosition =
         _readOwnerPosition(active.data);
 
@@ -416,9 +571,11 @@ class _InstaWalkContainerState extends State<InstaWalkContainer>
       _searchFinished = false;
       _checkingAddress = false;
       _secondsLeft = remaining.inSeconds;
+      _stopping = false;
     });
 
     _setActive(true);
+
     _startRadar();
 
     try {
@@ -428,7 +585,8 @@ class _InstaWalkContainerState extends State<InstaWalkContainer>
         onExpired: _finishSearch,
         onCancelled: () {
           _finishSearch(
-            message: 'Walk request was cancelled.',
+            message:
+                'Walk request was cancelled.',
           );
         },
         onError: (Object error) {
@@ -458,7 +616,8 @@ class _InstaWalkContainerState extends State<InstaWalkContainer>
     InstaWalkRequestState active,
   ) {
     final Map<String, dynamic> data =
-        active.data ?? <String, dynamic>{};
+        active.data ??
+            <String, dynamic>{};
 
     final InstaWalkAcceptedData accepted =
         InstaWalkAcceptedData.fromMap(data);
@@ -481,6 +640,7 @@ class _InstaWalkContainerState extends State<InstaWalkContainer>
       _searchFinished = false;
       _checkingAddress = false;
       _secondsLeft = 0;
+      _stopping = false;
     });
 
     _setActive(true);
@@ -495,7 +655,8 @@ class _InstaWalkContainerState extends State<InstaWalkContainer>
   Future<void> _findWalker() async {
     if (_searching ||
         _checkingAddress ||
-        _recovering) {
+        _recovering ||
+        _stopping) {
       return;
     }
 
@@ -515,7 +676,8 @@ class _InstaWalkContainerState extends State<InstaWalkContainer>
     });
 
     try {
-      final QueryDocumentSnapshot<Map<String, dynamic>>? ownerDoc =
+      final QueryDocumentSnapshot<
+          Map<String, dynamic>>? ownerDoc =
           await _service.findOwnerProfile();
 
       if (!mounted) return;
@@ -528,13 +690,15 @@ class _InstaWalkContainerState extends State<InstaWalkContainer>
         _message(
           'Owner profile not found. Please complete your profile.',
         );
+
         return;
       }
 
       final Map<String, dynamic> data =
           ownerDoc.data();
 
-      final String ownerId = _readFirstString(
+      final String ownerId =
+          _readFirstString(
         data,
         const [
           'ownerId',
@@ -565,7 +729,8 @@ class _InstaWalkContainerState extends State<InstaWalkContainer>
         _petName = 'Your Pet';
       }
 
-      final String address = _readFirstString(
+      final String address =
+          _readFirstString(
         data,
         const [
           'address',
@@ -584,7 +749,8 @@ class _InstaWalkContainerState extends State<InstaWalkContainer>
         await Navigator.push(
           context,
           MaterialPageRoute(
-            builder: (_) => const AddressScreen(),
+            builder: (_) =>
+                const AddressScreen(),
           ),
         );
 
@@ -597,7 +763,8 @@ class _InstaWalkContainerState extends State<InstaWalkContainer>
         return;
       }
 
-      String ownerName = _readFirstString(
+      String ownerName =
+          _readFirstString(
         data,
         const [
           'fullName',
@@ -656,12 +823,14 @@ class _InstaWalkContainerState extends State<InstaWalkContainer>
   Future<Position?> _getLocation() async {
     try {
       final bool enabled =
-          await Geolocator.isLocationServiceEnabled();
+          await Geolocator
+              .isLocationServiceEnabled();
 
       if (!enabled) {
         _message(
           'Please turn on location service.',
         );
+
         return null;
       }
 
@@ -681,10 +850,12 @@ class _InstaWalkContainerState extends State<InstaWalkContainer>
         _message(
           'Location permission is required.',
         );
+
         return null;
       }
 
-      return await Geolocator.getCurrentPosition();
+      return await Geolocator
+          .getCurrentPosition();
     } catch (e) {
       debugPrint(
         'Location error: $e',
@@ -736,6 +907,7 @@ class _InstaWalkContainerState extends State<InstaWalkContainer>
           _searching = false;
           _searchFinished = false;
           _secondsLeft = 0;
+          _stopping = false;
         });
 
         _setActive(false);
@@ -757,7 +929,9 @@ class _InstaWalkContainerState extends State<InstaWalkContainer>
       _requestId = requestId;
 
       Duration remaining =
-          expiresAt.difference(DateTime.now());
+          expiresAt.difference(
+        DateTime.now(),
+      );
 
       if (remaining.isNegative) {
         remaining = Duration.zero;
@@ -788,9 +962,11 @@ class _InstaWalkContainerState extends State<InstaWalkContainer>
         _searching = true;
         _searchFinished = false;
         _secondsLeft = remaining.inSeconds;
+        _stopping = false;
       });
 
       _setActive(true);
+
       _startRadar();
 
       try {
@@ -838,6 +1014,7 @@ class _InstaWalkContainerState extends State<InstaWalkContainer>
         _searching = false;
         _searchFinished = false;
         _secondsLeft = 0;
+        _stopping = false;
       });
 
       _setActive(false);
@@ -882,7 +1059,8 @@ class _InstaWalkContainerState extends State<InstaWalkContainer>
 
         final String? id = _requestId;
 
-        if (id == null || id.trim().isEmpty) {
+        if (id == null ||
+            id.trim().isEmpty) {
           timer.cancel();
           _timer = null;
           _finishSearch();
@@ -906,6 +1084,7 @@ class _InstaWalkContainerState extends State<InstaWalkContainer>
                       <String, dynamic>{},
                 ),
               );
+
               return;
             }
 
@@ -923,6 +1102,7 @@ class _InstaWalkContainerState extends State<InstaWalkContainer>
           if (!mounted) return;
 
           _finishSearch();
+
           return;
         }
 
@@ -957,6 +1137,7 @@ class _InstaWalkContainerState extends State<InstaWalkContainer>
       _searchFinished = false;
       _checkingAddress = false;
       _secondsLeft = 0;
+      _stopping = false;
     });
 
     _setActive(true);
@@ -985,6 +1166,7 @@ class _InstaWalkContainerState extends State<InstaWalkContainer>
 
     _requestId = null;
     _ownerPosition = null;
+    _stopping = false;
 
     if (!mounted) return;
 
@@ -1010,7 +1192,8 @@ class _InstaWalkContainerState extends State<InstaWalkContainer>
   Future<void> _retrySearch() async {
     if (_searching ||
         _checkingAddress ||
-        _recovering) {
+        _recovering ||
+        _stopping) {
       return;
     }
 
@@ -1062,10 +1245,14 @@ class _InstaWalkContainerState extends State<InstaWalkContainer>
             maxLines: 3,
             overflow: TextOverflow.ellipsis,
           ),
-          behavior: SnackBarBehavior.floating,
-          margin: const EdgeInsets.all(16),
-          duration: const Duration(seconds: 3),
-          shape: RoundedRectangleBorder(
+          behavior:
+              SnackBarBehavior.floating,
+          margin:
+              const EdgeInsets.all(16),
+          duration:
+              const Duration(seconds: 3),
+          shape:
+              RoundedRectangleBorder(
             borderRadius:
                 BorderRadius.circular(14),
           ),
