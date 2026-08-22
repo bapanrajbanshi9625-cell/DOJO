@@ -31,6 +31,13 @@ mixin _InstaWalkController on State<InstaWalkContainer> {
 
       if (ownerDoc == null) {
         _resetSearchState();
+
+        if (!mounted) return;
+
+        setState(() {
+          _recovering = false;
+        });
+
         return;
       }
 
@@ -55,11 +62,20 @@ mixin _InstaWalkController on State<InstaWalkContainer> {
         const [
           'ownerId',
           'Owner ID',
+          'businessId',
+          'Business ID',
         ],
       );
 
       if (ownerId.isEmpty) {
         _resetSearchState();
+
+        if (!mounted) return;
+
+        setState(() {
+          _recovering = false;
+        });
+
         return;
       }
 
@@ -72,6 +88,13 @@ mixin _InstaWalkController on State<InstaWalkContainer> {
 
       if (active == null) {
         _resetSearchState();
+
+        if (!mounted) return;
+
+        setState(() {
+          _recovering = false;
+        });
+
         return;
       }
 
@@ -86,12 +109,24 @@ mixin _InstaWalkController on State<InstaWalkContainer> {
       }
 
       _resetSearchState();
+
+      if (!mounted) return;
+
+      setState(() {
+        _recovering = false;
+      });
     } catch (e) {
       debugPrint('Insta Walk recovery error: $e');
 
       if (!mounted) return;
 
       _resetSearchState();
+
+      if (!mounted) return;
+
+      setState(() {
+        _recovering = false;
+      });
     }
   }
 
@@ -112,8 +147,7 @@ mixin _InstaWalkController on State<InstaWalkContainer> {
       return;
     }
 
-    Duration remaining =
-        expiresAt.difference(DateTime.now());
+    Duration remaining = expiresAt.difference(DateTime.now());
 
     if (remaining.isNegative) {
       remaining = Duration.zero;
@@ -262,14 +296,15 @@ mixin _InstaWalkController on State<InstaWalkContainer> {
         return;
       }
 
-      final Map<String, dynamic> data =
-          ownerDoc.data();
+      final Map<String, dynamic> data = ownerDoc.data();
 
       final String ownerId = _readFirstString(
         data,
         const [
           'ownerId',
           'Owner ID',
+          'businessId',
+          'Business ID',
         ],
       );
 
@@ -278,7 +313,7 @@ mixin _InstaWalkController on State<InstaWalkContainer> {
           _checkingAddress = false;
         });
 
-        _message('Owner ID not found.');
+        _message('Business ID not found.');
         return;
       }
 
@@ -340,8 +375,7 @@ mixin _InstaWalkController on State<InstaWalkContainer> {
         ownerName = 'Dog Owner';
       }
 
-      final Position? position =
-          await _getLocation();
+      final Position? position = await _getLocation();
 
       if (!mounted) return;
 
@@ -466,18 +500,14 @@ mixin _InstaWalkController on State<InstaWalkContainer> {
         _setActive(false);
 
         _message(
-          result.message ??
-              'Unable to start search.',
+          result.message ?? 'Unable to start search.',
         );
 
         return;
       }
 
-      final String requestId =
-          result.requestId!;
-
-      final DateTime expiresAt =
-          result.expiresAt!;
+      final String requestId = result.requestId!;
+      final DateTime expiresAt = result.expiresAt!;
 
       _requestId = requestId;
 
@@ -596,7 +626,11 @@ mixin _InstaWalkController on State<InstaWalkContainer> {
       (Timer timer) async {
         if (!mounted || !_searching) {
           timer.cancel();
-          _timer = null;
+
+          if (identical(_timer, timer)) {
+            _timer = null;
+          }
+
           return;
         }
 
@@ -604,14 +638,21 @@ mixin _InstaWalkController on State<InstaWalkContainer> {
 
         if (id == null || id.trim().isEmpty) {
           timer.cancel();
-          _timer = null;
+
+          if (identical(_timer, timer)) {
+            _timer = null;
+          }
+
           _finishSearch();
           return;
         }
 
         if (_secondsLeft <= 1) {
           timer.cancel();
-          _timer = null;
+
+          if (identical(_timer, timer)) {
+            _timer = null;
+          }
 
           try {
             final InstaWalkRequestState state =
@@ -622,8 +663,7 @@ mixin _InstaWalkController on State<InstaWalkContainer> {
             if (state.isAccepted) {
               _walkerAccepted(
                 InstaWalkAcceptedData.fromMap(
-                  state.data ??
-                      <String, dynamic>{},
+                  state.data ?? <String, dynamic>{},
                 ),
               );
               return;
@@ -678,16 +718,15 @@ mixin _InstaWalkController on State<InstaWalkContainer> {
       _searching = false;
       _searchFinished = false;
       _checkingAddress = false;
-      _secondsLeft = 0;
       _recovering = false;
+      _secondsLeft = 0;
     });
 
     _setActive(true);
 
     widget.onWalkerFound?.call();
 
-    final String name =
-        data.walkerName.trim();
+    final String name = data.walkerName.trim();
 
     _message(
       name.isEmpty
@@ -715,15 +754,14 @@ mixin _InstaWalkController on State<InstaWalkContainer> {
       _searching = false;
       _searchFinished = true;
       _checkingAddress = false;
-      _secondsLeft = 0;
       _recovering = false;
+      _secondsLeft = 0;
     });
 
     _setActive(false);
 
     _message(
-      message ??
-          'No walker accepted the request.',
+      message ?? 'No walker accepted the request.',
     );
   }
 
@@ -755,11 +793,8 @@ mixin _InstaWalkController on State<InstaWalkContainer> {
     final int safeSeconds =
         _secondsLeft < 0 ? 0 : _secondsLeft;
 
-    final int minutes =
-        safeSeconds ~/ 60;
-
-    final int seconds =
-        safeSeconds % 60;
+    final int minutes = safeSeconds ~/ 60;
+    final int seconds = safeSeconds % 60;
 
     return '${minutes.toString().padLeft(2, '0')}:'
         '${seconds.toString().padLeft(2, '0')}';
@@ -809,8 +844,7 @@ mixin _InstaWalkController on State<InstaWalkContainer> {
         continue;
       }
 
-      final String result =
-          value.toString().trim();
+      final String result = value.toString().trim();
 
       if (result.isNotEmpty) {
         return result;
@@ -831,8 +865,7 @@ mixin _InstaWalkController on State<InstaWalkContainer> {
       return null;
     }
 
-    final dynamic value =
-        data['ownerLocation'];
+    final dynamic value = data['ownerLocation'];
 
     if (value is GeoPoint) {
       return Position(
