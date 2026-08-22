@@ -8,16 +8,14 @@ class AssignedWalkerService {
   static final FirebaseFirestore _firestore =
       FirebaseFirestore.instance;
 
-  /// Watches the accepted walker assigned to an owner.
-  ///
-  /// IMPORTANT:
-  /// The value passed here is the application's ownerId,
-  /// NOT Firebase Authentication UID.
+  // ============================================================
+  // OWNER BUSINESS ID → ASSIGNED WALKER BUSINESS ID
+  // ============================================================
+
   static Stream<AssignedWalker?> watchAssignedWalker(
     String ownerId,
   ) {
-    final String normalizedOwnerId =
-        ownerId.trim();
+    final String normalizedOwnerId = ownerId.trim();
 
     if (normalizedOwnerId.isEmpty) {
       return Stream<AssignedWalker?>.value(null);
