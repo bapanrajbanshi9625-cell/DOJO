@@ -25,7 +25,9 @@ extension _StartSearchRole on _InstaWalkContainerState {
         ),
       );
 
-      if (!mounted) return;
+      if (!mounted) {
+        return;
+      }
 
       if (!result.success ||
           result.requestId == null ||
@@ -74,7 +76,9 @@ extension _StartSearchRole on _InstaWalkContainerState {
           requestId: requestId,
         );
 
-        if (!mounted) return;
+        if (!mounted) {
+          return;
+        }
 
         _requestId = null;
 
@@ -124,7 +128,9 @@ extension _StartSearchRole on _InstaWalkContainerState {
         );
       }
 
-      if (!mounted) return;
+      if (!mounted) {
+        return;
+      }
 
       if (_searching) {
         _startTimer();
@@ -134,7 +140,9 @@ extension _StartSearchRole on _InstaWalkContainerState {
         'Insta Walk search error: $e',
       );
 
-      if (!mounted) return;
+      if (!mounted) {
+        return;
+      }
 
       _stopTimer();
       _stopRadar();
