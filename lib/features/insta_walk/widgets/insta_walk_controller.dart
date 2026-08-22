@@ -1,6 +1,6 @@
 part of 'insta_walk_container.dart';
 
-mixin _InstaWalkController on State<InstaWalkContainer> {
+mixin _InstaWalkController on _InstaWalkContainerState {
   // ============================================================
   // SEARCH RECOVERY
   // ============================================================
