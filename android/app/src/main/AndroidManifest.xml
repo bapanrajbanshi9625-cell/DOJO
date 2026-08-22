@@ -8,44 +8,53 @@
 
     <!-- ==========================================================
          LOCATION
-         Used for live walk / owner's current location
+         Current location / map / live walk
          ========================================================== -->
 
     <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
     <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
 
     <!-- ==========================================================
+         FOREGROUND LOCATION
+         Required when Live Walk location tracking continues
+         while the app is in foreground-service mode.
+         ========================================================== -->
+
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_LOCATION" />
+
+    <!-- ==========================================================
          CAMERA
-         Used for QR scanner / profile selfie
+         QR Scanner / Profile Selfie
          ========================================================== -->
 
     <uses-permission android:name="android.permission.CAMERA" />
 
     <!-- ==========================================================
          MICROPHONE
-         Add only if the app actually records/uses microphone
+         Keep only if the app actually uses microphone/audio
+         recording.
          ========================================================== -->
 
     <uses-permission android:name="android.permission.RECORD_AUDIO" />
 
     <!-- ==========================================================
          PHONE CALL
-         Only required if the app directly starts phone calls
-         using ACTION_CALL.
+         Required only for direct ACTION_CALL.
          ========================================================== -->
 
     <uses-permission android:name="android.permission.CALL_PHONE" />
 
     <!-- ==========================================================
          NOTIFICATIONS
-         Android 13+ runtime notification permission
+         Android 13+
          ========================================================== -->
 
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
 
     <!-- ==========================================================
          VIBRATION
-         Used for notifications / walk request alerts
+         Walk request / notification alerts
          ========================================================== -->
 
     <uses-permission android:name="android.permission.VIBRATE" />
@@ -55,10 +64,12 @@
          ========================================================== -->
 
     <application
-        android:label="Dojo Walk"
         android:name="${applicationName}"
+        android:label="Dojo Walk"
         android:icon="@mipmap/ic_launcher"
-        android:usesCleartextTraffic="false">
+        android:usesCleartextTraffic="false"
+        android:allowBackup="true"
+        android:supportsRtl="true">
 
         <!-- ======================================================
              MAIN ACTIVITY
@@ -74,9 +85,17 @@
             android:hardwareAccelerated="true"
             android:windowSoftInputMode="adjustResize">
 
+            <!-- ==================================================
+                 FLUTTER NORMAL THEME
+                 ================================================== -->
+
             <meta-data
                 android:name="io.flutter.embedding.android.NormalTheme"
                 android:resource="@style/NormalTheme" />
+
+            <!-- ==================================================
+                 LAUNCHER
+                 ================================================== -->
 
             <intent-filter>
 
