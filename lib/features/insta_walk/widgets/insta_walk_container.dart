@@ -151,6 +151,22 @@ class _InstaWalkContainerState extends State<InstaWalkContainer>
   }
 
   // ==========================================================
+  // SAFE STATE UPDATE
+  //
+  // IMPORTANT:
+  // Extensions cannot directly call protected setState().
+  // All insta_walk extensions should use _updateState().
+  // ==========================================================
+
+  void _updateState(VoidCallback callback) {
+    if (!mounted) {
+      return;
+    }
+
+    setState(callback);
+  }
+
+  // ==========================================================
   // ACTIVE STATE
   // ==========================================================
 
@@ -247,7 +263,6 @@ class _InstaWalkContainerState extends State<InstaWalkContainer>
           _timer = null;
 
           _finishSearch();
-
           return;
         }
 
@@ -259,7 +274,9 @@ class _InstaWalkContainerState extends State<InstaWalkContainer>
             final InstaWalkRequestState state =
                 await _service.getRequestState(id);
 
-            if (!mounted) return;
+            if (!mounted) {
+              return;
+            }
 
             if (state.isAccepted) {
               _walkerAccepted(
@@ -282,14 +299,15 @@ class _InstaWalkContainerState extends State<InstaWalkContainer>
             );
           }
 
-          if (!mounted) return;
+          if (!mounted) {
+            return;
+          }
 
           _finishSearch();
-
           return;
         }
 
-        setState(() {
+        _updateState(() {
           _secondsLeft--;
         });
       },
@@ -301,7 +319,9 @@ class _InstaWalkContainerState extends State<InstaWalkContainer>
   // ==========================================================
 
   void _startRadar() {
-    if (!mounted) return;
+    if (!mounted) {
+      return;
+    }
 
     if (!_radarController.isAnimating) {
       _radarController.repeat();
@@ -322,9 +342,11 @@ class _InstaWalkContainerState extends State<InstaWalkContainer>
     _ownerPosition = null;
     _stopping = false;
 
-    if (!mounted) return;
+    if (!mounted) {
+      return;
+    }
 
-    setState(() {
+    _updateState(() {
       _searching = false;
       _searchFinished = true;
       _checkingAddress = false;
@@ -351,9 +373,11 @@ class _InstaWalkContainerState extends State<InstaWalkContainer>
       return;
     }
 
-    if (!mounted) return;
+    if (!mounted) {
+      return;
+    }
 
-    setState(() {
+    _updateState(() {
       _searchFinished = false;
     });
 
@@ -366,9 +390,7 @@ class _InstaWalkContainerState extends State<InstaWalkContainer>
 
   String _timerText() {
     final int safeSeconds =
-        _secondsLeft < 0
-            ? 0
-            : _secondsLeft;
+        _secondsLeft < 0 ? 0 : _secondsLeft;
 
     final int minutes =
         safeSeconds ~/ 60;
@@ -385,7 +407,9 @@ class _InstaWalkContainerState extends State<InstaWalkContainer>
   // ==========================================================
 
   void _message(String text) {
-    if (!mounted) return;
+    if (!mounted) {
+      return;
+    }
 
     final ScaffoldMessengerState messenger =
         ScaffoldMessenger.of(context);
