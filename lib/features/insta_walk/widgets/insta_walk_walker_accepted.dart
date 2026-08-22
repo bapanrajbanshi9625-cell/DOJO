@@ -20,7 +20,7 @@ extension _WalkerAcceptedRole on _InstaWalkContainerState {
 
     if (!mounted) return;
 
-    setState(() {
+    _updateState(() {
       _searching = false;
       _searchFinished = false;
       _checkingAddress = false;
