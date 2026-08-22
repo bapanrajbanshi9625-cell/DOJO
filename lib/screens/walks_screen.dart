@@ -12,19 +12,11 @@ import 'generate_qr_screen.dart';
 class WalksScreen extends StatelessWidget {
   const WalksScreen({super.key});
 
-  // ==========================================================
-  // COLORS
-  // ==========================================================
-
   static const Color navy = Color(0xFF263746);
   static const Color slate = Color(0xFF475569);
   static const Color background = Color(0xFFEDEFF2);
 
   static const Color primary = AppColors.primary;
-
-  // ==========================================================
-  // COMPACT QR BUTTON
-  // ==========================================================
 
   Widget _qrButton() {
     return Align(
@@ -40,10 +32,6 @@ class WalksScreen extends StatelessWidget {
     );
   }
 
-  // ==========================================================
-  // BUILD
-  // ==========================================================
-
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -57,10 +45,6 @@ class WalksScreen extends StatelessWidget {
           110,
         ),
         children: [
-          // ====================================================
-          // PAGE TITLE
-          // ====================================================
-
           Row(
             children: [
               Container(
@@ -95,27 +79,27 @@ class WalksScreen extends StatelessWidget {
 
           const SizedBox(height: 20),
 
-          // ====================================================
-          // INSTA WALK — FULL CONTAINER
-          // ====================================================
+          // ==================================================
+          // FULL INSTA WALK CONTAINER
+          // ==================================================
 
-          const InstaWalkContainer(
+          InstaWalkContainer(
             fullScreen: true,
           ),
 
           const SizedBox(height: 4),
 
-          // ====================================================
-          // QR BUTTON
-          // ====================================================
+          // ==================================================
+          // QR
+          // ==================================================
 
           _qrButton(),
 
           const SizedBox(height: 2),
 
-          // ====================================================
+          // ==================================================
           // ACTIVE WALKER
-          // ====================================================
+          // ==================================================
 
           ActiveWalkerContainer(),
         ],
