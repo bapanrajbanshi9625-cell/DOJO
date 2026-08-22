@@ -1,130 +1,67 @@
-// File location: lib/screens/walks_screen.dart
+// File location: lib/features/walks/walks_screen.dart
 
 import 'package:flutter/material.dart';
 
-import '../core/constants/app_colors.dart';
-import '../features/insta_walk/widgets/insta_walk_container.dart';
-import '../features/walks/containers/active_walker_container.dart';
+import '../../screens/custom_app_bar.dart';
 
-import 'custom_app_bar.dart';
-import 'generate_qr_screen.dart';
+import '../insta_walk/widgets/insta_walk_container.dart';
+import 'widgets/walks_header.dart';
 
-class WalksScreen extends StatelessWidget {
+class WalksScreen extends StatefulWidget {
   const WalksScreen({super.key});
 
-  // ==========================================================
-  // COLORS
-  // ==========================================================
+  @override
+  State<WalksScreen> createState() => _WalksScreenState();
+}
 
-  static const Color navy = Color(0xFF263746);
-  static const Color slate = Color(0xFF475569);
-  static const Color background = Color(0xFFEDEFF2);
-
-  static const Color primary = AppColors.primary;
-
-  // ==========================================================
-  // COMPACT QR BUTTON
-  // ==========================================================
-
-  Widget _qrButton() {
-    return Align(
-      alignment: Alignment.centerRight,
-      child: Material(
-        color: Colors.transparent,
-        child: Transform.scale(
-          scale: 0.78,
-          alignment: Alignment.centerRight,
-          child: GenerateQRButton(),
-        ),
-      ),
-    );
-  }
-
-  // ==========================================================
-  // BUILD
-  // ==========================================================
-
+class _WalksScreenState extends State<WalksScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: background,
+      backgroundColor: const Color(0xFFF7F8FA),
+
+      // ========================================================
+      // DOJO WALK APP BAR
+      // ========================================================
+
       appBar: const CustomAppBar(),
 
-      body: ListView(
-        padding: const EdgeInsets.fromLTRB(
-          15,
-          18,
-          15,
-          110,
-        ),
-        children: [
-          // ====================================================
-          // PAGE TITLE
-          // ====================================================
+      // ========================================================
+      // BODY
+      // ========================================================
 
-          Row(
-            children: [
-              Container(
-                height: 21,
-                width: 4,
-                decoration: BoxDecoration(
-                  color: primary,
-                  borderRadius:
-                      BorderRadius.circular(5),
-                ),
-              ),
+      body: SafeArea(
+        child: CustomScrollView(
+          slivers: [
+            // ==================================================
+            // WALKS HEADER
+            // ==================================================
 
-              const SizedBox(width: 9),
-
-              const Text(
-                'Walks',
-                style: TextStyle(
-                  color: navy,
-                  fontSize: 18,
-                  fontWeight: FontWeight.w900,
-                ),
-              ),
-            ],
-          ),
-
-          const SizedBox(height: 5),
-
-          const Text(
-            'Find and manage your dog walks.',
-            style: TextStyle(
-              color: slate,
-              fontSize: 12,
+            const SliverToBoxAdapter(
+              child: WalksHeader(),
             ),
-          ),
 
-          const SizedBox(height: 20),
+            // ==================================================
+            // INSTA WALK
+            // NEW LOCATION
+            // lib/features/insta_walk/widgets/
+            // ==================================================
 
-          // ====================================================
-          // INSTA WALK
-          // ====================================================
+            const SliverToBoxAdapter(
+              child: InstaWalkContainer(),
+            ),
 
-          const InstaWalkContainer(),
+            // ==================================================
+            // BOTTOM SPACE
+            // ==================================================
 
-          const SizedBox(height: 4),
-
-          // ====================================================
-          // QR BUTTON
-          // ====================================================
-          //
-          // Compact QR button stays OUTSIDE the Insta Walk
-          // container so the Insta Walk UI remains untouched.
-          // ====================================================
-
-          _qrButton(),
-
-          const SizedBox(height: 2),
-
-          // ====================================================
-          // ACTIVE WALKER
-          // ====================================================
-
-          ActiveWalkerContainer(),
-        ],
+            const SliverToBoxAdapter(
+              child: SizedBox(
+                height: 30,
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
