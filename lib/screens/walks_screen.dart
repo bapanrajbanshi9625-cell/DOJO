@@ -49,7 +49,6 @@ class WalksScreen extends StatelessWidget {
     return Scaffold(
       backgroundColor: background,
       appBar: const CustomAppBar(),
-
       body: ListView(
         padding: const EdgeInsets.fromLTRB(
           15,
@@ -97,10 +96,12 @@ class WalksScreen extends StatelessWidget {
           const SizedBox(height: 20),
 
           // ====================================================
-          // INSTA WALK
+          // INSTA WALK — FULL CONTAINER
           // ====================================================
 
-          const InstaWalkContainer(),
+          const InstaWalkContainer(
+            fullScreen: true,
+          ),
 
           const SizedBox(height: 4),
 
