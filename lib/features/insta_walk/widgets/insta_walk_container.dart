@@ -1,4 +1,4 @@
-insta_walk_container.dart
+import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:geolocator/geolocator.dart';
@@ -37,26 +37,66 @@ class InstaWalkContainer extends StatefulWidget {
 
 class _InstaWalkContainerState extends State<InstaWalkContainer>
     with SingleTickerProviderStateMixin, _InstaWalkController {
+  // ==========================================================
+  // SERVICE
+  // ==========================================================
+
   late final InstaWalkSearchService _service;
+
+  // ==========================================================
+  // TIMER
+  // ==========================================================
 
   Timer? _timer;
 
+  // ==========================================================
+  // RADAR
+  // ==========================================================
+
   late final AnimationController _radarController;
+
+  // ==========================================================
+  // SEARCH STATE
+  // ==========================================================
 
   bool _searching = false;
   bool _searchFinished = false;
   bool _checkingAddress = false;
   bool _recovering = true;
 
+  // ==========================================================
+  // ACTIVE STATE
+  // ==========================================================
+
   bool _activeReported = false;
+
+  // ==========================================================
+  // TIMER STATE
+  // ==========================================================
 
   int _secondsLeft = 0;
 
+  // ==========================================================
+  // REQUEST
+  // ==========================================================
+
   String? _requestId;
+
+  // ==========================================================
+  // LOCATION
+  // ==========================================================
 
   Position? _ownerPosition;
 
+  // ==========================================================
+  // PET
+  // ==========================================================
+
   String _petName = 'Your Pet';
+
+  // ==========================================================
+  // INIT
+  // ==========================================================
 
   @override
   void initState() {
@@ -72,6 +112,10 @@ class _InstaWalkContainerState extends State<InstaWalkContainer>
     _recoverSearch();
   }
 
+  // ==========================================================
+  // DISPOSE
+  // ==========================================================
+
   @override
   void dispose() {
     _stopTimer();
@@ -83,6 +127,10 @@ class _InstaWalkContainerState extends State<InstaWalkContainer>
     super.dispose();
   }
 
+  // ==========================================================
+  // ACTIVE STATE
+  // ==========================================================
+
   void _setActive(bool active) {
     if (_activeReported == active) {
       return;
@@ -93,10 +141,18 @@ class _InstaWalkContainerState extends State<InstaWalkContainer>
     widget.onActiveChanged?.call(active);
   }
 
+  // ==========================================================
+  // TIMER STOP
+  // ==========================================================
+
   void _stopTimer() {
     _timer?.cancel();
     _timer = null;
   }
+
+  // ==========================================================
+  // RADAR STOP
+  // ==========================================================
 
   void _stopRadar() {
     if (!_radarController.isAnimating &&
@@ -107,6 +163,10 @@ class _InstaWalkContainerState extends State<InstaWalkContainer>
     _radarController.stop();
     _radarController.reset();
   }
+
+  // ==========================================================
+  // RESET
+  // ==========================================================
 
   void _resetSearchState({
     bool finished = false,
@@ -128,6 +188,10 @@ class _InstaWalkContainerState extends State<InstaWalkContainer>
       _checkingAddress = false;
     });
   }
+
+  // ==========================================================
+  // BUILD
+  // ==========================================================
 
   @override
   Widget build(BuildContext context) {
