@@ -22,6 +22,9 @@ part 'insta_walk_view.dart';
 // ============================================================
 
 class InstaWalkContainer extends StatefulWidget {
+  /// Called when a walker is found/accepted.
+  final VoidCallback? onWalkerFound;
+
   /// true = searching / accepted / active
   /// false = finished / cancelled / expired / inactive
   final ValueChanged<bool>? onActiveChanged;
@@ -35,6 +38,7 @@ class InstaWalkContainer extends StatefulWidget {
 
   const InstaWalkContainer({
     super.key,
+    this.onWalkerFound,
     this.onActiveChanged,
     this.fullScreen = false,
     this.onTap,
