@@ -1,21 +1,22 @@
-insta_walk_controller.dart
-
 part of 'insta_walk_container.dart';
 
 mixin _InstaWalkController on State<InstaWalkContainer> {
+  // ============================================================
+  // SEARCH RECOVERY
+  // ============================================================
+
   Future<void> _recoverSearch() async {
     final User? user = FirebaseAuth.instance.currentUser;
 
     if (user == null) {
-      if (!mounted) {
-        return;
-      }
+      if (!mounted) return;
 
       setState(() {
         _recovering = false;
         _searching = false;
         _searchFinished = false;
         _checkingAddress = false;
+        _secondsLeft = 0;
       });
 
       _setActive(false);
@@ -26,16 +27,15 @@ mixin _InstaWalkController on State<InstaWalkContainer> {
       final QueryDocumentSnapshot<Map<String, dynamic>>? ownerDoc =
           await _service.findOwnerProfile();
 
-      if (!mounted) {
-        return;
-      }
+      if (!mounted) return;
 
       if (ownerDoc == null) {
+        _resetSearchState();
+
+        if (!mounted) return;
+
         setState(() {
           _recovering = false;
-          _searching = false;
-          _searchFinished = false;
-          _checkingAddress = false;
         });
 
         _setActive(false);
@@ -67,10 +67,12 @@ mixin _InstaWalkController on State<InstaWalkContainer> {
       );
 
       if (ownerId.isEmpty) {
+        _resetSearchState();
+
+        if (!mounted) return;
+
         setState(() {
           _recovering = false;
-          _searching = false;
-          _searchFinished = false;
         });
 
         _setActive(false);
@@ -82,17 +84,15 @@ mixin _InstaWalkController on State<InstaWalkContainer> {
         ownerId: ownerId,
       );
 
-      if (!mounted) {
-        return;
-      }
+      if (!mounted) return;
 
       if (active == null) {
+        _resetSearchState();
+
+        if (!mounted) return;
+
         setState(() {
           _recovering = false;
-          _searching = false;
-          _searchFinished = false;
-          _checkingAddress = false;
-          _secondsLeft = 0;
         });
 
         _setActive(false);
@@ -111,9 +111,7 @@ mixin _InstaWalkController on State<InstaWalkContainer> {
 
       _resetSearchState();
 
-      if (!mounted) {
-        return;
-      }
+      if (!mounted) return;
 
       setState(() {
         _recovering = false;
@@ -121,24 +119,25 @@ mixin _InstaWalkController on State<InstaWalkContainer> {
 
       _setActive(false);
     } catch (e) {
-      debugPrint(
-        'Insta Walk recovery error: $e',
-      );
+      debugPrint('Insta Walk recovery error: $e');
 
-      if (!mounted) {
-        return;
-      }
+      if (!mounted) return;
+
+      _resetSearchState();
+
+      if (!mounted) return;
 
       setState(() {
         _recovering = false;
-        _searching = false;
-        _searchFinished = false;
-        _checkingAddress = false;
       });
 
       _setActive(false);
     }
   }
+
+  // ============================================================
+  // RECOVER SEARCHING REQUEST
+  // ============================================================
 
   Future<void> _recoverSearchingRequest(
     InstaWalkRequestState active,
@@ -149,57 +148,54 @@ mixin _InstaWalkController on State<InstaWalkContainer> {
     if (requestId == null ||
         requestId.trim().isEmpty ||
         expiresAt == null) {
-      if (!mounted) {
-        return;
-      }
+      _resetSearchState();
+
+      if (!mounted) return;
 
       setState(() {
         _recovering = false;
-        _searching = false;
-        _searchFinished = false;
       });
 
       _setActive(false);
       return;
     }
 
-    Duration remaining = expiresAt.difference(
-      DateTime.now(),
-    );
+    Duration remaining = expiresAt.difference(DateTime.now());
 
     if (remaining.isNegative) {
       remaining = Duration.zero;
     }
 
     if (remaining.inSeconds <= 0) {
-      await _service.expireRequest(
-        requestId: requestId,
-      );
-
-      if (!mounted) {
-        return;
+      try {
+        await _service.expireRequest(
+          requestId: requestId,
+        );
+      } catch (e) {
+        debugPrint('Expire recovered request error: $e');
       }
+
+      if (!mounted) return;
 
       _requestId = null;
       _ownerPosition = null;
 
+      _resetSearchState();
+
+      if (!mounted) return;
+
       setState(() {
         _recovering = false;
-        _searching = false;
-        _searchFinished = false;
-        _checkingAddress = false;
-        _secondsLeft = 0;
       });
 
       _setActive(false);
       return;
     }
 
-    final Position? recoveredPosition =
-        _readOwnerPosition(active.data);
-
     _requestId = requestId;
-    _ownerPosition = recoveredPosition;
+    _ownerPosition = _readOwnerPosition(active.data);
+
+    if (!mounted) return;
 
     setState(() {
       _recovering = false;
@@ -210,55 +206,61 @@ mixin _InstaWalkController on State<InstaWalkContainer> {
     });
 
     _setActive(true);
-
     _startRadar();
 
-    await _service.listenForRequest(
-      requestId: requestId,
-      onAccepted: _walkerAccepted,
-      onExpired: () {
-        _finishSearch();
-      },
-      onCancelled: () {
-        _finishSearch(
-          message: 'Walk request was cancelled.',
-        );
-      },
-      onError: (Object error) {
-        debugPrint(
-          'Insta Walk listener error: $error',
-        );
-      },
-    );
-
-    if (!mounted) {
-      return;
+    try {
+      await _service.listenForRequest(
+        requestId: requestId,
+        onAccepted: _walkerAccepted,
+        onExpired: _finishSearch,
+        onCancelled: () {
+          _finishSearch(
+            message: 'Walk request was cancelled.',
+          );
+        },
+        onError: (Object error) {
+          debugPrint(
+            'Insta Walk listener error: $error',
+          );
+        },
+      );
+    } catch (e) {
+      debugPrint(
+        'Insta Walk listener setup error: $e',
+      );
     }
+
+    if (!mounted) return;
 
     if (_searching) {
       _startTimer();
     }
   }
 
+  // ============================================================
+  // RECOVER ACCEPTED REQUEST
+  // ============================================================
+
   void _recoverAcceptedRequest(
     InstaWalkRequestState active,
   ) {
-    final Map<String, dynamic> data = active.data ?? {};
+    final Map<String, dynamic> data =
+        active.data ?? <String, dynamic>{};
 
     final InstaWalkAcceptedData accepted =
         InstaWalkAcceptedData.fromMap(data);
 
-    _requestId =
-        accepted.requestId.trim().isEmpty
-            ? active.requestId
-            : accepted.requestId;
+    final String recoveredId =
+        accepted.requestId.trim();
+
+    _requestId = recoveredId.isEmpty
+        ? active.requestId
+        : recoveredId;
 
     _stopTimer();
     _stopRadar();
 
-    if (!mounted) {
-      return;
-    }
+    if (!mounted) return;
 
     setState(() {
       _recovering = false;
@@ -272,6 +274,10 @@ mixin _InstaWalkController on State<InstaWalkContainer> {
 
     widget.onWalkerFound?.call();
   }
+
+  // ============================================================
+  // FIND WALKER
+  // ============================================================
 
   Future<void> _findWalker() async {
     if (_searching ||
@@ -288,6 +294,8 @@ mixin _InstaWalkController on State<InstaWalkContainer> {
       return;
     }
 
+    if (!mounted) return;
+
     setState(() {
       _checkingAddress = true;
       _searchFinished = false;
@@ -297,9 +305,7 @@ mixin _InstaWalkController on State<InstaWalkContainer> {
       final QueryDocumentSnapshot<Map<String, dynamic>>? ownerDoc =
           await _service.findOwnerProfile();
 
-      if (!mounted) {
-        return;
-      }
+      if (!mounted) return;
 
       if (ownerDoc == null) {
         setState(() {
@@ -355,6 +361,8 @@ mixin _InstaWalkController on State<InstaWalkContainer> {
       );
 
       if (address.isEmpty) {
+        if (!mounted) return;
+
         setState(() {
           _checkingAddress = false;
         });
@@ -366,9 +374,7 @@ mixin _InstaWalkController on State<InstaWalkContainer> {
           ),
         );
 
-        if (!mounted) {
-          return;
-        }
+        if (!mounted) return;
 
         setState(() {
           _checkingAddress = false;
@@ -391,16 +397,16 @@ mixin _InstaWalkController on State<InstaWalkContainer> {
         ownerName = 'Dog Owner';
       }
 
-      final Position? position = await _getLocation();
+      final Position? position =
+          await _getLocation();
 
-      if (!mounted) {
-        return;
-      }
+      if (!mounted) return;
 
       if (position == null) {
         setState(() {
           _checkingAddress = false;
         });
+
         return;
       }
 
@@ -417,9 +423,7 @@ mixin _InstaWalkController on State<InstaWalkContainer> {
         'Insta Walk start error: $e',
       );
 
-      if (!mounted) {
-        return;
-      }
+      if (!mounted) return;
 
       setState(() {
         _checkingAddress = false;
@@ -430,6 +434,10 @@ mixin _InstaWalkController on State<InstaWalkContainer> {
       );
     }
   }
+
+  // ============================================================
+  // LOCATION
+  // ============================================================
 
   Future<Position?> _getLocation() async {
     try {
@@ -476,6 +484,10 @@ mixin _InstaWalkController on State<InstaWalkContainer> {
     }
   }
 
+  // ============================================================
+  // START SEARCH
+  // ============================================================
+
   Future<void> _startSearch({
     required String ownerId,
     required String ownerName,
@@ -496,13 +508,15 @@ mixin _InstaWalkController on State<InstaWalkContainer> {
         ),
       );
 
-      if (!mounted) {
-        return;
-      }
+      if (!mounted) return;
 
       if (!result.success ||
           result.requestId == null ||
           result.expiresAt == null) {
+        _requestId = null;
+
+        _stopRadar();
+
         setState(() {
           _checkingAddress = false;
           _searching = false;
@@ -510,9 +524,6 @@ mixin _InstaWalkController on State<InstaWalkContainer> {
           _secondsLeft = 0;
         });
 
-        _requestId = null;
-
-        _stopRadar();
         _setActive(false);
 
         _message(
@@ -523,12 +534,16 @@ mixin _InstaWalkController on State<InstaWalkContainer> {
         return;
       }
 
-      _requestId = result.requestId;
+      final String requestId =
+          result.requestId!;
+
+      final DateTime expiresAt =
+          result.expiresAt!;
+
+      _requestId = requestId;
 
       Duration remaining =
-          result.expiresAt!.difference(
-        DateTime.now(),
-      );
+          expiresAt.difference(DateTime.now());
 
       if (remaining.isNegative) {
         remaining = Duration.zero;
@@ -536,15 +551,13 @@ mixin _InstaWalkController on State<InstaWalkContainer> {
 
       if (remaining.inSeconds <= 0) {
         await _service.expireRequest(
-          requestId: result.requestId!,
+          requestId: requestId,
         );
 
-        if (!mounted) {
-          return;
-        }
+        if (!mounted) return;
 
+        _requestId = null;
         _resetSearchState();
-
         _setActive(false);
 
         _message(
@@ -562,30 +575,31 @@ mixin _InstaWalkController on State<InstaWalkContainer> {
       });
 
       _setActive(true);
-
       _startRadar();
 
-      await _service.listenForRequest(
-        requestId: result.requestId!,
-        onAccepted: _walkerAccepted,
-        onExpired: () {
-          _finishSearch();
-        },
-        onCancelled: () {
-          _finishSearch(
-            message: 'Walk request was cancelled.',
-          );
-        },
-        onError: (Object error) {
-          debugPrint(
-            'Insta Walk listener error: $error',
-          );
-        },
-      );
-
-      if (!mounted) {
-        return;
+      try {
+        await _service.listenForRequest(
+          requestId: requestId,
+          onAccepted: _walkerAccepted,
+          onExpired: _finishSearch,
+          onCancelled: () {
+            _finishSearch(
+              message: 'Walk request was cancelled.',
+            );
+          },
+          onError: (Object error) {
+            debugPrint(
+              'Insta Walk listener error: $error',
+            );
+          },
+        );
+      } catch (e) {
+        debugPrint(
+          'Insta Walk listener setup error: $e',
+        );
       }
+
+      if (!mounted) return;
 
       if (_searching) {
         _startTimer();
@@ -595,12 +609,12 @@ mixin _InstaWalkController on State<InstaWalkContainer> {
         'Insta Walk search error: $e',
       );
 
-      if (!mounted) {
-        return;
-      }
+      if (!mounted) return;
 
       _stopTimer();
       _stopRadar();
+
+      _requestId = null;
 
       setState(() {
         _checkingAddress = false;
@@ -608,8 +622,6 @@ mixin _InstaWalkController on State<InstaWalkContainer> {
         _searchFinished = false;
         _secondsLeft = 0;
       });
-
-      _requestId = null;
 
       _setActive(false);
 
@@ -619,15 +631,27 @@ mixin _InstaWalkController on State<InstaWalkContainer> {
     }
   }
 
+  // ============================================================
+  // RADAR
+  // ============================================================
+
   void _startRadar() {
-    if (!mounted) {
-      return;
-    }
+    if (!mounted) return;
 
     if (!_radarController.isAnimating) {
       _radarController.repeat();
     }
   }
+
+  void _stopRadar() {
+    if (_radarController.isAnimating) {
+      _radarController.stop();
+    }
+  }
+
+  // ============================================================
+  // TIMER
+  // ============================================================
 
   void _startTimer() {
     _stopTimer();
@@ -641,6 +665,7 @@ mixin _InstaWalkController on State<InstaWalkContainer> {
       (Timer timer) async {
         if (!mounted || !_searching) {
           timer.cancel();
+          _timer = null;
           return;
         }
 
@@ -657,31 +682,33 @@ mixin _InstaWalkController on State<InstaWalkContainer> {
           timer.cancel();
           _timer = null;
 
-          final InstaWalkRequestState state =
-              await _service.getRequestState(id);
+          try {
+            final InstaWalkRequestState state =
+                await _service.getRequestState(id);
 
-          if (!mounted) {
-            return;
-          }
+            if (!mounted) return;
 
-          if (state.isAccepted) {
-            _walkerAccepted(
-              InstaWalkAcceptedData.fromMap(
-                state.data ?? {},
-              ),
+            if (state.isAccepted) {
+              _walkerAccepted(
+                InstaWalkAcceptedData.fromMap(
+                  state.data ?? <String, dynamic>{},
+                ),
+              );
+              return;
+            }
+
+            if (state.isSearching) {
+              await _service.expireRequest(
+                requestId: id,
+              );
+            }
+          } catch (e) {
+            debugPrint(
+              'Insta Walk timer state error: $e',
             );
-            return;
           }
 
-          if (state.isSearching) {
-            await _service.expireRequest(
-              requestId: id,
-            );
-          }
-
-          if (!mounted) {
-            return;
-          }
+          if (!mounted) return;
 
           _finishSearch();
           return;
@@ -694,20 +721,29 @@ mixin _InstaWalkController on State<InstaWalkContainer> {
     );
   }
 
+  void _stopTimer() {
+    _timer?.cancel();
+    _timer = null;
+  }
+
+  // ============================================================
+  // WALKER ACCEPTED
+  // ============================================================
+
   void _walkerAccepted(
     InstaWalkAcceptedData data,
   ) {
     _stopTimer();
     _stopRadar();
 
-    if (!mounted) {
-      return;
+    final String acceptedRequestId =
+        data.requestId.trim();
+
+    if (acceptedRequestId.isNotEmpty) {
+      _requestId = acceptedRequestId;
     }
 
-    _requestId =
-        data.requestId.trim().isEmpty
-            ? _requestId
-            : data.requestId;
+    if (!mounted) return;
 
     setState(() {
       _searching = false;
@@ -720,7 +756,8 @@ mixin _InstaWalkController on State<InstaWalkContainer> {
 
     widget.onWalkerFound?.call();
 
-    final String name = data.walkerName.trim();
+    final String name =
+        data.walkerName.trim();
 
     _message(
       name.isEmpty
@@ -729,6 +766,10 @@ mixin _InstaWalkController on State<InstaWalkContainer> {
     );
   }
 
+  // ============================================================
+  // FINISH SEARCH
+  // ============================================================
+
   void _finishSearch({
     String? message,
   }) {
@@ -736,10 +777,9 @@ mixin _InstaWalkController on State<InstaWalkContainer> {
     _stopRadar();
 
     _requestId = null;
+    _ownerPosition = null;
 
-    if (!mounted) {
-      return;
-    }
+    if (!mounted) return;
 
     setState(() {
       _searching = false;
@@ -756,6 +796,10 @@ mixin _InstaWalkController on State<InstaWalkContainer> {
     );
   }
 
+  // ============================================================
+  // RETRY
+  // ============================================================
+
   Future<void> _retrySearch() async {
     if (_searching ||
         _checkingAddress ||
@@ -763,12 +807,39 @@ mixin _InstaWalkController on State<InstaWalkContainer> {
       return;
     }
 
+    if (!mounted) return;
+
     setState(() {
       _searchFinished = false;
     });
 
     await _findWalker();
   }
+
+  // ============================================================
+  // RESET
+  // ============================================================
+
+  void _resetSearchState() {
+    _stopTimer();
+    _stopRadar();
+
+    _requestId = null;
+    _ownerPosition = null;
+
+    if (!mounted) return;
+
+    setState(() {
+      _searching = false;
+      _searchFinished = false;
+      _checkingAddress = false;
+      _secondsLeft = 0;
+    });
+  }
+
+  // ============================================================
+  // TIMER TEXT
+  // ============================================================
 
   String _timerText() {
     final int safeSeconds =
@@ -786,10 +857,12 @@ mixin _InstaWalkController on State<InstaWalkContainer> {
         '${seconds.toString().padLeft(2, '0')}';
   }
 
+  // ============================================================
+  // MESSAGE
+  // ============================================================
+
   void _message(String text) {
-    if (!mounted) {
-      return;
-    }
+    if (!mounted) return;
 
     final ScaffoldMessengerState messenger =
         ScaffoldMessenger.of(context);
@@ -813,6 +886,10 @@ mixin _InstaWalkController on State<InstaWalkContainer> {
       );
   }
 
+  // ============================================================
+  // READ STRING
+  // ============================================================
+
   String _readFirstString(
     Map<String, dynamic> data,
     List<String> keys,
@@ -824,7 +901,8 @@ mixin _InstaWalkController on State<InstaWalkContainer> {
         continue;
       }
 
-      final String result = value.toString().trim();
+      final String result =
+          value.toString().trim();
 
       if (result.isNotEmpty) {
         return result;
@@ -834,6 +912,10 @@ mixin _InstaWalkController on State<InstaWalkContainer> {
     return '';
   }
 
+  // ============================================================
+  // RECOVER OWNER POSITION
+  // ============================================================
+
   Position? _readOwnerPosition(
     Map<String, dynamic>? data,
   ) {
@@ -841,7 +923,8 @@ mixin _InstaWalkController on State<InstaWalkContainer> {
       return null;
     }
 
-    final dynamic value = data['ownerLocation'];
+    final dynamic value =
+        data['ownerLocation'];
 
     if (value is GeoPoint) {
       return Position(
