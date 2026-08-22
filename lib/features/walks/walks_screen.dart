@@ -2,8 +2,8 @@ import 'package:flutter/material.dart';
 
 import '../../screens/custom_app_bar.dart';
 
+import '../insta_walk/widgets/insta_walk_container.dart';
 import 'widgets/walks_header.dart';
-import 'widgets/insta_walk_container.dart';
 
 class WalksScreen extends StatefulWidget {
   const WalksScreen({super.key});
@@ -41,6 +41,7 @@ class _WalksScreenState extends State<WalksScreen> {
 
             // ==================================================
             // INSTA WALK
+            // NEW LOCATION
             // ==================================================
 
             const SliverToBoxAdapter(
