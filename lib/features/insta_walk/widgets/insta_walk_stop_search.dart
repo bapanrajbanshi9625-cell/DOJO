@@ -35,15 +35,11 @@ extension _StopSearchRole on _InstaWalkContainerState {
       return;
     }
 
-    setState(() {
+    _updateState(() {
       _stopping = true;
     });
 
     try {
-      // --------------------------------------------------------
-      // CANCEL FIRESTORE REQUEST
-      // --------------------------------------------------------
-
       final bool cancelled =
           await _service.cancelSearch(
         requestId: requestId,
@@ -64,7 +60,7 @@ extension _StopSearchRole on _InstaWalkContainerState {
         _requestId = null;
         _ownerPosition = null;
 
-        setState(() {
+        _updateState(() {
           _searching = false;
           _searchFinished = false;
           _checkingAddress = false;
@@ -83,8 +79,7 @@ extension _StopSearchRole on _InstaWalkContainerState {
       }
 
       // --------------------------------------------------------
-      // CANCEL FAILED
-      // READ FIRESTORE AGAIN
+      // CANCEL FAILED — READ FIRESTORE AGAIN
       // --------------------------------------------------------
 
       final InstaWalkRequestState state =
@@ -101,7 +96,7 @@ extension _StopSearchRole on _InstaWalkContainerState {
       // --------------------------------------------------------
 
       if (state.isAccepted) {
-        setState(() {
+        _updateState(() {
           _stopping = false;
         });
 
@@ -133,7 +128,7 @@ extension _StopSearchRole on _InstaWalkContainerState {
         _requestId = null;
         _ownerPosition = null;
 
-        setState(() {
+        _updateState(() {
           _searching = false;
           _searchFinished = false;
           _checkingAddress = false;
@@ -151,7 +146,7 @@ extension _StopSearchRole on _InstaWalkContainerState {
       // STILL SEARCHING
       // --------------------------------------------------------
 
-      setState(() {
+      _updateState(() {
         _stopping = false;
       });
 
@@ -167,7 +162,7 @@ extension _StopSearchRole on _InstaWalkContainerState {
         return;
       }
 
-      setState(() {
+      _updateState(() {
         _stopping = false;
       });
 
