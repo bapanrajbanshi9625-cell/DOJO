@@ -3,7 +3,7 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
-import 'package:geocoding/geocoding.dart';
+import 'package:geocoding/geocoding.dart' as geocoding;
 import 'package:geolocator/geolocator.dart';
 
 import '../core/constants/app_colors.dart';
@@ -168,52 +168,45 @@ class _AddressScreenState extends State<AddressScreen> {
       // READ STRUCTURED ADDRESS
       // =====================================================
 
-      _flatController.text =
-          _readString(
+      _flatController.text = _readString(
         data,
         'flatNumber',
       );
 
-      _addressLine1Controller.text =
-          _readString(
+      _addressLine1Controller.text = _readString(
         data,
         'addressLine1',
       );
 
-      _addressLine2Controller.text =
-          _readString(
+      _addressLine2Controller.text = _readString(
         data,
         'addressLine2',
       );
 
-      _areaController.text =
-          _readString(
+      _areaController.text = _readString(
         data,
         'area',
       );
 
-      _cityController.text =
-          _readString(
+      _cityController.text = _readString(
         data,
         'city',
       );
 
-      _stateController.text =
-          _readString(
+      _stateController.text = _readString(
         data,
         'state',
       );
 
       // New field first, old field as fallback.
-      _pinCodeController.text =
-          _readString(
+      final String newPin = _readString(
         data,
         'pincode',
-      ).isNotEmpty
-              ? _readString(
-                  data,
-                  'pincode',
-                )
+      );
+
+      _pinCodeController.text =
+          newPin.isNotEmpty
+              ? newPin
               : _readString(
                   data,
                   'Pincode',
@@ -223,15 +216,13 @@ class _AddressScreenState extends State<AddressScreen> {
       // OLD ADDRESS COMPATIBILITY
       // =====================================================
 
-      String oldAddress =
-          _readString(
+      String oldAddress = _readString(
         data,
         'address',
       ).trim();
 
       if (oldAddress.isEmpty) {
-        oldAddress =
-            _readString(
+        oldAddress = _readString(
           data,
           'Adress',
         ).trim();
@@ -280,49 +271,36 @@ class _AddressScreenState extends State<AddressScreen> {
             'id': 'address_1',
             'title': 'Home',
             'address': oldAddress,
-            'flatNumber':
-                _readString(
+            'flatNumber': _readString(
               data,
               'flatNumber',
             ),
-            'addressLine1':
-                _readString(
+            'addressLine1': _readString(
               data,
               'addressLine1',
             ),
-            'addressLine2':
-                _readString(
+            'addressLine2': _readString(
               data,
               'addressLine2',
             ),
-            'area':
-                _readString(
+            'area': _readString(
               data,
               'area',
             ),
-            'city':
-                _readString(
+            'city': _readString(
               data,
               'city',
             ),
-            'state':
-                _readString(
+            'state': _readString(
               data,
               'state',
             ),
-            'pincode':
-                _readString(
-                  data,
-                  'pincode',
-                ).isNotEmpty
-                    ? _readString(
-                        data,
-                        'pincode',
-                      )
-                    : _readString(
-                        data,
-                        'Pincode',
-                      ),
+            'pincode': newPin.isNotEmpty
+                ? newPin
+                : _readString(
+                    data,
+                    'Pincode',
+                  ),
           },
         );
       }
@@ -397,6 +375,10 @@ class _AddressScreenState extends State<AddressScreen> {
     });
 
     try {
+      // =====================================================
+      // LOCATION SERVICE
+      // =====================================================
+
       final bool serviceEnabled =
           await Geolocator.isLocationServiceEnabled();
 
@@ -410,6 +392,10 @@ class _AddressScreenState extends State<AddressScreen> {
         _showLocationServiceDialog();
         return;
       }
+
+      // =====================================================
+      // LOCATION PERMISSION
+      // =====================================================
 
       LocationPermission permission =
           await Geolocator.checkPermission();
@@ -446,17 +432,27 @@ class _AddressScreenState extends State<AddressScreen> {
         return;
       }
 
+      // =====================================================
+      // GET CURRENT GPS LOCATION
+      // =====================================================
+
       final Position position =
-    await Geolocator.getCurrentPosition(
-  desiredAccuracy: LocationAccuracy.high,
-);
+          await Geolocator.getCurrentPosition(
+        locationSettings:
+            const LocationSettings(
+          accuracy:
+              LocationAccuracy.high,
+        ),
+      );
 
       // =====================================================
       // REVERSE GEOCODING
       // =====================================================
 
-      final List<Placemark> placemarks =
-          await placemarkFromCoordinates(
+      final List<geocoding.Placemark>
+          placemarks =
+          await geocoding
+              .placemarkFromCoordinates(
         position.latitude,
         position.longitude,
       );
@@ -474,8 +470,12 @@ class _AddressScreenState extends State<AddressScreen> {
         return;
       }
 
-      final Placemark place =
+      final geocoding.Placemark place =
           placemarks.first;
+
+      // =====================================================
+      // EXTRACT ADDRESS COMPONENTS
+      // =====================================================
 
       final String street =
           place.street?.trim() ?? '';
@@ -492,10 +492,23 @@ class _AddressScreenState extends State<AddressScreen> {
       final String postalCode =
           place.postalCode?.trim() ?? '';
 
+      final String subAdministrativeArea =
+          place.subAdministrativeArea
+                  ?.trim() ??
+              '';
+
+      // =====================================================
+      // ADDRESS LINE 1
+      // =====================================================
+
       if (street.isNotEmpty) {
         _addressLine1Controller.text =
             street;
       }
+
+      // =====================================================
+      // AREA / LOCALITY
+      // =====================================================
 
       if (subLocality.isNotEmpty) {
         _areaController.text =
@@ -505,20 +518,41 @@ class _AddressScreenState extends State<AddressScreen> {
             locality;
       }
 
+      // =====================================================
+      // CITY
+      // =====================================================
+
       if (locality.isNotEmpty) {
         _cityController.text =
             locality;
+      } else if (subAdministrativeArea
+          .isNotEmpty) {
+        _cityController.text =
+            subAdministrativeArea;
       }
 
-      if (administrativeArea.isNotEmpty) {
+      // =====================================================
+      // STATE
+      // =====================================================
+
+      if (administrativeArea
+          .isNotEmpty) {
         _stateController.text =
             administrativeArea;
       }
+
+      // =====================================================
+      // PIN CODE
+      // =====================================================
 
       if (postalCode.isNotEmpty) {
         _pinCodeController.text =
             postalCode;
       }
+
+      // =====================================================
+      // FINISHED
+      // =====================================================
 
       if (mounted) {
         setState(() {
@@ -777,7 +811,8 @@ class _AddressScreenState extends State<AddressScreen> {
       return;
     }
 
-    if (!RegExp(r'^\d{6}$').hasMatch(pin)) {
+    if (!RegExp(r'^\d{6}$')
+        .hasMatch(pin)) {
       _showMessage(
         'Please enter a valid 6-digit PIN code.',
       );
@@ -806,7 +841,8 @@ class _AddressScreenState extends State<AddressScreen> {
       DocumentReference<Map<String, dynamic>>?
           ownerRef = _ownerProfileRef;
 
-      ownerRef ??= await _findOwnerProfile();
+      ownerRef ??=
+          await _findOwnerProfile();
 
       if (ownerRef == null) {
         if (mounted) {
@@ -842,7 +878,8 @@ class _AddressScreenState extends State<AddressScreen> {
       // ADDRESS OBJECT
       // =====================================================
 
-      final Map<String, dynamic> newAddress =
+      final Map<String, dynamic>
+          newAddress =
           <String, dynamic>{
         'id': _savedAddresses.isEmpty
             ? 'address_1'
@@ -888,17 +925,7 @@ class _AddressScreenState extends State<AddressScreen> {
       // =====================================================
       // OWNER PROFILE UPDATE
       //
-      // IMPORTANT:
-      // merge:true means existing fields such as:
-      // ownerId
-      // ownerName
-      // pets
-      // phone
-      // profileCompleted
-      // role
-      // createdAt
-      // etc.
-      // WILL NOT BE DELETED.
+      // merge:true means existing fields are preserved.
       // =====================================================
 
       await ownerRef.set(
@@ -1143,19 +1170,23 @@ class _AddressScreenState extends State<AddressScreen> {
         '${e.code} - ${e.message}',
       );
 
-      _showMessage(
-        e.code == 'permission-denied'
-            ? 'You do not have permission to delete this address.'
-            : 'Unable to delete address.',
-      );
+      if (mounted) {
+        _showMessage(
+          e.code == 'permission-denied'
+              ? 'You do not have permission to delete this address.'
+              : 'Unable to delete address.',
+        );
+      }
     } catch (e) {
       debugPrint(
         'DELETE ADDRESS ERROR: $e',
       );
 
-      _showMessage(
-        'Unable to delete address.',
-      );
+      if (mounted) {
+        _showMessage(
+          'Unable to delete address.',
+        );
+      }
     }
   }
 
