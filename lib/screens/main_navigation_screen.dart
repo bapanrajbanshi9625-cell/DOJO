@@ -161,6 +161,8 @@ class _MainNavigationScreenState
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: Colors.white,
+
       // ========================================================
       // CURRENT SCREEN
       // ========================================================
@@ -192,8 +194,8 @@ class _MainNavigationScreenState
             mainAxisSize: MainAxisSize.min,
             children: [
               // ==================================================
-              // ACTIVE LIVE WALK BAR
-              // ONLY VISIBLE WHEN ACTIVE
+              // ACTIVE BAR
+              // ONLY WHEN LIVE WALK IS ACTIVE
               // ==================================================
 
               if (isActive)
