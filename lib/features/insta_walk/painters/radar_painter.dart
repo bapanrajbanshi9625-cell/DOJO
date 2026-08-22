@@ -1,3 +1,6 @@
+// File location:
+// lib/features/insta_walk/painters/radar_painter.dart
+
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
@@ -22,6 +25,10 @@ class RadarPainter extends CustomPainter {
     final double radius =
         math.min(size.width, size.height) * .40;
 
+    // ==========================================================
+    // RADAR RINGS
+    // ==========================================================
+
     final Paint rings = Paint()
       ..style = PaintingStyle.stroke
       ..strokeWidth = 1.2
@@ -36,6 +43,10 @@ class RadarPainter extends CustomPainter {
       );
     }
 
+    // ==========================================================
+    // PULSE
+    // ==========================================================
+
     final double pulse =
         radius * (.35 + progress * .65);
 
@@ -43,13 +54,19 @@ class RadarPainter extends CustomPainter {
       ..style = PaintingStyle.stroke
       ..strokeWidth = 2
       ..color = const Color(0xFF8FFFEF)
-          .withValues(alpha: (1 - progress) * .65);
+          .withValues(
+            alpha: (1 - progress) * .65,
+          );
 
     canvas.drawCircle(
       center,
       pulse,
       pulsePaint,
     );
+
+    // ==========================================================
+    // RADAR SWEEP
+    // ==========================================================
 
     final double angle =
         progress * math.pi * 2;
@@ -59,8 +76,10 @@ class RadarPainter extends CustomPainter {
         startAngle: angle - 1.0,
         endAngle: angle,
         colors: [
-          const Color(0xFF65D6C8).withValues(alpha: 0),
-          const Color(0xFF8FFFEF).withValues(alpha: .55),
+          const Color(0xFF65D6C8)
+              .withValues(alpha: 0),
+          const Color(0xFF8FFFEF)
+              .withValues(alpha: .55),
         ],
       ).createShader(
         Rect.fromCircle(
