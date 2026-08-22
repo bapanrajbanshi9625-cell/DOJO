@@ -1,0 +1,414 @@
+insta_walk_view.dart
+
+part of 'insta_walk_container.dart';
+
+extension _InstaWalkView on _InstaWalkContainerState {
+  Widget _buildCompactPatti() {
+    final Widget patti = Container(
+      width: double.infinity,
+      height: 68,
+      padding: const EdgeInsets.symmetric(
+        horizontal: 15,
+      ),
+      decoration: BoxDecoration(
+        gradient: const LinearGradient(
+          colors: [
+            Color(0xFF243746),
+            Color(0xFF304E5A),
+            Color(0xFF376A70),
+          ],
+          begin: Alignment.centerLeft,
+          end: Alignment.centerRight,
+        ),
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(
+          color: const Color(0xFF65D6C8).withValues(
+            alpha: .20,
+          ),
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(
+              alpha: .10,
+            ),
+            blurRadius: 16,
+            offset: const Offset(0, 6),
+          ),
+        ],
+      ),
+      child: Row(
+        children: [
+          Container(
+            width: 40,
+            height: 40,
+            decoration: BoxDecoration(
+              color: const Color(0xFF65D6C8).withValues(
+                alpha: .14,
+              ),
+              shape: BoxShape.circle,
+              border: Border.all(
+                color: const Color(0xFF65D6C8).withValues(
+                  alpha: .20,
+                ),
+              ),
+            ),
+            child: const Icon(
+              Icons.flash_on_rounded,
+              color: Color(0xFF8FFFEF),
+              size: 21,
+            ),
+          ),
+
+          const SizedBox(width: 11),
+
+          Expanded(
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              crossAxisAlignment:
+                  CrossAxisAlignment.start,
+              children: [
+                const Text(
+                  'Insta Walk',
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontSize: 14,
+                    fontWeight: FontWeight.w900,
+                  ),
+                ),
+                const SizedBox(height: 3),
+                Text(
+                  _searching
+                      ? 'Finding walker for $_petName'
+                      : 'Walker is active',
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(
+                    color: Colors.white70,
+                    fontSize: 11,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ],
+            ),
+          ),
+
+          const SizedBox(width: 8),
+
+          Container(
+            padding: const EdgeInsets.symmetric(
+              horizontal: 8,
+              vertical: 5,
+            ),
+            decoration: BoxDecoration(
+              color: const Color(0xFF65D6C8).withValues(
+                alpha: .14,
+              ),
+              borderRadius: BorderRadius.circular(20),
+            ),
+            child: Text(
+              _searching ? 'LIVE' : 'ACTIVE',
+              style: const TextStyle(
+                color: Color(0xFF8FFFEF),
+                fontSize: 8,
+                fontWeight: FontWeight.w900,
+              ),
+            ),
+          ),
+
+          const SizedBox(width: 4),
+
+          const Icon(
+            Icons.chevron_right_rounded,
+            color: Colors.white70,
+            size: 23,
+          ),
+        ],
+      ),
+    );
+
+    if (widget.onTap == null) {
+      return patti;
+    }
+
+    return GestureDetector(
+      onTap: widget.onTap,
+      behavior: HitTestBehavior.opaque,
+      child: patti,
+    );
+  }
+
+  Widget _buildFullScreen() {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(
+        16,
+        8,
+        16,
+        20,
+      ),
+      child: Container(
+        width: double.infinity,
+        padding: const EdgeInsets.all(20),
+        decoration: BoxDecoration(
+          gradient: const LinearGradient(
+            colors: [
+              Color(0xFF243746),
+              Color(0xFF304E5A),
+              Color(0xFF376A70),
+            ],
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+          ),
+          borderRadius: BorderRadius.circular(25),
+          border: Border.all(
+            color: const Color(0xFF65D6C8).withValues(
+              alpha: .18,
+            ),
+          ),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(
+                alpha: .10,
+              ),
+              blurRadius: 20,
+              offset: const Offset(0, 8),
+            ),
+          ],
+        ),
+        child: _buildFullScreenContent(),
+      ),
+    );
+  }
+
+  Widget _buildFullScreenContent() {
+    if (_recovering) {
+      return const SizedBox(
+        height: 180,
+        child: Center(
+          child: CircularProgressIndicator(
+            strokeWidth: 2.5,
+            color: Color(0xFF65D6C8),
+          ),
+        ),
+      );
+    }
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        _header(),
+
+        const SizedBox(height: 16),
+
+        Text(
+          _searching
+              ? 'Searching available walkers near your current location.'
+              : 'Find an available walker nearby instantly.',
+          style: const TextStyle(
+            color: Colors.white70,
+            fontSize: 13,
+            height: 1.5,
+          ),
+        ),
+
+        const SizedBox(height: 20),
+
+        if (!_searching && !_searchFinished)
+          SizedBox(
+            width: double.infinity,
+            child: InstaWalkSearchButton(
+              loading: _checkingAddress,
+              text: _checkingAddress
+                  ? 'Checking location...'
+                  : 'Find a Walker Now',
+              onPressed:
+                  _checkingAddress ? null : _findWalker,
+            ),
+          ),
+
+        if (_searching)
+          _buildSearching(),
+
+        if (_searchFinished)
+          InstaWalkRetry(
+            onRetry: _retrySearch,
+          ),
+      ],
+    );
+  }
+
+  Widget _buildSearching() {
+    if (_ownerPosition != null) {
+      return InstaWalkSearching(
+        timerText: _timerText(),
+        map: InstaWalkMapRadar(
+          ownerPoint: LatLng(
+            _ownerPosition!.latitude,
+            _ownerPosition!.longitude,
+          ),
+          searchRadiusKm:
+              InstaWalkSearchService.searchRadiusKm,
+          radarAnimation: _radarController,
+        ),
+      );
+    }
+
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: Colors.black.withValues(
+          alpha: .12,
+        ),
+        borderRadius: BorderRadius.circular(18),
+      ),
+      child: Column(
+        children: [
+          const SizedBox(
+            width: 52,
+            height: 52,
+            child: CircularProgressIndicator(
+              strokeWidth: 3,
+              color: Color(0xFF65D6C8),
+            ),
+          ),
+
+          const SizedBox(height: 14),
+
+          const Text(
+            'Searching nearby walkers',
+            textAlign: TextAlign.center,
+            style: TextStyle(
+              color: Colors.white,
+              fontSize: 15,
+              fontWeight: FontWeight.w800,
+            ),
+          ),
+
+          const SizedBox(height: 6),
+
+          Text(
+            _timerText(),
+            style: const TextStyle(
+              color: Color(0xFF8FFFEF),
+              fontSize: 22,
+              fontWeight: FontWeight.w900,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _header() {
+    final bool isLive = _searching;
+
+    return Row(
+      children: [
+        Container(
+          width: 52,
+          height: 52,
+          decoration: BoxDecoration(
+            gradient: const LinearGradient(
+              colors: [
+                Color(0xFF65D6C8),
+                Color(0xFF8FFFEF),
+              ],
+            ),
+            borderRadius: BorderRadius.circular(17),
+            boxShadow: [
+              BoxShadow(
+                color: const Color(0xFF65D6C8).withValues(
+                  alpha: .25,
+                ),
+                blurRadius: 12,
+              ),
+            ],
+          ),
+          child: const Icon(
+            Icons.flash_on_rounded,
+            color: Color(0xFF243746),
+            size: 29,
+          ),
+        ),
+
+        const SizedBox(width: 13),
+
+        Expanded(
+          child: Column(
+            crossAxisAlignment:
+                CrossAxisAlignment.start,
+            children: [
+              const Text(
+                'Insta Walk',
+                style: TextStyle(
+                  color: Colors.white,
+                  fontSize: 21,
+                  fontWeight: FontWeight.w900,
+                ),
+              ),
+
+              const SizedBox(height: 3),
+
+              Text(
+                isLive
+                    ? 'Finding a walker for $_petName'
+                    : 'Walker is active',
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: const TextStyle(
+                  color: Colors.white60,
+                  fontSize: 12,
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+            ],
+          ),
+        ),
+
+        Container(
+          padding: const EdgeInsets.symmetric(
+            horizontal: 9,
+            vertical: 6,
+          ),
+          decoration: BoxDecoration(
+            color: const Color(0xFF65D6C8).withValues(
+              alpha: .12,
+            ),
+            borderRadius: BorderRadius.circular(20),
+            border: Border.all(
+              color: const Color(0xFF65D6C8).withValues(
+                alpha: .25,
+              ),
+            ),
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(
+                width: 8,
+                height: 8,
+                decoration: const BoxDecoration(
+                  color: Color(0xFF65D6C8),
+                  shape: BoxShape.circle,
+                ),
+              ),
+
+              const SizedBox(width: 5),
+
+              Text(
+                isLive ? 'LIVE' : 'ACTIVE',
+                style: const TextStyle(
+                  color: Color(0xFF8FFFEF),
+                  fontSize: 9,
+                  fontWeight: FontWeight.w900,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+}
