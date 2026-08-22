@@ -22,7 +22,7 @@ part 'insta_walk_view.dart';
 // ============================================================
 
 class InstaWalkContainer extends StatefulWidget {
-  /// Called when a walker is found/accepted.
+  /// Called when a walker is found / accepted.
   final VoidCallback? onWalkerFound;
 
   /// true = searching / accepted / active
@@ -54,7 +54,7 @@ class InstaWalkContainer extends StatefulWidget {
 // ============================================================
 
 class _InstaWalkContainerState extends State<InstaWalkContainer>
-    with SingleTickerProviderStateMixin {
+    with SingleTickerProviderStateMixin, _InstaWalkController {
   // ==========================================================
   // SERVICE
   // ==========================================================
@@ -183,7 +183,7 @@ class _InstaWalkContainerState extends State<InstaWalkContainer>
   }
 
   // ==========================================================
-  // RESET
+  // RESET SEARCH STATE
   // ==========================================================
 
   void _resetSearchState({
@@ -204,7 +204,10 @@ class _InstaWalkContainerState extends State<InstaWalkContainer>
       _searching = false;
       _searchFinished = finished;
       _checkingAddress = false;
+      _recovering = false;
     });
+
+    _setActive(false);
   }
 
   // ==========================================================
