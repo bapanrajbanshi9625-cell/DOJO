@@ -147,7 +147,8 @@ mixin _InstaWalkController on State<InstaWalkContainer> {
       return;
     }
 
-    Duration remaining = expiresAt.difference(DateTime.now());
+    Duration remaining =
+        expiresAt.difference(DateTime.now());
 
     if (remaining.isNegative) {
       remaining = Duration.zero;
@@ -280,7 +281,11 @@ mixin _InstaWalkController on State<InstaWalkContainer> {
     });
 
     try {
-      final QueryDocumentSnapshot<Map<String, dynamic>>? ownerDoc =
+      // ========================================================
+      // FIRST PROFILE CHECK
+      // ========================================================
+
+      QueryDocumentSnapshot<Map<String, dynamic>>? ownerDoc =
           await _service.findOwnerProfile();
 
       if (!mounted) return;
@@ -296,7 +301,11 @@ mixin _InstaWalkController on State<InstaWalkContainer> {
         return;
       }
 
-      final Map<String, dynamic> data = ownerDoc.data();
+      Map<String, dynamic> data = ownerDoc.data();
+
+      // ========================================================
+      // OWNER ID
+      // ========================================================
 
       final String ownerId = _readFirstString(
         data,
@@ -317,6 +326,10 @@ mixin _InstaWalkController on State<InstaWalkContainer> {
         return;
       }
 
+      // ========================================================
+      // PET NAME
+      // ========================================================
+
       _petName = _readFirstString(
         data,
         const [
@@ -331,14 +344,22 @@ mixin _InstaWalkController on State<InstaWalkContainer> {
         _petName = 'Your Pet';
       }
 
-      final String address = _readFirstString(
-        data,
-        const [
-          'address',
-          'Adress',
-          'Address',
-        ],
-      );
+      // ========================================================
+      // ADDRESS
+      //
+      // IMPORTANT:
+      // First check complete address.
+      // Then check structured address fields.
+      // ========================================================
+
+      String address = _getOwnerAddress(data);
+
+      // ========================================================
+      // ADDRESS MISSING
+      //
+      // Open AddressScreen.
+      // After returning, ALWAYS reload owner profile.
+      // ========================================================
 
       if (address.isEmpty) {
         setState(() {
@@ -355,11 +376,66 @@ mixin _InstaWalkController on State<InstaWalkContainer> {
         if (!mounted) return;
 
         setState(() {
-          _checkingAddress = false;
+          _checkingAddress = true;
+          _searchFinished = false;
         });
 
-        return;
+        // ======================================================
+        // IMPORTANT:
+        // READ FIRESTORE AGAIN AFTER ADDRESS SCREEN
+        // ======================================================
+
+        ownerDoc =
+            await _service.findOwnerProfile();
+
+        if (!mounted) return;
+
+        if (ownerDoc == null) {
+          setState(() {
+            _checkingAddress = false;
+          });
+
+          _message(
+            'Owner profile not found.',
+          );
+          return;
+        }
+
+        data = ownerDoc.data();
+
+        // Re-read pet name in case profile changed.
+        _petName = _readFirstString(
+          data,
+          const [
+            'petName',
+            'Pet Name',
+            'dogName',
+            'Dog Name',
+          ],
+        );
+
+        if (_petName.isEmpty) {
+          _petName = 'Your Pet';
+        }
+
+        // Re-read address from fresh Firestore data.
+        address = _getOwnerAddress(data);
+
+        if (address.isEmpty) {
+          setState(() {
+            _checkingAddress = false;
+          });
+
+          _message(
+            'Please save your walking address first.',
+          );
+          return;
+        }
       }
+
+      // ========================================================
+      // OWNER NAME
+      // ========================================================
 
       String ownerName = _readFirstString(
         data,
@@ -375,7 +451,12 @@ mixin _InstaWalkController on State<InstaWalkContainer> {
         ownerName = 'Dog Owner';
       }
 
-      final Position? position = await _getLocation();
+      // ========================================================
+      // CURRENT LOCATION
+      // ========================================================
+
+      final Position? position =
+          await _getLocation();
 
       if (!mounted) return;
 
@@ -388,6 +469,10 @@ mixin _InstaWalkController on State<InstaWalkContainer> {
       }
 
       _ownerPosition = position;
+
+      // ========================================================
+      // START SEARCH
+      // ========================================================
 
       await _startSearch(
         ownerId: ownerId,
@@ -413,6 +498,229 @@ mixin _InstaWalkController on State<InstaWalkContainer> {
   }
 
   // ============================================================
+  // OWNER ADDRESS READER
+  //
+  // Supports:
+  // address
+  // Adress
+  // Address
+  // addressLine1
+  // structured address
+  // savedAddresses
+  // ============================================================
+
+  String _getOwnerAddress(
+    Map<String, dynamic> data,
+  ) {
+    // ----------------------------------------------------------
+    // 1. COMPLETE ADDRESS
+    // ----------------------------------------------------------
+
+    String address = _readFirstString(
+      data,
+      const [
+        'address',
+        'Adress',
+        'Address',
+      ],
+    );
+
+    if (address.isNotEmpty) {
+      return address;
+    }
+
+    // ----------------------------------------------------------
+    // 2. STRUCTURED ADDRESS
+    // ----------------------------------------------------------
+
+    final String flat = _readFirstString(
+      data,
+      const [
+        'flatNumber',
+        'Flat Number',
+        'flat',
+      ],
+    );
+
+    final String line1 = _readFirstString(
+      data,
+      const [
+        'addressLine1',
+        'Address Line 1',
+      ],
+    );
+
+    final String line2 = _readFirstString(
+      data,
+      const [
+        'addressLine2',
+        'Address Line 2',
+      ],
+    );
+
+    final String area = _readFirstString(
+      data,
+      const [
+        'area',
+        'Area',
+        'locality',
+        'Locality',
+      ],
+    );
+
+    final String city = _readFirstString(
+      data,
+      const [
+        'city',
+        'City',
+      ],
+    );
+
+    final String state = _readFirstString(
+      data,
+      const [
+        'state',
+        'State',
+      ],
+    );
+
+    final String pin = _readFirstString(
+      data,
+      const [
+        'pincode',
+        'Pincode',
+        'PIN Code',
+        'pinCode',
+      ],
+    );
+
+    final List<String> parts =
+        <String>[];
+
+    void addPart(String value) {
+      final String clean =
+          value.trim();
+
+      if (clean.isNotEmpty &&
+          !parts.contains(clean)) {
+        parts.add(clean);
+      }
+    }
+
+    addPart(flat);
+    addPart(line1);
+    addPart(line2);
+    addPart(area);
+    addPart(city);
+    addPart(state);
+    addPart(pin);
+
+    if (parts.isNotEmpty) {
+      return parts.join(', ');
+    }
+
+    // ----------------------------------------------------------
+    // 3. FALLBACK: SAVED ADDRESSES
+    // ----------------------------------------------------------
+
+    final dynamic saved =
+        data['savedAddresses'];
+
+    if (saved is List) {
+      for (final dynamic item in saved) {
+        if (item is Map) {
+          final Map<String, dynamic> savedAddress =
+              Map<String, dynamic>.from(item);
+
+          final String savedFull =
+              _readFirstString(
+            savedAddress,
+            const [
+              'address',
+              'Adress',
+              'Address',
+            ],
+          );
+
+          if (savedFull.isNotEmpty) {
+            return savedFull;
+          }
+
+          final String savedLine1 =
+              _readFirstString(
+            savedAddress,
+            const [
+              'addressLine1',
+              'Address Line 1',
+            ],
+          );
+
+          final String savedArea =
+              _readFirstString(
+            savedAddress,
+            const [
+              'area',
+              'Area',
+            ],
+          );
+
+          final String savedCity =
+              _readFirstString(
+            savedAddress,
+            const [
+              'city',
+              'City',
+            ],
+          );
+
+          final String savedState =
+              _readFirstString(
+            savedAddress,
+            const [
+              'state',
+              'State',
+            ],
+          );
+
+          final String savedPin =
+              _readFirstString(
+            savedAddress,
+            const [
+              'pincode',
+              'Pincode',
+              'PIN Code',
+            ],
+          );
+
+          final List<String> savedParts =
+              <String>[];
+
+          void addSaved(String value) {
+            final String clean =
+                value.trim();
+
+            if (clean.isNotEmpty) {
+              savedParts.add(clean);
+            }
+          }
+
+          addSaved(savedLine1);
+          addSaved(savedArea);
+          addSaved(savedCity);
+          addSaved(savedState);
+          addSaved(savedPin);
+
+          if (savedParts.isNotEmpty) {
+            return savedParts.join(', ');
+          }
+        }
+      }
+    }
+
+    return '';
+  }
+
+  // ============================================================
   // LOCATION
   // ============================================================
 
@@ -431,13 +739,16 @@ mixin _InstaWalkController on State<InstaWalkContainer> {
       LocationPermission permission =
           await Geolocator.checkPermission();
 
-      if (permission == LocationPermission.denied) {
+      if (permission ==
+          LocationPermission.denied) {
         permission =
             await Geolocator.requestPermission();
       }
 
-      if (permission == LocationPermission.denied ||
-          permission == LocationPermission.deniedForever) {
+      if (permission ==
+              LocationPermission.denied ||
+          permission ==
+              LocationPermission.deniedForever) {
         _message(
           'Location permission is required.',
         );
@@ -500,19 +811,25 @@ mixin _InstaWalkController on State<InstaWalkContainer> {
         _setActive(false);
 
         _message(
-          result.message ?? 'Unable to start search.',
+          result.message ??
+              'Unable to start search.',
         );
 
         return;
       }
 
-      final String requestId = result.requestId!;
-      final DateTime expiresAt = result.expiresAt!;
+      final String requestId =
+          result.requestId!;
+
+      final DateTime expiresAt =
+          result.expiresAt!;
 
       _requestId = requestId;
 
       Duration remaining =
-          expiresAt.difference(DateTime.now());
+          expiresAt.difference(
+        DateTime.now(),
+      );
 
       if (remaining.isNegative) {
         remaining = Duration.zero;
@@ -538,7 +855,8 @@ mixin _InstaWalkController on State<InstaWalkContainer> {
         _checkingAddress = false;
         _searching = true;
         _searchFinished = false;
-        _secondsLeft = remaining.inSeconds;
+        _secondsLeft =
+            remaining.inSeconds;
       });
 
       _setActive(true);
@@ -551,7 +869,8 @@ mixin _InstaWalkController on State<InstaWalkContainer> {
           onExpired: _finishSearch,
           onCancelled: () {
             _finishSearch(
-              message: 'Walk request was cancelled.',
+              message:
+                  'Walk request was cancelled.',
             );
           },
           onError: (Object error) {
@@ -636,7 +955,8 @@ mixin _InstaWalkController on State<InstaWalkContainer> {
 
         final String? id = _requestId;
 
-        if (id == null || id.trim().isEmpty) {
+        if (id == null ||
+            id.trim().isEmpty) {
           timer.cancel();
 
           if (identical(_timer, timer)) {
@@ -663,7 +983,8 @@ mixin _InstaWalkController on State<InstaWalkContainer> {
             if (state.isAccepted) {
               _walkerAccepted(
                 InstaWalkAcceptedData.fromMap(
-                  state.data ?? <String, dynamic>{},
+                  state.data ??
+                      <String, dynamic>{},
                 ),
               );
               return;
@@ -726,7 +1047,8 @@ mixin _InstaWalkController on State<InstaWalkContainer> {
 
     widget.onWalkerFound?.call();
 
-    final String name = data.walkerName.trim();
+    final String name =
+        data.walkerName.trim();
 
     _message(
       name.isEmpty
@@ -761,7 +1083,8 @@ mixin _InstaWalkController on State<InstaWalkContainer> {
     _setActive(false);
 
     _message(
-      message ?? 'No walker accepted the request.',
+      message ??
+          'No walker accepted the request.',
     );
   }
 
@@ -791,10 +1114,15 @@ mixin _InstaWalkController on State<InstaWalkContainer> {
 
   String _timerText() {
     final int safeSeconds =
-        _secondsLeft < 0 ? 0 : _secondsLeft;
+        _secondsLeft < 0
+            ? 0
+            : _secondsLeft;
 
-    final int minutes = safeSeconds ~/ 60;
-    final int seconds = safeSeconds % 60;
+    final int minutes =
+        safeSeconds ~/ 60;
+
+    final int seconds =
+        safeSeconds % 60;
 
     return '${minutes.toString().padLeft(2, '0')}:'
         '${seconds.toString().padLeft(2, '0')}';
@@ -817,13 +1145,19 @@ mixin _InstaWalkController on State<InstaWalkContainer> {
           content: Text(
             text,
             maxLines: 3,
-            overflow: TextOverflow.ellipsis,
+            overflow:
+                TextOverflow.ellipsis,
           ),
-          behavior: SnackBarBehavior.floating,
-          margin: const EdgeInsets.all(16),
-          duration: const Duration(seconds: 3),
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(14),
+          behavior:
+              SnackBarBehavior.floating,
+          margin:
+              const EdgeInsets.all(16),
+          duration:
+              const Duration(seconds: 3),
+          shape:
+              RoundedRectangleBorder(
+            borderRadius:
+                BorderRadius.circular(14),
           ),
         ),
       );
@@ -844,7 +1178,8 @@ mixin _InstaWalkController on State<InstaWalkContainer> {
         continue;
       }
 
-      final String result = value.toString().trim();
+      final String result =
+          value.toString().trim();
 
       if (result.isNotEmpty) {
         return result;
@@ -865,7 +1200,8 @@ mixin _InstaWalkController on State<InstaWalkContainer> {
       return null;
     }
 
-    final dynamic value = data['ownerLocation'];
+    final dynamic value =
+        data['ownerLocation'];
 
     if (value is GeoPoint) {
       return Position(
