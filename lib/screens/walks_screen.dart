@@ -1,9 +1,13 @@
+// File location: lib/screens/walks_screen.dart
+
 import 'package:flutter/material.dart';
 
 import '../core/constants/app_colors.dart';
 import '../features/insta_walk/widgets/insta_walk_container.dart';
 import '../features/walks/containers/active_walker_container.dart';
+
 import 'custom_app_bar.dart';
+import 'generate_qr_screen.dart';
 
 class WalksScreen extends StatelessWidget {
   const WalksScreen({super.key});
@@ -17,6 +21,24 @@ class WalksScreen extends StatelessWidget {
   static const Color background = Color(0xFFEDEFF2);
 
   static const Color primary = AppColors.primary;
+
+  // ==========================================================
+  // COMPACT QR BUTTON
+  // ==========================================================
+
+  Widget _qrButton() {
+    return Align(
+      alignment: Alignment.centerRight,
+      child: Material(
+        color: Colors.transparent,
+        child: Transform.scale(
+          scale: 0.78,
+          alignment: Alignment.centerRight,
+          child: GenerateQRButton(),
+        ),
+      ),
+    );
+  }
 
   // ==========================================================
   // BUILD
@@ -78,23 +100,27 @@ class WalksScreen extends StatelessWidget {
           const SizedBox(height: 20),
 
           // ====================================================
-          // NEW MODULAR INSTA WALK
-          // ====================================================
-          //
-          // UI + search button + searching state +
-          // map/radar + retry are now handled inside
-          // InstaWalkContainer.
+          // INSTA WALK
           // ====================================================
 
           const InstaWalkContainer(),
 
-          const SizedBox(height: 14),
+          const SizedBox(height: 4),
+
+          // ====================================================
+          // QR BUTTON
+          // ====================================================
+          //
+          // Compact QR button stays OUTSIDE the Insta Walk
+          // container so the Insta Walk UI remains untouched.
+          // ====================================================
+
+          _qrButton(),
+
+          const SizedBox(height: 2),
 
           // ====================================================
           // ACTIVE WALKER
-          // ====================================================
-          //
-          // Existing Active Walker flow remains unchanged.
           // ====================================================
 
           ActiveWalkerContainer(),
