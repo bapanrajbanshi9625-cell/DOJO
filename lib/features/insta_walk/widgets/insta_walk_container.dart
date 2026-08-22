@@ -13,12 +13,15 @@ import 'insta_walk_retry.dart';
 import 'insta_walk_search_button.dart';
 import 'insta_walk_searching.dart';
 import '../../../screens/address_screen.dart';
+
 part 'insta_walk_controller.dart';
 part 'insta_walk_view.dart';
 
-class _InstaWalkContainerState extends State<InstaWalkContainer>
-    with SingleTickerProviderStateMixin {
-  
+// ============================================================
+// INSTA WALK CONTAINER
+// ============================================================
+
+class InstaWalkContainer extends StatefulWidget {
   /// true = searching / accepted / active
   /// false = finished / cancelled / expired / inactive
   final ValueChanged<bool>? onActiveChanged;
@@ -32,7 +35,6 @@ class _InstaWalkContainerState extends State<InstaWalkContainer>
 
   const InstaWalkContainer({
     super.key,
-    this.onWalkerFound,
     this.onActiveChanged,
     this.fullScreen = false,
     this.onTap,
@@ -43,9 +45,12 @@ class _InstaWalkContainerState extends State<InstaWalkContainer>
       _InstaWalkContainerState();
 }
 
+// ============================================================
+// STATE
+// ============================================================
+
 class _InstaWalkContainerState extends State<InstaWalkContainer>
-    with SingleTickerProviderStateMixin, _InstaWalkController {
-  
+    with SingleTickerProviderStateMixin {
   // ==========================================================
   // SERVICE
   // ==========================================================
