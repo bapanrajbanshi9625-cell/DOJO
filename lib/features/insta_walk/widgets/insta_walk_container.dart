@@ -16,9 +16,9 @@ import 'insta_walk_searching.dart';
 part 'insta_walk_controller.dart';
 part 'insta_walk_view.dart';
 
-class InstaWalkContainer extends StatefulWidget {
-  final VoidCallback? onWalkerFound;
-
+class _InstaWalkContainerState extends State<InstaWalkContainer>
+    with SingleTickerProviderStateMixin {
+  
   /// true = searching / accepted / active
   /// false = finished / cancelled / expired / inactive
   final ValueChanged<bool>? onActiveChanged;
