@@ -34,7 +34,7 @@ extension _StartSearchRole on _InstaWalkContainerState {
 
         _stopRadar();
 
-        setState(() {
+        _updateState(() {
           _checkingAddress = false;
           _searching = false;
           _searchFinished = false;
@@ -89,7 +89,7 @@ extension _StartSearchRole on _InstaWalkContainerState {
         return;
       }
 
-      setState(() {
+      _updateState(() {
         _checkingAddress = false;
         _searching = true;
         _searchFinished = false;
@@ -141,7 +141,7 @@ extension _StartSearchRole on _InstaWalkContainerState {
 
       _requestId = null;
 
-      setState(() {
+      _updateState(() {
         _checkingAddress = false;
         _searching = false;
         _searchFinished = false;
