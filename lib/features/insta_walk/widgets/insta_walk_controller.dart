@@ -1,6 +1,6 @@
 part of 'insta_walk_container.dart';
 
-extension _InstaWalkController on _InstaWalkContainerState {
+mixin _InstaWalkController on State<InstaWalkContainer> {
   // ============================================================
   // SEARCH RECOVERY
   // ============================================================
@@ -160,7 +160,8 @@ extension _InstaWalkController on _InstaWalkContainerState {
       return;
     }
 
-    Duration remaining = expiresAt.difference(DateTime.now());
+    Duration remaining =
+        expiresAt.difference(DateTime.now());
 
     if (remaining.isNegative) {
       remaining = Duration.zero;
@@ -172,7 +173,9 @@ extension _InstaWalkController on _InstaWalkContainerState {
           requestId: requestId,
         );
       } catch (e) {
-        debugPrint('Expire recovered request error: $e');
+        debugPrint(
+          'Expire recovered request error: $e',
+        );
       }
 
       if (!mounted) return;
@@ -193,7 +196,8 @@ extension _InstaWalkController on _InstaWalkContainerState {
     }
 
     _requestId = requestId;
-    _ownerPosition = _readOwnerPosition(active.data);
+    _ownerPosition =
+        _readOwnerPosition(active.data);
 
     if (!mounted) return;
 
@@ -318,7 +322,8 @@ extension _InstaWalkController on _InstaWalkContainerState {
         return;
       }
 
-      final Map<String, dynamic> data = ownerDoc.data();
+      final Map<String, dynamic> data =
+          ownerDoc.data();
 
       final String ownerId = _readFirstString(
         data,
@@ -584,7 +589,8 @@ extension _InstaWalkController on _InstaWalkContainerState {
           onExpired: _finishSearch,
           onCancelled: () {
             _finishSearch(
-              message: 'Walk request was cancelled.',
+              message:
+                  'Walk request was cancelled.',
             );
           },
           onError: (Object error) {
@@ -643,12 +649,6 @@ extension _InstaWalkController on _InstaWalkContainerState {
     }
   }
 
-  void _stopRadar() {
-    if (_radarController.isAnimating) {
-      _radarController.stop();
-    }
-  }
-
   // ============================================================
   // TIMER
   // ============================================================
@@ -691,7 +691,8 @@ extension _InstaWalkController on _InstaWalkContainerState {
             if (state.isAccepted) {
               _walkerAccepted(
                 InstaWalkAcceptedData.fromMap(
-                  state.data ?? <String, dynamic>{},
+                  state.data ??
+                      <String, dynamic>{},
                 ),
               );
               return;
@@ -719,11 +720,6 @@ extension _InstaWalkController on _InstaWalkContainerState {
         });
       },
     );
-  }
-
-  void _stopTimer() {
-    _timer?.cancel();
-    _timer = null;
   }
 
   // ============================================================
@@ -817,27 +813,6 @@ extension _InstaWalkController on _InstaWalkContainerState {
   }
 
   // ============================================================
-  // RESET
-  // ============================================================
-
-  void _resetSearchState() {
-    _stopTimer();
-    _stopRadar();
-
-    _requestId = null;
-    _ownerPosition = null;
-
-    if (!mounted) return;
-
-    setState(() {
-      _searching = false;
-      _searchFinished = false;
-      _checkingAddress = false;
-      _secondsLeft = 0;
-    });
-  }
-
-  // ============================================================
   // TIMER TEXT
   // ============================================================
 
@@ -913,7 +888,7 @@ extension _InstaWalkController on _InstaWalkContainerState {
   }
 
   // ============================================================
-  // RECOVER OWNER POSITION
+  // READ OWNER POSITION
   // ============================================================
 
   Position? _readOwnerPosition(
