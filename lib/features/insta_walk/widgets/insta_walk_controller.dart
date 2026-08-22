@@ -31,14 +31,6 @@ mixin _InstaWalkController on State<InstaWalkContainer> {
 
       if (ownerDoc == null) {
         _resetSearchState();
-
-        if (!mounted) return;
-
-        setState(() {
-          _recovering = false;
-        });
-
-        _setActive(false);
         return;
       }
 
@@ -68,14 +60,6 @@ mixin _InstaWalkController on State<InstaWalkContainer> {
 
       if (ownerId.isEmpty) {
         _resetSearchState();
-
-        if (!mounted) return;
-
-        setState(() {
-          _recovering = false;
-        });
-
-        _setActive(false);
         return;
       }
 
@@ -88,14 +72,6 @@ mixin _InstaWalkController on State<InstaWalkContainer> {
 
       if (active == null) {
         _resetSearchState();
-
-        if (!mounted) return;
-
-        setState(() {
-          _recovering = false;
-        });
-
-        _setActive(false);
         return;
       }
 
@@ -110,28 +86,12 @@ mixin _InstaWalkController on State<InstaWalkContainer> {
       }
 
       _resetSearchState();
-
-      if (!mounted) return;
-
-      setState(() {
-        _recovering = false;
-      });
-
-      _setActive(false);
     } catch (e) {
       debugPrint('Insta Walk recovery error: $e');
 
       if (!mounted) return;
 
       _resetSearchState();
-
-      if (!mounted) return;
-
-      setState(() {
-        _recovering = false;
-      });
-
-      _setActive(false);
     }
   }
 
@@ -149,14 +109,6 @@ mixin _InstaWalkController on State<InstaWalkContainer> {
         requestId.trim().isEmpty ||
         expiresAt == null) {
       _resetSearchState();
-
-      if (!mounted) return;
-
-      setState(() {
-        _recovering = false;
-      });
-
-      _setActive(false);
       return;
     }
 
@@ -180,24 +132,12 @@ mixin _InstaWalkController on State<InstaWalkContainer> {
 
       if (!mounted) return;
 
-      _requestId = null;
-      _ownerPosition = null;
-
       _resetSearchState();
-
-      if (!mounted) return;
-
-      setState(() {
-        _recovering = false;
-      });
-
-      _setActive(false);
       return;
     }
 
     _requestId = requestId;
-    _ownerPosition =
-        _readOwnerPosition(active.data);
+    _ownerPosition = _readOwnerPosition(active.data);
 
     if (!mounted) return;
 
@@ -366,8 +306,6 @@ mixin _InstaWalkController on State<InstaWalkContainer> {
       );
 
       if (address.isEmpty) {
-        if (!mounted) return;
-
         setState(() {
           _checkingAddress = false;
         });
@@ -459,16 +397,13 @@ mixin _InstaWalkController on State<InstaWalkContainer> {
       LocationPermission permission =
           await Geolocator.checkPermission();
 
-      if (permission ==
-          LocationPermission.denied) {
+      if (permission == LocationPermission.denied) {
         permission =
             await Geolocator.requestPermission();
       }
 
-      if (permission ==
-              LocationPermission.denied ||
-          permission ==
-              LocationPermission.deniedForever) {
+      if (permission == LocationPermission.denied ||
+          permission == LocationPermission.deniedForever) {
         _message(
           'Location permission is required.',
         );
@@ -519,7 +454,6 @@ mixin _InstaWalkController on State<InstaWalkContainer> {
           result.requestId == null ||
           result.expiresAt == null) {
         _requestId = null;
-
         _stopRadar();
 
         setState(() {
@@ -561,9 +495,7 @@ mixin _InstaWalkController on State<InstaWalkContainer> {
 
         if (!mounted) return;
 
-        _requestId = null;
         _resetSearchState();
-        _setActive(false);
 
         _message(
           'Search expired. Please try again.',
@@ -589,8 +521,7 @@ mixin _InstaWalkController on State<InstaWalkContainer> {
           onExpired: _finishSearch,
           onCancelled: () {
             _finishSearch(
-              message:
-                  'Walk request was cancelled.',
+              message: 'Walk request was cancelled.',
             );
           },
           onError: (Object error) {
@@ -715,6 +646,8 @@ mixin _InstaWalkController on State<InstaWalkContainer> {
           return;
         }
 
+        if (!mounted) return;
+
         setState(() {
           _secondsLeft--;
         });
@@ -746,6 +679,7 @@ mixin _InstaWalkController on State<InstaWalkContainer> {
       _searchFinished = false;
       _checkingAddress = false;
       _secondsLeft = 0;
+      _recovering = false;
     });
 
     _setActive(true);
@@ -782,6 +716,7 @@ mixin _InstaWalkController on State<InstaWalkContainer> {
       _searchFinished = true;
       _checkingAddress = false;
       _secondsLeft = 0;
+      _recovering = false;
     });
 
     _setActive(false);
@@ -818,9 +753,7 @@ mixin _InstaWalkController on State<InstaWalkContainer> {
 
   String _timerText() {
     final int safeSeconds =
-        _secondsLeft < 0
-            ? 0
-            : _secondsLeft;
+        _secondsLeft < 0 ? 0 : _secondsLeft;
 
     final int minutes =
         safeSeconds ~/ 60;
