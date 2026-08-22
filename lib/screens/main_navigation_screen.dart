@@ -1,5 +1,3 @@
-Updated "lib/screens/main_navigation_screen.dart"
-
 // File location: lib/screens/main_navigation_screen.dart
 
 import 'package:flutter/material.dart';
@@ -28,17 +26,26 @@ class _MainNavigationScreenState
   // ==========================================================
   // SCREENS
   // ==========================================================
-  //
-  // Insta Walk has been completely removed from
-  // MainNavigationScreen.
-  //
-  // ==========================================================
 
   final List<Widget> _screens = const [
     HomeScreen(),
     WalksScreen(),
     MenuScreen(),
   ];
+
+  // ==========================================================
+  // NAVIGATION
+  // ==========================================================
+
+  void _onNavigationTap(int index) {
+    if (_currentIndex == index) {
+      return;
+    }
+
+    setState(() {
+      _currentIndex = index;
+    });
+  }
 
   // ==========================================================
   // BUILD
@@ -54,47 +61,29 @@ class _MainNavigationScreenState
       body: _screens[_currentIndex],
 
       // ========================================================
-      // MAIN NAVIGATION BAR
+      // BOTTOM NAVIGATION
       // ========================================================
 
       bottomNavigationBar: BottomNavigationBar(
         currentIndex: _currentIndex,
-
         selectedItemColor: AppColors.primary,
-
         unselectedItemColor: Colors.grey,
-
         type: BottomNavigationBarType.fixed,
-
-        onTap: (index) {
-          if (_currentIndex == index) {
-            return;
-          }
-
-          setState(() {
-            _currentIndex = index;
-          });
-        },
+        onTap: _onNavigationTap,
 
         items: const [
           BottomNavigationBarItem(
-            icon: Icon(
-              Icons.home,
-            ),
+            icon: Icon(Icons.home),
             label: 'Home',
           ),
 
           BottomNavigationBarItem(
-            icon: Icon(
-              Icons.directions_walk_rounded,
-            ),
+            icon: Icon(Icons.directions_walk_rounded),
             label: 'Walks',
           ),
 
           BottomNavigationBarItem(
-            icon: Icon(
-              Icons.menu,
-            ),
+            icon: Icon(Icons.menu),
             label: 'Menu',
           ),
         ],
