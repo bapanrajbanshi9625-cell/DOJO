@@ -9,23 +9,23 @@ import 'package:firebase_auth/firebase_auth.dart';
 /// HOME LIVE WALK SERVICE
 /// ============================================================
 ///
-/// Owner Home Screen पर current active/live walk detect करता है.
+/// Owner Home Screen के लिए current active/live walk detect करता है.
 ///
-/// FIRESTORE SOURCE OF TRUTH:
+/// FIRESTORE COLLECTION:
+///     active_walk
 ///
-/// active_walk
+/// OWNER FIELD:
+///     ownerUid
 ///
-/// IMPORTANT:
-/// Walker side का LiveWalkBackgroundService भी इसी collection
-/// में location/status update करता है.
+/// LIVE STATUS:
+///     active
+///     live
 ///
-/// Supported active statuses:
-/// - active
-/// - live
-/// - accepted
-///
-/// Owner UID:
-/// - ownerUid
+/// Additional compatibility:
+///     walkStatus
+///     live == true
+///     isLive == true
+///     isActive == true
 ///
 /// ============================================================
 
@@ -48,23 +48,16 @@ class HomeLiveWalkService {
   // ============================================================
   // COLLECTION
   // ============================================================
-  //
-  // IMPORTANT:
-  //
-  // Do NOT change this to active_walks.
-  //
-  // Walker background service:
-  //     active_walk
-  //
-  // App state service:
-  //     active_walk
-  //
-  // इसलिए Owner भी यही collection पढ़ेगा.
-  // ============================================================
+
+  static const String activeWalkCollection =
+      'active_walk';
 
   CollectionReference<Map<String, dynamic>>
-      get _activeWalks =>
-          _firestore.collection('active_walk');
+      get _activeWalks {
+    return _firestore.collection(
+      activeWalkCollection,
+    );
+  }
 
   // ============================================================
   // OWNER LIVE WALK STREAM
@@ -75,37 +68,20 @@ class HomeLiveWalkService {
     final User? user =
         _auth.currentUser;
 
-    // ----------------------------------------------------------
-    // User not logged in
-    // ----------------------------------------------------------
-
     if (user == null) {
-      return const Stream.empty();
+      return Stream<
+          QuerySnapshot<Map<String, dynamic>>
+      >.empty();
     }
 
     final String ownerUid =
         user.uid.trim();
 
     if (ownerUid.isEmpty) {
-      return const Stream.empty();
+      return Stream<
+          QuerySnapshot<Map<String, dynamic>>
+      >.empty();
     }
-
-    // ----------------------------------------------------------
-    // OWNER'S ACTIVE WALK
-    // ----------------------------------------------------------
-    //
-    // We intentionally query only ownerUid here.
-    //
-    // Status filtering is done locally so that:
-    //
-    // active
-    // live
-    // accepted
-    //
-    // सभी compatible रहें.
-    //
-    // इससे Firestore query/index problems भी कम होंगे.
-    // ----------------------------------------------------------
 
     return _activeWalks
         .where(
@@ -120,15 +96,17 @@ class HomeLiveWalkService {
   // ============================================================
 
   bool isLiveWalk(
-    QuerySnapshot<Map<String, dynamic>> snapshot,
+    QuerySnapshot<Map<String, dynamic>>
+        snapshot,
   ) {
-    for (final QueryDocumentSnapshot<
-            Map<String, dynamic>>
-        document in snapshot.docs) {
-      final Map<String, dynamic> data =
-          document.data();
-
-      if (_isActiveWalk(data)) {
+    for (
+      final QueryDocumentSnapshot<
+          Map<String, dynamic>> document
+          in snapshot.docs
+    ) {
+      if (_isActiveWalk(
+        document.data(),
+      )) {
         return true;
       }
     }
@@ -141,17 +119,16 @@ class HomeLiveWalkService {
   // ============================================================
 
   Map<String, dynamic>? getLiveWalkData(
-    QuerySnapshot<Map<String, dynamic>> snapshot,
+    QuerySnapshot<Map<String, dynamic>>
+        snapshot,
   ) {
-    // ----------------------------------------------------------
-    // Prefer ACTIVE / LIVE walk.
-    // ----------------------------------------------------------
-
     Map<String, dynamic>? fallback;
 
-    for (final QueryDocumentSnapshot<
-            Map<String, dynamic>>
-        document in snapshot.docs) {
+    for (
+      final QueryDocumentSnapshot<
+          Map<String, dynamic>> document
+          in snapshot.docs
+    ) {
       final Map<String, dynamic> data =
           document.data();
 
@@ -162,27 +139,26 @@ class HomeLiveWalkService {
       final Map<String, dynamic> result =
           <String, dynamic>{
         ...data,
-
-        // ------------------------------------------------------
-        // Always expose Firestore document ID.
-        // ------------------------------------------------------
-
         '_documentId': document.id,
-
-        // ------------------------------------------------------
-        // Ensure walkId is available.
-        // ------------------------------------------------------
-
-        if (!_hasValue(data['walkId']))
-          'walkId': document.id,
       };
 
       // --------------------------------------------------------
-      // ACTIVE is preferred over ACCEPTED.
+      // Ensure walkId exists.
       // --------------------------------------------------------
+
+      if (!_hasValue(
+        result['walkId'],
+      )) {
+        result['walkId'] =
+            document.id;
+      }
 
       final String status =
           _readStatus(data);
+
+      // --------------------------------------------------------
+      // Prefer active/live.
+      // --------------------------------------------------------
 
       if (status == 'active' ||
           status == 'live') {
@@ -203,7 +179,7 @@ class HomeLiveWalkService {
     Map<String, dynamic> data,
   ) {
     // ----------------------------------------------------------
-    // STATUS
+    // status
     // ----------------------------------------------------------
 
     final String status =
@@ -215,21 +191,7 @@ class HomeLiveWalkService {
     }
 
     // ----------------------------------------------------------
-    // WALK STATUS
-    // ----------------------------------------------------------
-
-    final String walkStatus =
-        _readString(
-      data['walkStatus'],
-    ).toLowerCase();
-
-    if (walkStatus == 'active' ||
-        walkStatus == 'live') {
-      return true;
-    }
-
-    // ----------------------------------------------------------
-    // BOOLEAN FLAGS
+    // boolean flags
     // ----------------------------------------------------------
 
     if (data['live'] == true ||
