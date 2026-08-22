@@ -1,58 +1,15 @@
-import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:firebase_auth/firebase_auth.dart';
-import 'package:flutter/material.dart';
-import 'package:geolocator/geolocator.dart';
+part of 'insta_walk_container.dart';
 
-import '../../../screens/address_screen.dart';
-import '../services/insta_walk_search_service.dart';
+// ============================================================
+// FIND WALKER
+// ============================================================
 
-class InstaWalkFindWalker {
-  InstaWalkFindWalker({
-    required this.context,
-    required this.service,
-    required this.isSearching,
-    required this.isCheckingAddress,
-    required this.isRecovering,
-    required this.isStopping,
-    required this.setCheckingAddress,
-    required this.setSearchFinished,
-    required this.setOwnerPosition,
-    required this.setPetName,
-    required this.startSearch,
-    required this.message,
-  });
-
-  final BuildContext context;
-  final InstaWalkSearchService service;
-
-  final bool isSearching;
-  final bool isCheckingAddress;
-  final bool isRecovering;
-  final bool isStopping;
-
-  final void Function(bool value) setCheckingAddress;
-  final void Function(bool value) setSearchFinished;
-  final void Function(Position position) setOwnerPosition;
-  final void Function(String value) setPetName;
-
-  final Future<void> Function({
-    required String ownerId,
-    required String ownerName,
-    required String address,
-    required Position position,
-  }) startSearch;
-
-  final void Function(String text) message;
-
-  // ============================================================
-  // FIND WALKER
-  // ============================================================
-
-  Future<void> findWalker() async {
-    if (isSearching ||
-        isCheckingAddress ||
-        isRecovering ||
-        isStopping) {
+extension _FindWalkerRole on _InstaWalkContainerState {
+  Future<void> _findWalker() async {
+    if (_searching ||
+        _checkingAddress ||
+        _recovering ||
+        _stopping) {
       return;
     }
 
@@ -60,26 +17,30 @@ class InstaWalkFindWalker {
         FirebaseAuth.instance.currentUser;
 
     if (user == null) {
-      message('Please login first.');
+      _message('Please login first.');
       return;
     }
 
-    setCheckingAddress(true);
-    setSearchFinished(false);
+    if (!mounted) return;
+
+    setState(() {
+      _checkingAddress = true;
+      _searchFinished = false;
+    });
 
     try {
-      // --------------------------------------------------------
-      // OWNER PROFILE
-      // --------------------------------------------------------
-
       final QueryDocumentSnapshot<
           Map<String, dynamic>>? ownerDoc =
-          await service.findOwnerProfile();
+          await _service.findOwnerProfile();
+
+      if (!mounted) return;
 
       if (ownerDoc == null) {
-        setCheckingAddress(false);
+        setState(() {
+          _checkingAddress = false;
+        });
 
-        message(
+        _message(
           'Owner profile not found. Please complete your profile.',
         );
 
@@ -88,10 +49,6 @@ class InstaWalkFindWalker {
 
       final Map<String, dynamic> data =
           ownerDoc.data();
-
-      // --------------------------------------------------------
-      // OWNER ID
-      // --------------------------------------------------------
 
       final String ownerId =
           _readFirstString(
@@ -103,17 +60,15 @@ class InstaWalkFindWalker {
       );
 
       if (ownerId.isEmpty) {
-        setCheckingAddress(false);
-        message('Owner ID not found.');
+        setState(() {
+          _checkingAddress = false;
+        });
+
+        _message('Owner ID not found.');
         return;
       }
 
-      // --------------------------------------------------------
-      // PET NAME
-      // --------------------------------------------------------
-
-      String petName =
-          _readFirstString(
+      _petName = _readFirstString(
         data,
         const [
           'petName',
@@ -123,15 +78,9 @@ class InstaWalkFindWalker {
         ],
       );
 
-      if (petName.isEmpty) {
-        petName = 'Your Pet';
+      if (_petName.isEmpty) {
+        _petName = 'Your Pet';
       }
-
-      setPetName(petName);
-
-      // --------------------------------------------------------
-      // ADDRESS
-      // --------------------------------------------------------
 
       final String address =
           _readFirstString(
@@ -143,12 +92,12 @@ class InstaWalkFindWalker {
         ],
       );
 
-      // --------------------------------------------------------
-      // ADDRESS MISSING
-      // --------------------------------------------------------
-
       if (address.isEmpty) {
-        setCheckingAddress(false);
+        if (!mounted) return;
+
+        setState(() {
+          _checkingAddress = false;
+        });
 
         await Navigator.push(
           context,
@@ -158,14 +107,14 @@ class InstaWalkFindWalker {
           ),
         );
 
-        setCheckingAddress(false);
+        if (!mounted) return;
+
+        setState(() {
+          _checkingAddress = false;
+        });
 
         return;
       }
-
-      // --------------------------------------------------------
-      // OWNER NAME
-      // --------------------------------------------------------
 
       String ownerName =
           _readFirstString(
@@ -182,25 +131,22 @@ class InstaWalkFindWalker {
         ownerName = 'Dog Owner';
       }
 
-      // --------------------------------------------------------
-      // LOCATION
-      // --------------------------------------------------------
-
       final Position? position =
           await _getLocation();
 
+      if (!mounted) return;
+
       if (position == null) {
-        setCheckingAddress(false);
+        setState(() {
+          _checkingAddress = false;
+        });
+
         return;
       }
 
-      setOwnerPosition(position);
+      _ownerPosition = position;
 
-      // --------------------------------------------------------
-      // START SEARCH
-      // --------------------------------------------------------
-
-      await startSearch(
+      await _startSearch(
         ownerId: ownerId,
         ownerName: ownerName,
         address: address,
@@ -208,12 +154,16 @@ class InstaWalkFindWalker {
       );
     } catch (e) {
       debugPrint(
-        'Insta Walk find walker error: $e',
+        'Insta Walk start error: $e',
       );
 
-      setCheckingAddress(false);
+      if (!mounted) return;
 
-      message(
+      setState(() {
+        _checkingAddress = false;
+      });
+
+      _message(
         'Unable to start Insta Walk.',
       );
     }
@@ -229,7 +179,7 @@ class InstaWalkFindWalker {
           await Geolocator.isLocationServiceEnabled();
 
       if (!enabled) {
-        message(
+        _message(
           'Please turn on location service.',
         );
 
@@ -249,7 +199,7 @@ class InstaWalkFindWalker {
               LocationPermission.denied ||
           permission ==
               LocationPermission.deniedForever) {
-        message(
+        _message(
           'Location permission is required.',
         );
 
@@ -262,37 +212,11 @@ class InstaWalkFindWalker {
         'Location error: $e',
       );
 
-      message(
+      _message(
         'Unable to get your current location.',
       );
 
       return null;
     }
-  }
-
-  // ============================================================
-  // READ STRING
-  // ============================================================
-
-  String _readFirstString(
-    Map<String, dynamic> data,
-    List<String> keys,
-  ) {
-    for (final String key in keys) {
-      final dynamic value = data[key];
-
-      if (value == null) {
-        continue;
-      }
-
-      final String result =
-          value.toString().trim();
-
-      if (result.isNotEmpty) {
-        return result;
-      }
-    }
-
-    return '';
   }
 }
