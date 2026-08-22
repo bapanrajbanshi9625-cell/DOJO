@@ -56,8 +56,7 @@ class _AddressScreenState extends State<AddressScreen> {
   bool _saving = false;
   bool _gettingLocation = false;
 
-  DocumentReference<Map<String, dynamic>>?
-      _ownerProfileRef;
+  DocumentReference<Map<String, dynamic>>? _ownerProfileRef;
 
   final List<Map<String, dynamic>> _savedAddresses =
       <Map<String, dynamic>>[];
@@ -85,21 +84,29 @@ class _AddressScreenState extends State<AddressScreen> {
       return null;
     }
 
-    final QuerySnapshot<Map<String, dynamic>> query =
-        await _firestore
-            .collection('ownerProfiles')
-            .where(
-              'authUid',
-              isEqualTo: user.uid,
-            )
-            .limit(1)
-            .get();
+    try {
+      final QuerySnapshot<Map<String, dynamic>> query =
+          await _firestore
+              .collection('ownerProfiles')
+              .where(
+                'authUid',
+                isEqualTo: user.uid,
+              )
+              .limit(1)
+              .get();
 
-    if (query.docs.isEmpty) {
-      return null;
+      if (query.docs.isEmpty) {
+        return null;
+      }
+
+      return query.docs.first.reference;
+    } on FirebaseException catch (e) {
+      debugPrint(
+        'FIND OWNER PROFILE FIREBASE ERROR: '
+        '${e.code} - ${e.message}',
+      );
+      rethrow;
     }
-
-    return query.docs.first.reference;
   }
 
   // =========================================================
@@ -129,6 +136,10 @@ class _AddressScreenState extends State<AddressScreen> {
             _loading = false;
           });
         }
+
+        _showMessage(
+          'Owner profile not found.',
+        );
         return;
       }
 
@@ -143,6 +154,10 @@ class _AddressScreenState extends State<AddressScreen> {
             _loading = false;
           });
         }
+
+        _showMessage(
+          'Owner profile not found.',
+        );
         return;
       }
 
@@ -150,43 +165,83 @@ class _AddressScreenState extends State<AddressScreen> {
           snapshot.data() ?? <String, dynamic>{};
 
       // =====================================================
-      // LOAD CURRENT FORM
+      // READ STRUCTURED ADDRESS
       // =====================================================
 
       _flatController.text =
-          data['flatNumber']?.toString() ?? '';
+          _readString(
+        data,
+        'flatNumber',
+      );
 
       _addressLine1Controller.text =
-          data['addressLine1']?.toString() ??
-          '';
+          _readString(
+        data,
+        'addressLine1',
+      );
 
       _addressLine2Controller.text =
-          data['addressLine2']?.toString() ??
-          '';
+          _readString(
+        data,
+        'addressLine2',
+      );
 
       _areaController.text =
-          data['area']?.toString() ?? '';
+          _readString(
+        data,
+        'area',
+      );
 
       _cityController.text =
-          data['city']?.toString() ?? '';
+          _readString(
+        data,
+        'city',
+      );
 
       _stateController.text =
-          data['state']?.toString() ?? '';
+          _readString(
+        data,
+        'state',
+      );
 
+      // New field first, old field as fallback.
       _pinCodeController.text =
-          data['pincode']?.toString() ??
-          data['Pincode']?.toString() ??
-          '';
+          _readString(
+        data,
+        'pincode',
+      ).isNotEmpty
+              ? _readString(
+                  data,
+                  'pincode',
+                )
+              : _readString(
+                  data,
+                  'Pincode',
+                );
+
+      // =====================================================
+      // OLD ADDRESS COMPATIBILITY
+      // =====================================================
 
       String oldAddress =
-          data['address']?.toString().trim() ?? '';
+          _readString(
+        data,
+        'address',
+      ).trim();
 
       if (oldAddress.isEmpty) {
         oldAddress =
-            data['Adress']?.toString().trim() ?? '';
+            _readString(
+          data,
+          'Adress',
+        ).trim();
       }
 
-      if (_addressLine1Controller.text.trim().isEmpty &&
+      // If structured address fields are empty,
+      // keep the old complete address in Address Line 1.
+      if (_addressLine1Controller.text
+              .trim()
+              .isEmpty &&
           oldAddress.isNotEmpty) {
         _addressLine1Controller.text =
             oldAddress;
@@ -194,10 +249,6 @@ class _AddressScreenState extends State<AddressScreen> {
 
       // =====================================================
       // LOAD SAVED ADDRESSES
-      //
-      // Supports:
-      // 1. New addresses array
-      // 2. Existing single address fields
       // =====================================================
 
       _savedAddresses.clear();
@@ -210,13 +261,18 @@ class _AddressScreenState extends State<AddressScreen> {
             in firebaseAddresses) {
           if (item is Map) {
             _savedAddresses.add(
-              Map<String, dynamic>.from(item),
+              Map<String, dynamic>.from(
+                item,
+              ),
             );
           }
         }
       }
 
-      // Backward compatibility
+      // =====================================================
+      // BACKWARD COMPATIBILITY
+      // =====================================================
+
       if (_savedAddresses.isEmpty &&
           oldAddress.isNotEmpty) {
         _savedAddresses.add(
@@ -225,19 +281,48 @@ class _AddressScreenState extends State<AddressScreen> {
             'title': 'Home',
             'address': oldAddress,
             'flatNumber':
-                data['flatNumber']?.toString() ?? '',
+                _readString(
+              data,
+              'flatNumber',
+            ),
             'addressLine1':
-                data['addressLine1']?.toString() ?? '',
+                _readString(
+              data,
+              'addressLine1',
+            ),
             'addressLine2':
-                data['addressLine2']?.toString() ?? '',
+                _readString(
+              data,
+              'addressLine2',
+            ),
             'area':
-                data['area']?.toString() ?? '',
+                _readString(
+              data,
+              'area',
+            ),
             'city':
-                data['city']?.toString() ?? '',
+                _readString(
+              data,
+              'city',
+            ),
             'state':
-                data['state']?.toString() ?? '',
+                _readString(
+              data,
+              'state',
+            ),
             'pincode':
-                data['pincode']?.toString() ?? '',
+                _readString(
+                  data,
+                  'pincode',
+                ).isNotEmpty
+                    ? _readString(
+                        data,
+                        'pincode',
+                      )
+                    : _readString(
+                        data,
+                        'Pincode',
+                      ),
           },
         );
       }
@@ -282,6 +367,23 @@ class _AddressScreenState extends State<AddressScreen> {
   }
 
   // =========================================================
+  // SAFE FIRESTORE STRING READER
+  // =========================================================
+
+  String _readString(
+    Map<String, dynamic> data,
+    String key,
+  ) {
+    final dynamic value = data[key];
+
+    if (value == null) {
+      return '';
+    }
+
+    return value.toString().trim();
+  }
+
+  // =========================================================
   // CURRENT LOCATION
   // =========================================================
 
@@ -295,7 +397,7 @@ class _AddressScreenState extends State<AddressScreen> {
     });
 
     try {
-      bool serviceEnabled =
+      final bool serviceEnabled =
           await Geolocator.isLocationServiceEnabled();
 
       if (!serviceEnabled) {
@@ -312,12 +414,14 @@ class _AddressScreenState extends State<AddressScreen> {
       LocationPermission permission =
           await Geolocator.checkPermission();
 
-      if (permission == LocationPermission.denied) {
+      if (permission ==
+          LocationPermission.denied) {
         permission =
             await Geolocator.requestPermission();
       }
 
-      if (permission == LocationPermission.denied) {
+      if (permission ==
+          LocationPermission.denied) {
         if (mounted) {
           setState(() {
             _gettingLocation = false;
@@ -331,7 +435,7 @@ class _AddressScreenState extends State<AddressScreen> {
       }
 
       if (permission ==
-              LocationPermission.deniedForever) {
+          LocationPermission.deniedForever) {
         if (mounted) {
           setState(() {
             _gettingLocation = false;
@@ -355,72 +459,13 @@ class _AddressScreenState extends State<AddressScreen> {
       // REVERSE GEOCODING
       // =====================================================
 
-      List<Placemark> placemarks =
+      final List<Placemark> placemarks =
           await placemarkFromCoordinates(
         position.latitude,
         position.longitude,
       );
 
-      if (placemarks.isNotEmpty) {
-        final Placemark place =
-            placemarks.first;
-
-        final String street =
-            place.street?.trim() ?? '';
-
-        final String subLocality =
-            place.subLocality?.trim() ?? '';
-
-        final String locality =
-            place.locality?.trim() ?? '';
-
-        final String administrativeArea =
-            place.administrativeArea?.trim() ?? '';
-
-        final String postalCode =
-            place.postalCode?.trim() ?? '';
-
-        final String country =
-            place.country?.trim() ?? '';
-
-        if (street.isNotEmpty) {
-          _addressLine1Controller.text =
-              street;
-        }
-
-        if (subLocality.isNotEmpty) {
-          _areaController.text =
-              subLocality;
-        } else if (locality.isNotEmpty) {
-          _areaController.text =
-              locality;
-        }
-
-        if (locality.isNotEmpty) {
-          _cityController.text =
-              locality;
-        }
-
-        if (administrativeArea.isNotEmpty) {
-          _stateController.text =
-              administrativeArea;
-        }
-
-        if (postalCode.isNotEmpty) {
-          _pinCodeController.text =
-              postalCode;
-        }
-
-        if (mounted) {
-          setState(() {
-            _gettingLocation = false;
-          });
-        }
-
-        _showMessage(
-          'Current location detected. Please verify the address and save.',
-        );
-      } else {
+      if (placemarks.isEmpty) {
         if (mounted) {
           setState(() {
             _gettingLocation = false;
@@ -430,7 +475,64 @@ class _AddressScreenState extends State<AddressScreen> {
         _showMessage(
           'Location detected, but address details could not be found.',
         );
+        return;
       }
+
+      final Placemark place =
+          placemarks.first;
+
+      final String street =
+          place.street?.trim() ?? '';
+
+      final String subLocality =
+          place.subLocality?.trim() ?? '';
+
+      final String locality =
+          place.locality?.trim() ?? '';
+
+      final String administrativeArea =
+          place.administrativeArea?.trim() ?? '';
+
+      final String postalCode =
+          place.postalCode?.trim() ?? '';
+
+      if (street.isNotEmpty) {
+        _addressLine1Controller.text =
+            street;
+      }
+
+      if (subLocality.isNotEmpty) {
+        _areaController.text =
+            subLocality;
+      } else if (locality.isNotEmpty) {
+        _areaController.text =
+            locality;
+      }
+
+      if (locality.isNotEmpty) {
+        _cityController.text =
+            locality;
+      }
+
+      if (administrativeArea.isNotEmpty) {
+        _stateController.text =
+            administrativeArea;
+      }
+
+      if (postalCode.isNotEmpty) {
+        _pinCodeController.text =
+            postalCode;
+      }
+
+      if (mounted) {
+        setState(() {
+          _gettingLocation = false;
+        });
+      }
+
+      _showMessage(
+        'Current location detected. Please verify the address and save.',
+      );
     } catch (e) {
       debugPrint(
         'CURRENT LOCATION ERROR: $e',
@@ -455,7 +557,8 @@ class _AddressScreenState extends State<AddressScreen> {
   void _showLocationServiceDialog() {
     showDialog<void>(
       context: context,
-      builder: (BuildContext context) {
+      builder:
+          (BuildContext dialogContext) {
         return AlertDialog(
           shape:
               RoundedRectangleBorder(
@@ -475,14 +578,21 @@ class _AddressScreenState extends State<AddressScreen> {
           actions: [
             TextButton(
               onPressed: () {
-                Navigator.pop(context);
+                Navigator.pop(
+                  dialogContext,
+                );
               },
-              child: const Text('Cancel'),
+              child:
+                  const Text('Cancel'),
             ),
             ElevatedButton(
               onPressed: () {
-                Navigator.pop(context);
-                Geolocator.openLocationSettings();
+                Navigator.pop(
+                  dialogContext,
+                );
+
+                Geolocator
+                    .openLocationSettings();
               },
               style:
                   ElevatedButton.styleFrom(
@@ -508,7 +618,8 @@ class _AddressScreenState extends State<AddressScreen> {
   void _showLocationPermissionDialog() {
     showDialog<void>(
       context: context,
-      builder: (BuildContext context) {
+      builder:
+          (BuildContext dialogContext) {
         return AlertDialog(
           shape:
               RoundedRectangleBorder(
@@ -528,14 +639,21 @@ class _AddressScreenState extends State<AddressScreen> {
           actions: [
             TextButton(
               onPressed: () {
-                Navigator.pop(context);
+                Navigator.pop(
+                  dialogContext,
+                );
               },
-              child: const Text('Cancel'),
+              child:
+                  const Text('Cancel'),
             ),
             ElevatedButton(
               onPressed: () {
-                Navigator.pop(context);
-                Geolocator.openAppSettings();
+                Navigator.pop(
+                  dialogContext,
+                );
+
+                Geolocator
+                    .openAppSettings();
               },
               style:
                   ElevatedButton.styleFrom(
@@ -552,6 +670,53 @@ class _AddressScreenState extends State<AddressScreen> {
         );
       },
     );
+  }
+
+  // =========================================================
+  // BUILD FULL ADDRESS
+  // =========================================================
+
+  String _buildFullAddress({
+    required String flat,
+    required String line1,
+    required String line2,
+    required String area,
+    required String city,
+    required String state,
+    required String pin,
+  }) {
+    final List<String> parts =
+        <String>[];
+
+    if (flat.isNotEmpty) {
+      parts.add(flat);
+    }
+
+    if (line1.isNotEmpty) {
+      parts.add(line1);
+    }
+
+    if (line2.isNotEmpty) {
+      parts.add(line2);
+    }
+
+    if (area.isNotEmpty) {
+      parts.add(area);
+    }
+
+    if (city.isNotEmpty) {
+      parts.add(city);
+    }
+
+    if (state.isNotEmpty) {
+      parts.add(state);
+    }
+
+    if (pin.isNotEmpty) {
+      parts.add(pin);
+    }
+
+    return parts.join(', ');
   }
 
   // =========================================================
@@ -616,8 +781,7 @@ class _AddressScreenState extends State<AddressScreen> {
       return;
     }
 
-    if (!RegExp(r'^\d{6}$')
-        .hasMatch(pin)) {
+    if (!RegExp(r'^\d{6}$').hasMatch(pin)) {
       _showMessage(
         'Please enter a valid 6-digit PIN code.',
       );
@@ -639,6 +803,10 @@ class _AddressScreenState extends State<AddressScreen> {
     });
 
     try {
+      // =====================================================
+      // FIND EXISTING OWNER PROFILE
+      // =====================================================
+
       DocumentReference<Map<String, dynamic>>?
           ownerRef = _ownerProfileRef;
 
@@ -663,53 +831,32 @@ class _AddressScreenState extends State<AddressScreen> {
       // FULL ADDRESS
       // =====================================================
 
-      final List<String> parts =
-          <String>[];
-
-      if (flat.isNotEmpty) {
-        parts.add(flat);
-      }
-
-      if (line1.isNotEmpty) {
-        parts.add(line1);
-      }
-
-      if (line2.isNotEmpty) {
-        parts.add(line2);
-      }
-
-      if (area.isNotEmpty) {
-        parts.add(area);
-      }
-
-      if (city.isNotEmpty) {
-        parts.add(city);
-      }
-
-      if (state.isNotEmpty) {
-        parts.add(state);
-      }
-
-      if (pin.isNotEmpty) {
-        parts.add(pin);
-      }
-
       final String fullAddress =
-          parts.join(', ');
+          _buildFullAddress(
+        flat: flat,
+        line1: line1,
+        line2: line2,
+        area: area,
+        city: city,
+        state: state,
+        pin: pin,
+      );
 
       // =====================================================
-      // CREATE / UPDATE SAVED ADDRESS
+      // ADDRESS OBJECT
       // =====================================================
 
       final Map<String, dynamic> newAddress =
           <String, dynamic>{
         'id': _savedAddresses.isEmpty
             ? 'address_1'
-            : (_savedAddresses.first['id'] ??
+            : (_savedAddresses.first['id']
+                    ?.toString() ??
                 'address_1'),
         'title': _savedAddresses.isEmpty
             ? 'Home'
-            : (_savedAddresses.first['title'] ??
+            : (_savedAddresses.first['title']
+                    ?.toString() ??
                 'Home'),
         'address': fullAddress,
         'flatNumber': flat,
@@ -721,11 +868,20 @@ class _AddressScreenState extends State<AddressScreen> {
         'pincode': pin,
       };
 
+      // =====================================================
+      // SAVED ADDRESSES
+      // =====================================================
+
       final List<Map<String, dynamic>>
           addresses =
-          List<Map<String, dynamic>>.from(
-        _savedAddresses,
-      );
+          _savedAddresses
+              .map(
+                (Map<String, dynamic> item) =>
+                    Map<String, dynamic>.from(
+                  item,
+                ),
+              )
+              .toList();
 
       if (addresses.isEmpty) {
         addresses.add(newAddress);
@@ -734,13 +890,29 @@ class _AddressScreenState extends State<AddressScreen> {
       }
 
       // =====================================================
-      // SAVE OWNER PROFILE
+      // OWNER PROFILE UPDATE
+      //
+      // IMPORTANT:
+      // merge:true means existing fields such as:
+      // ownerId
+      // ownerName
+      // pets
+      // phone
+      // profileCompleted
+      // role
+      // createdAt
+      // etc.
+      // WILL NOT BE DELETED.
       // =====================================================
 
       await ownerRef.set(
         <String, dynamic>{
           'authUid': user.uid,
+
+          // Complete address
           'address': fullAddress,
+
+          // Structured address
           'flatNumber': flat,
           'addressLine1': line1,
           'addressLine2': line2,
@@ -748,11 +920,17 @@ class _AddressScreenState extends State<AddressScreen> {
           'city': city,
           'state': state,
           'pincode': pin,
+
+          // Saved address
           'savedAddresses': addresses,
+
+          // Timestamp
           'updatedAt':
               FieldValue.serverTimestamp(),
         },
-        SetOptions(merge: true),
+        SetOptions(
+          merge: true,
+        ),
       );
 
       // =====================================================
@@ -765,11 +943,24 @@ class _AddressScreenState extends State<AddressScreen> {
           .set(
         <String, dynamic>{
           'address': fullAddress,
+          'flatNumber': flat,
+          'addressLine1': line1,
+          'addressLine2': line2,
+          'area': area,
+          'city': city,
+          'state': state,
+          'pincode': pin,
           'updatedAt':
               FieldValue.serverTimestamp(),
         },
-        SetOptions(merge: true),
+        SetOptions(
+          merge: true,
+        ),
       );
+
+      // =====================================================
+      // UPDATE LOCAL STATE
+      // =====================================================
 
       if (!mounted) {
         return;
@@ -779,6 +970,7 @@ class _AddressScreenState extends State<AddressScreen> {
         _savedAddresses
           ..clear()
           ..addAll(addresses);
+
         _saving = false;
       });
 
@@ -824,7 +1016,7 @@ class _AddressScreenState extends State<AddressScreen> {
   }
 
   // =========================================================
-  // SELECT ADDRESS FOR BOOKING
+  // SELECT ADDRESS
   // =========================================================
 
   void _selectAddress(
@@ -843,7 +1035,9 @@ class _AddressScreenState extends State<AddressScreen> {
   // DELETE ADDRESS
   // =========================================================
 
-  Future<void> _deleteAddress(int index) async {
+  Future<void> _deleteAddress(
+    int index,
+  ) async {
     if (index < 0 ||
         index >= _savedAddresses.length) {
       return;
@@ -909,9 +1103,14 @@ class _AddressScreenState extends State<AddressScreen> {
     try {
       final List<Map<String, dynamic>>
           addresses =
-          List<Map<String, dynamic>>.from(
-        _savedAddresses,
-      );
+          _savedAddresses
+              .map(
+                (Map<String, dynamic> item) =>
+                    Map<String, dynamic>.from(
+                  item,
+                ),
+              )
+              .toList();
 
       addresses.removeAt(index);
 
@@ -923,7 +1122,9 @@ class _AddressScreenState extends State<AddressScreen> {
             'updatedAt':
                 FieldValue.serverTimestamp(),
           },
-          SetOptions(merge: true),
+          SetOptions(
+            merge: true,
+          ),
         );
       }
 
@@ -939,6 +1140,17 @@ class _AddressScreenState extends State<AddressScreen> {
 
       _showMessage(
         'Address deleted.',
+      );
+    } on FirebaseException catch (e) {
+      debugPrint(
+        'DELETE ADDRESS FIREBASE ERROR: '
+        '${e.code} - ${e.message}',
+      );
+
+      _showMessage(
+        e.code == 'permission-denied'
+            ? 'You do not have permission to delete this address.'
+            : 'Unable to delete address.',
       );
     } catch (e) {
       debugPrint(
@@ -962,12 +1174,10 @@ class _AddressScreenState extends State<AddressScreen> {
         address['flatNumber']?.toString() ?? '';
 
     _addressLine1Controller.text =
-        address['addressLine1']?.toString() ??
-        '';
+        address['addressLine1']?.toString() ?? '';
 
     _addressLine2Controller.text =
-        address['addressLine2']?.toString() ??
-        '';
+        address['addressLine2']?.toString() ?? '';
 
     _areaController.text =
         address['area']?.toString() ?? '';
@@ -979,25 +1189,12 @@ class _AddressScreenState extends State<AddressScreen> {
         address['state']?.toString() ?? '';
 
     _pinCodeController.text =
-        address['pincode']?.toString() ?? '';
+        address['pincode']?.toString() ??
+            address['Pincode']?.toString() ??
+            '';
 
     _showMessage(
       'Address loaded. Update the details and save.',
-    );
-
-    Future<void>.delayed(
-      const Duration(milliseconds: 200),
-      () {
-        if (!mounted) {
-          return;
-        }
-
-        Scrollable.ensureVisible(
-          context,
-          duration:
-              const Duration(milliseconds: 300),
-        );
-      },
     );
   }
 
@@ -1005,7 +1202,9 @@ class _AddressScreenState extends State<AddressScreen> {
   // MESSAGE
   // =========================================================
 
-  void _showMessage(String message) {
+  void _showMessage(
+    String message,
+  ) {
     if (!mounted) {
       return;
     }
@@ -1052,7 +1251,9 @@ class _AddressScreenState extends State<AddressScreen> {
   // =========================================================
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(
+    BuildContext context,
+  ) {
     return Scaffold(
       backgroundColor:
           AppColors.background,
@@ -1102,19 +1303,11 @@ class _AddressScreenState extends State<AddressScreen> {
                     height: 18,
                   ),
 
-                  // =================================================
-                  // CURRENT LOCATION
-                  // =================================================
-
                   _buildCurrentLocationCard(),
 
                   const SizedBox(
                     height: 24,
                   ),
-
-                  // =================================================
-                  // SAVED ADDRESSES
-                  // =================================================
 
                   if (_savedAddresses
                       .isNotEmpty) ...[
@@ -1210,10 +1403,6 @@ class _AddressScreenState extends State<AddressScreen> {
                     ),
                   ],
 
-                  // =================================================
-                  // ADD NEW ADDRESS
-                  // =================================================
-
                   _buildSectionTitle(
                     'Add New Address',
                     'Enter your walking location.',
@@ -1232,7 +1421,8 @@ class _AddressScreenState extends State<AddressScreen> {
                         'Flat 204 / House No. 12',
                     icon:
                         Icons.home_outlined,
-                    requiredField: false,
+                    requiredField:
+                        false,
                   ),
 
                   const SizedBox(
@@ -1259,12 +1449,13 @@ class _AddressScreenState extends State<AddressScreen> {
                     controller:
                         _addressLine2Controller,
                     label:
-                        'Landmark',
+                        'Address Line 2 / Landmark',
                     hint:
                         'Nearby place / landmark',
                     icon:
                         Icons.signpost_outlined,
-                    requiredField: false,
+                    requiredField:
+                        false,
                     maxLines: 2,
                   ),
 
@@ -1346,10 +1537,6 @@ class _AddressScreenState extends State<AddressScreen> {
                     height: 16,
                   ),
 
-                  // =================================================
-                  // SAVE
-                  // =================================================
-
                   SizedBox(
                     width:
                         double.infinity,
@@ -1418,10 +1605,12 @@ class _AddressScreenState extends State<AddressScreen> {
 
   Widget _buildBookingHeader() {
     return Container(
-      width: double.infinity,
+      width:
+          double.infinity,
       padding:
           const EdgeInsets.all(18),
-      decoration: BoxDecoration(
+      decoration:
+          BoxDecoration(
         gradient:
             const LinearGradient(
           colors: [
@@ -1464,8 +1653,7 @@ class _AddressScreenState extends State<AddressScreen> {
               ),
             ),
             child: const Icon(
-              Icons
-                  .location_on_rounded,
+              Icons.location_on_rounded,
               color:
                   Colors.white,
               size: 29,
@@ -1515,7 +1703,8 @@ class _AddressScreenState extends State<AddressScreen> {
 
   Widget _buildCurrentLocationCard() {
     return Material(
-      color: Colors.transparent,
+      color:
+          Colors.transparent,
       child: InkWell(
         onTap:
             _gettingLocation ||
@@ -1525,10 +1714,12 @@ class _AddressScreenState extends State<AddressScreen> {
         borderRadius:
             BorderRadius.circular(20),
         child: Ink(
-          width: double.infinity,
+          width:
+              double.infinity,
           padding:
               const EdgeInsets.all(17),
-          decoration: BoxDecoration(
+          decoration:
+              BoxDecoration(
             color:
                 AppColors.card,
             borderRadius:
@@ -1682,8 +1873,7 @@ class _AddressScreenState extends State<AddressScreen> {
   // =========================================================
 
   Widget _buildField({
-    required TextEditingController
-        controller,
+    required TextEditingController controller,
     required String label,
     required String hint,
     required IconData icon,
@@ -1730,9 +1920,12 @@ class _AddressScreenState extends State<AddressScreen> {
           ),
         ),
         TextField(
-          controller: controller,
-          maxLines: maxLines,
-          maxLength: maxLength,
+          controller:
+              controller,
+          maxLines:
+              maxLines,
+          maxLength:
+              maxLength,
           keyboardType:
               keyboardType,
           textCapitalization:
@@ -1747,7 +1940,8 @@ class _AddressScreenState extends State<AddressScreen> {
           ),
           decoration:
               InputDecoration(
-            hintText: hint,
+            hintText:
+                hint,
             hintStyle:
                 TextStyle(
               color: AppColors.slate
@@ -1847,14 +2041,16 @@ class _AddressScreenState extends State<AddressScreen> {
             '';
 
     return Material(
-      color: Colors.transparent,
+      color:
+          Colors.transparent,
       child: InkWell(
         onTap: () =>
             _selectAddress(address),
         borderRadius:
             BorderRadius.circular(19),
         child: Ink(
-          width: double.infinity,
+          width:
+              double.infinity,
           padding:
               const EdgeInsets.all(15),
           decoration:
@@ -1909,11 +2105,9 @@ class _AddressScreenState extends State<AddressScreen> {
                       AppColors.primary,
                 ),
               ),
-
               const SizedBox(
                 width: 12,
               ),
-
               Expanded(
                 child: Column(
                   crossAxisAlignment:
@@ -1969,11 +2163,9 @@ class _AddressScreenState extends State<AddressScreen> {
                         ),
                       ],
                     ),
-
                     const SizedBox(
                       height: 6,
                     ),
-
                     Text(
                       fullAddress,
                       maxLines: 3,
@@ -1987,11 +2179,9 @@ class _AddressScreenState extends State<AddressScreen> {
                         height: 1.45,
                       ),
                     ),
-
                     const SizedBox(
                       height: 10,
                     ),
-
                     Row(
                       children: [
                         _smallAction(
@@ -2046,7 +2236,8 @@ class _AddressScreenState extends State<AddressScreen> {
             : AppColors.navy;
 
     return InkWell(
-      onTap: onTap,
+      onTap:
+          onTap,
       borderRadius:
           BorderRadius.circular(10),
       child: Padding(
@@ -2062,7 +2253,8 @@ class _AddressScreenState extends State<AddressScreen> {
             Icon(
               icon,
               size: 16,
-              color: color,
+              color:
+                  color,
             ),
             const SizedBox(
               width: 4,
@@ -2071,7 +2263,8 @@ class _AddressScreenState extends State<AddressScreen> {
               label,
               style:
                   TextStyle(
-                color: color,
+                color:
+                    color,
                 fontSize: 11,
                 fontWeight:
                     FontWeight.w700,
