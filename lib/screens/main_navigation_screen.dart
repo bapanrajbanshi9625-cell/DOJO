@@ -35,6 +35,20 @@ class _MainNavigationScreenState
       HomeLiveWalkService.instance;
 
   // ==========================================================
+  // AUTO OPEN CONTROL
+  // ==========================================================
+  //
+  // एक ही active walk के लिए LiveWalkScreen बार-बार
+  // automatically open नहीं होगा.
+  //
+  // Walk बदलने पर नया walk automatically open होगा.
+  // ==========================================================
+
+  String? _autoOpenedWalkId;
+
+  bool _isOpeningLiveWalk = false;
+
+  // ==========================================================
   // SCREENS
   // ==========================================================
 
@@ -70,7 +84,8 @@ class _MainNavigationScreenState
       final dynamic value = data[key];
 
       if (value != null) {
-        final String result = value.toString().trim();
+        final String result =
+            value.toString().trim();
 
         if (result.isNotEmpty) {
           return result;
@@ -82,22 +97,46 @@ class _MainNavigationScreenState
   }
 
   // ==========================================================
-  // OPEN LIVE WALK
+  // GET WALK ID
   // ==========================================================
 
-  void _openLiveWalk(
+  String _getWalkId(
     Map<String, dynamic> data,
   ) {
-    if (!mounted) return;
-
     final String walkId = _readString(
       data,
       const [
         'walkId',
         'walkID',
         'id',
+        '_documentId',
       ],
     );
+
+    return walkId;
+  }
+
+  // ==========================================================
+  // OPEN LIVE WALK
+  // ==========================================================
+
+  Future<void> _openLiveWalk(
+    Map<String, dynamic> data, {
+    bool automatic = false,
+  }) async {
+    if (!mounted) {
+      return;
+    }
+
+    if (_isOpeningLiveWalk) {
+      return;
+    }
+
+    final String walkId = _getWalkId(data);
+
+    if (walkId.isEmpty) {
+      return;
+    }
 
     final String walkerUid = _readString(
       data,
@@ -125,32 +164,105 @@ class _MainNavigationScreenState
       ],
     );
 
-    if (walkId.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text(
-            'Live Walk information is not ready yet.',
+    // ----------------------------------------------------------
+    // Mark BEFORE navigation.
+    //
+    // इससे Firestore stream update के कारण page दोबारा
+    // automatically open नहीं होगा.
+    // ----------------------------------------------------------
+
+    if (automatic) {
+      _autoOpenedWalkId = walkId;
+    }
+
+    _isOpeningLiveWalk = true;
+
+    try {
+      await Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (_) => LiveWalkScreen(
+            walkId: walkId,
+            walkerUid: walkerUid,
+            walkerName: walkerName.isEmpty
+                ? 'Walker'
+                : walkerName,
+            walkerPhone: walkerPhone.isEmpty
+                ? null
+                : walkerPhone,
           ),
         ),
       );
+    } finally {
+      _isOpeningLiveWalk = false;
+    }
+  }
+
+  // ==========================================================
+  // HANDLE ACTIVE WALK
+  // ==========================================================
+
+  void _handleActiveWalk(
+    Map<String, dynamic>? liveWalkData,
+  ) {
+    if (!mounted) {
+      return;
+    }
+
+    // ----------------------------------------------------------
+    // NO ACTIVE WALK
+    // ----------------------------------------------------------
+
+    if (liveWalkData == null) {
+      // पुरानी walk खत्म हो गई।
+      //
+      // अगली नई active walk को automatically खोलने की
+      // अनुमति रहेगी.
+      _autoOpenedWalkId = null;
 
       return;
     }
 
-    Navigator.push(
-      context,
-      MaterialPageRoute(
-        builder: (_) => LiveWalkScreen(
-          walkId: walkId,
-          walkerUid: walkerUid,
-          walkerName: walkerName.isEmpty
-              ? 'Walker'
-              : walkerName,
-          walkerPhone: walkerPhone.isEmpty
-              ? null
-              : walkerPhone,
-        ),
-      ),
+    final String walkId =
+        _getWalkId(liveWalkData);
+
+    if (walkId.isEmpty) {
+      return;
+    }
+
+    // ----------------------------------------------------------
+    // ALREADY OPENED
+    // ----------------------------------------------------------
+
+    if (_autoOpenedWalkId == walkId) {
+      return;
+    }
+
+    // ----------------------------------------------------------
+    // AUTOMATICALLY OPEN
+    // ----------------------------------------------------------
+
+    WidgetsBinding.instance.addPostFrameCallback(
+      (_) {
+        if (!mounted) {
+          return;
+        }
+
+        if (_isOpeningLiveWalk) {
+          return;
+        }
+
+        // Double-check because Firestore stream may have
+        // changed between frames.
+        if (_autoOpenedWalkId == walkId) {
+          return;
+        }
+
+        _openLiveWalk(
+          liveWalkData,
+          automatic: true,
+        );
+      },
     );
   }
 
@@ -180,7 +292,8 @@ class _MainNavigationScreenState
         builder: (context, snapshot) {
           Map<String, dynamic>? liveWalkData;
 
-          if (snapshot.hasData && !snapshot.hasError) {
+          if (snapshot.hasData &&
+              !snapshot.hasError) {
             liveWalkData =
                 _liveWalkService.getLiveWalkData(
               snapshot.data!,
@@ -190,12 +303,38 @@ class _MainNavigationScreenState
           final bool isActive =
               liveWalkData != null;
 
+          // ----------------------------------------------------
+          // AUTOMATIC OPEN
+          // ----------------------------------------------------
+
+          if (isActive) {
+            _handleActiveWalk(
+              liveWalkData,
+            );
+          } else if (_autoOpenedWalkId != null) {
+            // --------------------------------------------------
+            // Active walk no longer exists.
+            // --------------------------------------------------
+
+            WidgetsBinding.instance
+                .addPostFrameCallback(
+              (_) {
+                if (!mounted) {
+                  return;
+                }
+
+                _autoOpenedWalkId = null;
+              },
+            );
+          }
+
           return Column(
             mainAxisSize: MainAxisSize.min,
             children: [
               // ==================================================
-              // ACTIVE BAR
-              // ONLY WHEN LIVE WALK IS ACTIVE
+              // ACTIVE / LIVE WALK BAR
+              //
+              // सिर्फ Owner की active walk होने पर दिखाई देगा.
               // ==================================================
 
               if (isActive)
@@ -213,13 +352,19 @@ class _MainNavigationScreenState
 
               BottomNavigationBar(
                 currentIndex: _currentIndex,
-                selectedItemColor: AppColors.primary,
-                unselectedItemColor: Colors.grey,
-                type: BottomNavigationBarType.fixed,
-                onTap: _onNavigationTap,
+                selectedItemColor:
+                    AppColors.primary,
+                unselectedItemColor:
+                    Colors.grey,
+                type:
+                    BottomNavigationBarType.fixed,
+                onTap:
+                    _onNavigationTap,
                 items: const [
                   BottomNavigationBarItem(
-                    icon: Icon(Icons.home),
+                    icon: Icon(
+                      Icons.home,
+                    ),
                     label: 'Home',
                   ),
                   BottomNavigationBarItem(
@@ -229,7 +374,9 @@ class _MainNavigationScreenState
                     label: 'Walks',
                   ),
                   BottomNavigationBarItem(
-                    icon: Icon(Icons.menu),
+                    icon: Icon(
+                      Icons.menu,
+                    ),
                     label: 'Menu',
                   ),
                 ],
