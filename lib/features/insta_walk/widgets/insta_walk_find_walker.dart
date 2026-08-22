@@ -23,7 +23,7 @@ extension _FindWalkerRole on _InstaWalkContainerState {
 
     if (!mounted) return;
 
-    setState(() {
+    _updateState(() {
       _checkingAddress = true;
       _searchFinished = false;
     });
@@ -36,7 +36,7 @@ extension _FindWalkerRole on _InstaWalkContainerState {
       if (!mounted) return;
 
       if (ownerDoc == null) {
-        setState(() {
+        _updateState(() {
           _checkingAddress = false;
         });
 
@@ -60,7 +60,7 @@ extension _FindWalkerRole on _InstaWalkContainerState {
       );
 
       if (ownerId.isEmpty) {
-        setState(() {
+        _updateState(() {
           _checkingAddress = false;
         });
 
@@ -95,7 +95,7 @@ extension _FindWalkerRole on _InstaWalkContainerState {
       if (address.isEmpty) {
         if (!mounted) return;
 
-        setState(() {
+        _updateState(() {
           _checkingAddress = false;
         });
 
@@ -109,7 +109,7 @@ extension _FindWalkerRole on _InstaWalkContainerState {
 
         if (!mounted) return;
 
-        setState(() {
+        _updateState(() {
           _checkingAddress = false;
         });
 
@@ -137,7 +137,7 @@ extension _FindWalkerRole on _InstaWalkContainerState {
       if (!mounted) return;
 
       if (position == null) {
-        setState(() {
+        _updateState(() {
           _checkingAddress = false;
         });
 
@@ -159,7 +159,7 @@ extension _FindWalkerRole on _InstaWalkContainerState {
 
       if (!mounted) return;
 
-      setState(() {
+      _updateState(() {
         _checkingAddress = false;
       });
 
