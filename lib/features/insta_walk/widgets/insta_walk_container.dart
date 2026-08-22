@@ -54,7 +54,9 @@ class InstaWalkContainer extends StatefulWidget {
 // ============================================================
 
 class _InstaWalkContainerState extends State<InstaWalkContainer>
-    with SingleTickerProviderStateMixin {
+    with
+        SingleTickerProviderStateMixin,
+        _InstaWalkController {
   // ==========================================================
   // SERVICE
   // ==========================================================
@@ -197,7 +199,6 @@ class _InstaWalkContainerState extends State<InstaWalkContainer>
     _ownerPosition = null;
 
     if (!mounted) {
-      _setActive(false);
       return;
     }
 
