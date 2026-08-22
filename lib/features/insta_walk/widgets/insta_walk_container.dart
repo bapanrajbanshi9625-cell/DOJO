@@ -22,12 +22,18 @@ part 'insta_walk_view.dart';
 // ============================================================
 
 class InstaWalkContainer extends StatefulWidget {
+  /// Called when a walker is found / accepted.
   final VoidCallback? onWalkerFound;
 
+  /// true = searching / accepted / active
+  /// false = finished / cancelled / expired / inactive
   final ValueChanged<bool>? onActiveChanged;
 
+  /// false = compact Insta Walk patti
+  /// true = complete Insta Walk interface
   final bool fullScreen;
 
+  /// Called when compact Insta Walk patti is tapped.
   final VoidCallback? onTap;
 
   const InstaWalkContainer({
@@ -77,7 +83,7 @@ class _InstaWalkContainerState extends State<InstaWalkContainer>
   bool _recovering = true;
 
   // ==========================================================
-  // STOP LOADING
+  // STOP STATE
   // ==========================================================
 
   bool _stopping = false;
@@ -160,7 +166,7 @@ class _InstaWalkContainerState extends State<InstaWalkContainer>
   }
 
   // ==========================================================
-  // TIMER STOP
+  // STOP TIMER
   // ==========================================================
 
   void _stopTimer() {
@@ -169,7 +175,7 @@ class _InstaWalkContainerState extends State<InstaWalkContainer>
   }
 
   // ==========================================================
-  // RADAR STOP
+  // STOP RADAR
   // ==========================================================
 
   void _stopRadar() {
@@ -213,9 +219,6 @@ class _InstaWalkContainerState extends State<InstaWalkContainer>
 
   // ============================================================
   // STOP SEARCH
-  //
-  // THIS IS THE METHOD CONNECTED TO
-  // InstaWalkStopButton
   // ============================================================
 
   Future<void> _stopSearch() async {
@@ -225,11 +228,19 @@ class _InstaWalkContainerState extends State<InstaWalkContainer>
 
     final String? requestId = _requestId;
 
+    // ----------------------------------------------------------
+    // No request ID = nothing to cancel
+    // ----------------------------------------------------------
+
     if (requestId == null ||
         requestId.trim().isEmpty) {
       _resetSearchState();
       return;
     }
+
+    // ----------------------------------------------------------
+    // Only stop an active search
+    // ----------------------------------------------------------
 
     if (!_searching) {
       return;
@@ -244,6 +255,10 @@ class _InstaWalkContainerState extends State<InstaWalkContainer>
     });
 
     try {
+      // --------------------------------------------------------
+      // Cancel request in Firestore
+      // --------------------------------------------------------
+
       final bool cancelled =
           await _service.cancelSearch(
         requestId: requestId,
@@ -252,6 +267,10 @@ class _InstaWalkContainerState extends State<InstaWalkContainer>
       if (!mounted) {
         return;
       }
+
+      // --------------------------------------------------------
+      // Successfully cancelled
+      // --------------------------------------------------------
 
       if (cancelled) {
         _stopTimer();
@@ -272,13 +291,15 @@ class _InstaWalkContainerState extends State<InstaWalkContainer>
         _setActive(false);
 
         _message('Insta Walk search stopped.');
+
         return;
       }
 
       // --------------------------------------------------------
-      // If cancel failed, check current Firestore state.
-      // This protects against race condition where walker
-      // accepted at the same time.
+      // Cancel failed.
+      //
+      // Read Firestore again because walker could have accepted
+      // the request at exactly the same time.
       // --------------------------------------------------------
 
       final InstaWalkRequestState state =
@@ -288,8 +309,14 @@ class _InstaWalkContainerState extends State<InstaWalkContainer>
         return;
       }
 
+      // --------------------------------------------------------
+      // Walker accepted while stop was being processed
+      // --------------------------------------------------------
+
       if (state.isAccepted) {
-        _stopping = false;
+        setState(() {
+          _stopping = false;
+        });
 
         _walkerAccepted(
           InstaWalkAcceptedData.fromMap(
@@ -304,6 +331,10 @@ class _InstaWalkContainerState extends State<InstaWalkContainer>
         return;
       }
 
+      // --------------------------------------------------------
+      // Request already ended
+      // --------------------------------------------------------
+
       if (state.isExpired ||
           state.isCancelled ||
           state.status ==
@@ -312,6 +343,7 @@ class _InstaWalkContainerState extends State<InstaWalkContainer>
         _stopRadar();
 
         _requestId = null;
+        _ownerPosition = null;
 
         setState(() {
           _searching = false;
@@ -326,6 +358,10 @@ class _InstaWalkContainerState extends State<InstaWalkContainer>
 
         return;
       }
+
+      // --------------------------------------------------------
+      // Still searching but cancellation did not happen
+      // --------------------------------------------------------
 
       setState(() {
         _stopping = false;
@@ -370,6 +406,7 @@ class _InstaWalkContainerState extends State<InstaWalkContainer>
         _searchFinished = false;
         _checkingAddress = false;
         _secondsLeft = 0;
+        _stopping = false;
       });
 
       _setActive(false);
@@ -399,6 +436,10 @@ class _InstaWalkContainerState extends State<InstaWalkContainer>
       final Map<String, dynamic> ownerData =
           ownerDoc.data();
 
+      // --------------------------------------------------------
+      // PET NAME
+      // --------------------------------------------------------
+
       _petName = _readFirstString(
         ownerData,
         const [
@@ -412,6 +453,10 @@ class _InstaWalkContainerState extends State<InstaWalkContainer>
       if (_petName.isEmpty) {
         _petName = 'Your Pet';
       }
+
+      // --------------------------------------------------------
+      // OWNER ID
+      // --------------------------------------------------------
 
       final String ownerId =
           _readFirstString(
@@ -435,6 +480,10 @@ class _InstaWalkContainerState extends State<InstaWalkContainer>
         return;
       }
 
+      // --------------------------------------------------------
+      // FIND ACTIVE REQUEST
+      // --------------------------------------------------------
+
       final InstaWalkRequestState? active =
           await _service.findActiveRequest(
         ownerId: ownerId,
@@ -455,15 +504,27 @@ class _InstaWalkContainerState extends State<InstaWalkContainer>
         return;
       }
 
+      // --------------------------------------------------------
+      // SEARCHING
+      // --------------------------------------------------------
+
       if (active.isSearching) {
         await _recoverSearchingRequest(active);
         return;
       }
 
+      // --------------------------------------------------------
+      // ACCEPTED
+      // --------------------------------------------------------
+
       if (active.isAccepted) {
         _recoverAcceptedRequest(active);
         return;
       }
+
+      // --------------------------------------------------------
+      // OTHER / FINISHED STATE
+      // --------------------------------------------------------
 
       _resetSearchState();
 
@@ -530,6 +591,10 @@ class _InstaWalkContainerState extends State<InstaWalkContainer>
       remaining = Duration.zero;
     }
 
+    // ----------------------------------------------------------
+    // Already expired
+    // ----------------------------------------------------------
+
     if (remaining.inSeconds <= 0) {
       try {
         await _service.expireRequest(
@@ -558,6 +623,10 @@ class _InstaWalkContainerState extends State<InstaWalkContainer>
       return;
     }
 
+    // ----------------------------------------------------------
+    // Restore request
+    // ----------------------------------------------------------
+
     _requestId = requestId;
 
     _ownerPosition =
@@ -577,6 +646,10 @@ class _InstaWalkContainerState extends State<InstaWalkContainer>
     _setActive(true);
 
     _startRadar();
+
+    // ----------------------------------------------------------
+    // Listen for walker acceptance
+    // ----------------------------------------------------------
 
     try {
       await _service.listenForRequest(
@@ -697,6 +770,10 @@ class _InstaWalkContainerState extends State<InstaWalkContainer>
       final Map<String, dynamic> data =
           ownerDoc.data();
 
+      // --------------------------------------------------------
+      // OWNER ID
+      // --------------------------------------------------------
+
       final String ownerId =
           _readFirstString(
         data,
@@ -715,6 +792,10 @@ class _InstaWalkContainerState extends State<InstaWalkContainer>
         return;
       }
 
+      // --------------------------------------------------------
+      // PET NAME
+      // --------------------------------------------------------
+
       _petName = _readFirstString(
         data,
         const [
@@ -729,6 +810,10 @@ class _InstaWalkContainerState extends State<InstaWalkContainer>
         _petName = 'Your Pet';
       }
 
+      // --------------------------------------------------------
+      // ADDRESS
+      // --------------------------------------------------------
+
       final String address =
           _readFirstString(
         data,
@@ -738,6 +823,10 @@ class _InstaWalkContainerState extends State<InstaWalkContainer>
           'Address',
         ],
       );
+
+      // --------------------------------------------------------
+      // ADDRESS MISSING
+      // --------------------------------------------------------
 
       if (address.isEmpty) {
         if (!mounted) return;
@@ -763,6 +852,10 @@ class _InstaWalkContainerState extends State<InstaWalkContainer>
         return;
       }
 
+      // --------------------------------------------------------
+      // OWNER NAME
+      // --------------------------------------------------------
+
       String ownerName =
           _readFirstString(
         data,
@@ -778,6 +871,10 @@ class _InstaWalkContainerState extends State<InstaWalkContainer>
         ownerName = 'Dog Owner';
       }
 
+      // --------------------------------------------------------
+      // LOCATION
+      // --------------------------------------------------------
+
       final Position? position =
           await _getLocation();
 
@@ -792,6 +889,10 @@ class _InstaWalkContainerState extends State<InstaWalkContainer>
       }
 
       _ownerPosition = position;
+
+      // --------------------------------------------------------
+      // START SEARCH
+      // --------------------------------------------------------
 
       await _startSearch(
         ownerId: ownerId,
@@ -895,6 +996,10 @@ class _InstaWalkContainerState extends State<InstaWalkContainer>
 
       if (!mounted) return;
 
+      // --------------------------------------------------------
+      // START FAILED
+      // --------------------------------------------------------
+
       if (!result.success ||
           result.requestId == null ||
           result.expiresAt == null) {
@@ -937,6 +1042,10 @@ class _InstaWalkContainerState extends State<InstaWalkContainer>
         remaining = Duration.zero;
       }
 
+      // --------------------------------------------------------
+      // EXPIRED IMMEDIATELY
+      // --------------------------------------------------------
+
       if (remaining.inSeconds <= 0) {
         await _service.expireRequest(
           requestId: requestId,
@@ -957,6 +1066,10 @@ class _InstaWalkContainerState extends State<InstaWalkContainer>
         return;
       }
 
+      // --------------------------------------------------------
+      // SEARCH ACTIVE
+      // --------------------------------------------------------
+
       setState(() {
         _checkingAddress = false;
         _searching = true;
@@ -968,6 +1081,10 @@ class _InstaWalkContainerState extends State<InstaWalkContainer>
       _setActive(true);
 
       _startRadar();
+
+      // --------------------------------------------------------
+      // LISTENER
+      // --------------------------------------------------------
 
       try {
         await _service.listenForRequest(
@@ -1057,15 +1174,29 @@ class _InstaWalkContainerState extends State<InstaWalkContainer>
           return;
         }
 
+        // ------------------------------------------------------
+        // STOPPING
+        // ------------------------------------------------------
+
+        if (_stopping) {
+          return;
+        }
+
         final String? id = _requestId;
 
         if (id == null ||
             id.trim().isEmpty) {
           timer.cancel();
           _timer = null;
+
           _finishSearch();
+
           return;
         }
+
+        // ------------------------------------------------------
+        // TIMER EXPIRED
+        // ------------------------------------------------------
 
         if (_secondsLeft <= 1) {
           timer.cancel();
@@ -1077,6 +1208,7 @@ class _InstaWalkContainerState extends State<InstaWalkContainer>
 
             if (!mounted) return;
 
+            // Walker accepted exactly at expiry
             if (state.isAccepted) {
               _walkerAccepted(
                 InstaWalkAcceptedData.fromMap(
@@ -1088,6 +1220,7 @@ class _InstaWalkContainerState extends State<InstaWalkContainer>
               return;
             }
 
+            // Still searching = expire it
             if (state.isSearching) {
               await _service.expireRequest(
                 requestId: id,
@@ -1105,6 +1238,10 @@ class _InstaWalkContainerState extends State<InstaWalkContainer>
 
           return;
         }
+
+        // ------------------------------------------------------
+        // DECREASE TIMER
+        // ------------------------------------------------------
 
         setState(() {
           _secondsLeft--;
