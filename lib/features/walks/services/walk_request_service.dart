@@ -16,9 +16,7 @@ class WalkRequestService {
     final String id = requestId.trim();
 
     if (id.isEmpty) {
-      throw ArgumentError(
-        'requestId cannot be empty.',
-      );
+      throw ArgumentError('requestId cannot be empty.');
     }
 
     await _firestore
@@ -26,13 +24,14 @@ class WalkRequestService {
         .doc(id)
         .update({
       'status': 'walker_on_way',
-      'updatedAt':
-          FieldValue.serverTimestamp(),
+      'updatedAt': FieldValue.serverTimestamp(),
     });
   }
 
   // ============================================================
   // SEND MESSAGE
+  //
+  // BUSINESS ID IS USED FOR PARTICIPANTS
   // ============================================================
 
   static Future<void> sendMessage({
@@ -41,40 +40,25 @@ class WalkRequestService {
     required String walkerId,
     required String message,
   }) async {
-    final String request =
-        requestId.trim();
-
-    final String owner =
-        ownerId.trim();
-
-    final String walker =
-        walkerId.trim();
-
-    final String text =
-        message.trim();
+    final String request = requestId.trim();
+    final String owner = ownerId.trim();
+    final String walker = walkerId.trim();
+    final String text = message.trim();
 
     if (request.isEmpty) {
-      throw ArgumentError(
-        'requestId cannot be empty.',
-      );
+      throw ArgumentError('requestId cannot be empty.');
     }
 
     if (owner.isEmpty) {
-      throw ArgumentError(
-        'ownerId cannot be empty.',
-      );
+      throw ArgumentError('ownerId cannot be empty.');
     }
 
     if (walker.isEmpty) {
-      throw ArgumentError(
-        'walkerId cannot be empty.',
-      );
+      throw ArgumentError('walkerId cannot be empty.');
     }
 
     if (text.isEmpty) {
-      throw ArgumentError(
-        'message cannot be empty.',
-      );
+      throw ArgumentError('message cannot be empty.');
     }
 
     await _firestore
@@ -82,12 +66,18 @@ class WalkRequestService {
         .doc(request)
         .collection('messages')
         .add({
+      // BUSINESS IDs
       'senderId': owner,
       'receiverId': walker,
+
+      // Explicit roles make the backend unambiguous.
+      'senderRole': 'owner',
+      'receiverRole': 'walker',
+
       'message': text,
       'type': 'text',
-      'createdAt':
-          FieldValue.serverTimestamp(),
+
+      'createdAt': FieldValue.serverTimestamp(),
     });
   }
 
@@ -95,8 +85,7 @@ class WalkRequestService {
   // WATCH MESSAGES
   // ============================================================
 
-  static Stream<
-      QuerySnapshot<Map<String, dynamic>>> watchMessages(
+  static Stream<QuerySnapshot<Map<String, dynamic>>> watchMessages(
     String requestId,
   ) {
     final String id = requestId.trim();
