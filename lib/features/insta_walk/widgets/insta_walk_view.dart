@@ -259,6 +259,59 @@ extension _InstaWalkView on _InstaWalkContainerState {
   }
 
   // ============================================================
+  // STOP SEARCH BUTTON
+  // ============================================================
+
+  Widget _buildStopSearchButton() {
+    final bool disabled = _stopping;
+
+    return SizedBox(
+      width: double.infinity,
+      height: 52,
+      child: ElevatedButton(
+        onPressed: disabled ? null : _stopSearch,
+        style: ElevatedButton.styleFrom(
+          backgroundColor: const Color(0xFFE85D5D),
+          disabledBackgroundColor:
+              const Color(0xFFE85D5D).withValues(alpha: 0.55),
+          foregroundColor: Colors.white,
+          disabledForegroundColor: Colors.white70,
+          elevation: 0,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(16),
+          ),
+        ),
+        child: disabled
+            ? const SizedBox(
+                width: 22,
+                height: 22,
+                child: CircularProgressIndicator(
+                  strokeWidth: 2.5,
+                  color: Colors.white,
+                ),
+              )
+            : const Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(
+                    Icons.stop_circle_outlined,
+                    size: 21,
+                  ),
+                  SizedBox(width: 8),
+                  Text(
+                    'Stop Search',
+                    style: TextStyle(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w900,
+                    ),
+                  ),
+                ],
+              ),
+      ),
+    );
+  }
+
+  // ============================================================
   // SEARCHING UI
   // ============================================================
 
@@ -286,18 +339,10 @@ extension _InstaWalkView on _InstaWalkContainerState {
           const SizedBox(height: 12),
 
           // ----------------------------------------------------
-          // STOP BUTTON
+          // STOP SEARCH
           // ----------------------------------------------------
 
-          SizedBox(
-            width: double.infinity,
-            child: InstaWalkStopButton(
-              loading: _stopping,
-              onPressed: _stopping
-                  ? null
-                  : _stopSearch,
-            ),
-          ),
+          _buildStopSearchButton(),
         ],
       );
     }
@@ -355,18 +400,10 @@ extension _InstaWalkView on _InstaWalkContainerState {
         const SizedBox(height: 12),
 
         // ------------------------------------------------------
-        // STOP BUTTON
+        // STOP SEARCH
         // ------------------------------------------------------
 
-        SizedBox(
-          width: double.infinity,
-          child: InstaWalkStopButton(
-            loading: _stopping,
-            onPressed: _stopping
-                ? null
-                : _stopSearch,
-          ),
-        ),
+        _buildStopSearchButton(),
       ],
     );
   }
