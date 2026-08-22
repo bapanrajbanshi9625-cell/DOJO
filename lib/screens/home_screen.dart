@@ -1,14 +1,11 @@
 // File location: lib/screens/home_screen.dart
 
-import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 
 import 'custom_app_bar.dart';
-import 'live_walk_screen.dart';
 
 import '../features/home/services/home_data_service.dart'
     as home_data;
-import '../features/home/services/home_live_walk_service.dart';
 
 import '../features/home/widgets/home_past_walk.dart';
 import '../features/home/widgets/home_section_title.dart';
