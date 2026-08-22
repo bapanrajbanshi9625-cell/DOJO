@@ -1,6 +1,3 @@
-// File location:
-// lib/features/insta_walk/widgets/insta_walk_container.dart
-
 import 'dart:async';
 
 import 'package:cloud_firestore/cloud_firestore.dart';
@@ -19,12 +16,12 @@ import 'insta_walk_searching.dart';
 class InstaWalkContainer extends StatefulWidget {
   final VoidCallback? onWalkerFound;
 
-  /// true  = searching / accepted / active
+  /// true = searching / accepted / active
   /// false = finished / cancelled / expired / inactive
   final ValueChanged<bool>? onActiveChanged;
 
   /// false = compact Insta Walk patti
-  /// true  = complete Insta Walk interface
+  /// true = complete Insta Walk interface
   final bool fullScreen;
 
   /// Called when compact Insta Walk patti is tapped.
@@ -43,7 +40,8 @@ class InstaWalkContainer extends StatefulWidget {
       _InstaWalkContainerState();
 }
 
-class _InstaWalkContainerState extends State<InstaWalkContainer>
+class _InstaWalkContainerState
+    extends State<InstaWalkContainer>
     with SingleTickerProviderStateMixin {
   // ==========================================================
   // SERVICE
@@ -103,7 +101,7 @@ class _InstaWalkContainerState extends State<InstaWalkContainer>
   String _petName = 'Your Pet';
 
   // ==========================================================
-  // SEARCH DURATION
+  // DURATION
   // ==========================================================
 
   Duration _currentDuration =
@@ -143,7 +141,7 @@ class _InstaWalkContainerState extends State<InstaWalkContainer>
   }
 
   // ==========================================================
-  // ACTIVE STATE REPORTER
+  // ACTIVE STATE
   // ==========================================================
 
   void _setActive(bool active) {
@@ -180,7 +178,7 @@ class _InstaWalkContainerState extends State<InstaWalkContainer>
   }
 
   // ==========================================================
-  // RESET LOCAL SEARCH STATE
+  // RESET
   // ==========================================================
 
   void _resetSearchState({
@@ -205,19 +203,23 @@ class _InstaWalkContainerState extends State<InstaWalkContainer>
   }
 
   // ==========================================================
-  // RECOVER ACTIVE INSTA WALK
+  // RECOVER SEARCH
   // ==========================================================
 
   Future<void> _recoverSearch() async {
-    final User? user = FirebaseAuth.instance.currentUser;
+    final User? user =
+        FirebaseAuth.instance.currentUser;
 
     if (user == null) {
-      if (!mounted) return;
+      if (!mounted) {
+        return;
+      }
 
       setState(() {
         _recovering = false;
         _searching = false;
         _searchFinished = false;
+        _checkingAddress = false;
       });
 
       _setActive(false);
@@ -225,31 +227,28 @@ class _InstaWalkContainerState extends State<InstaWalkContainer>
     }
 
     try {
-      // ======================================================
-      // OWNER PROFILE
-      // ======================================================
-
-      final QueryDocumentSnapshot<Map<String, dynamic>>? ownerDoc =
+      final QueryDocumentSnapshot<Map<String, dynamic>>?
+          ownerDoc =
           await _service.findOwnerProfile();
 
-      if (!mounted) return;
+      if (!mounted) {
+        return;
+      }
 
       if (ownerDoc == null) {
         setState(() {
           _recovering = false;
           _searching = false;
           _searchFinished = false;
+          _checkingAddress = false;
         });
 
         _setActive(false);
         return;
       }
 
-      final Map<String, dynamic> ownerData = ownerDoc.data();
-
-      // ======================================================
-      // PET NAME
-      // ======================================================
+      final Map<String, dynamic> ownerData =
+          ownerDoc.data();
 
       _petName = _readFirstString(
         ownerData,
@@ -265,11 +264,8 @@ class _InstaWalkContainerState extends State<InstaWalkContainer>
         _petName = 'Your Pet';
       }
 
-      // ======================================================
-      // OWNER ID
-      // ======================================================
-
-      final String ownerId = _readFirstString(
+      final String ownerId =
+          _readFirstString(
         ownerData,
         const [
           'ownerId',
@@ -288,20 +284,14 @@ class _InstaWalkContainerState extends State<InstaWalkContainer>
         return;
       }
 
-      // ======================================================
-      // ACTIVE REQUEST
-      // ======================================================
-
       final InstaWalkRequestState? active =
           await _service.findActiveRequest(
         ownerId: ownerId,
       );
 
-      if (!mounted) return;
-
-      // ======================================================
-      // NO ACTIVE REQUEST
-      // ======================================================
+      if (!mounted) {
+        return;
+      }
 
       if (active == null) {
         setState(() {
@@ -316,31 +306,23 @@ class _InstaWalkContainerState extends State<InstaWalkContainer>
         return;
       }
 
-      // ======================================================
-      // SEARCHING REQUEST
-      // ======================================================
-
       if (active.isSearching) {
-        await _recoverSearchingRequest(active);
+        await _recoverSearchingRequest(
+          active,
+        );
         return;
       }
-
-      // ======================================================
-      // ACCEPTED / ACTIVE
-      // ======================================================
 
       if (active.isAccepted) {
         _recoverAcceptedRequest(active);
         return;
       }
 
-      // ======================================================
-      // UNKNOWN / OTHER STATE
-      // ======================================================
-
       _resetSearchState();
 
-      if (!mounted) return;
+      if (!mounted) {
+        return;
+      }
 
       setState(() {
         _recovering = false;
@@ -352,7 +334,9 @@ class _InstaWalkContainerState extends State<InstaWalkContainer>
         'Insta Walk recovery error: $e',
       );
 
-      if (!mounted) return;
+      if (!mounted) {
+        return;
+      }
 
       setState(() {
         _recovering = false;
@@ -366,19 +350,24 @@ class _InstaWalkContainerState extends State<InstaWalkContainer>
   }
 
   // ==========================================================
-  // RECOVER SEARCHING REQUEST
+  // RECOVER SEARCHING
   // ==========================================================
 
   Future<void> _recoverSearchingRequest(
     InstaWalkRequestState active,
   ) async {
-    final String? requestId = active.requestId;
-    final DateTime? expiresAt = active.expiresAt;
+    final String? requestId =
+        active.requestId;
+
+    final DateTime? expiresAt =
+        active.expiresAt;
 
     if (requestId == null ||
         requestId.trim().isEmpty ||
         expiresAt == null) {
-      if (!mounted) return;
+      if (!mounted) {
+        return;
+      }
 
       setState(() {
         _recovering = false;
@@ -390,11 +379,8 @@ class _InstaWalkContainerState extends State<InstaWalkContainer>
       return;
     }
 
-    // ========================================================
-    // REAL REMAINING TIME
-    // ========================================================
-
-    Duration remaining = expiresAt.difference(
+    Duration remaining =
+        expiresAt.difference(
       DateTime.now(),
     );
 
@@ -402,16 +388,17 @@ class _InstaWalkContainerState extends State<InstaWalkContainer>
       remaining = Duration.zero;
     }
 
-    // ========================================================
-    // ALREADY EXPIRED
-    // ========================================================
-
     if (remaining.inSeconds <= 0) {
       await _service.expireRequest(
         requestId: requestId,
       );
 
-      if (!mounted) return;
+      if (!mounted) {
+        return;
+      }
+
+      _requestId = null;
+      _ownerPosition = null;
 
       setState(() {
         _recovering = false;
@@ -421,23 +408,14 @@ class _InstaWalkContainerState extends State<InstaWalkContainer>
         _secondsLeft = 0;
       });
 
-      _requestId = null;
-      _ownerPosition = null;
-
       _setActive(false);
       return;
     }
 
-    // ========================================================
-    // RECOVER LOCATION
-    // ========================================================
-
     final Position? recoveredPosition =
-        _readOwnerPosition(active.data);
-
-    // ========================================================
-    // SAVE STATE
-    // ========================================================
+        _readOwnerPosition(
+      active.data,
+    );
 
     _requestId = requestId;
     _currentDuration = remaining;
@@ -451,21 +429,9 @@ class _InstaWalkContainerState extends State<InstaWalkContainer>
       _secondsLeft = remaining.inSeconds;
     });
 
-    // ========================================================
-    // ACTIVE
-    // ========================================================
-
     _setActive(true);
 
-    // ========================================================
-    // RADAR
-    // ========================================================
-
     _startRadar();
-
-    // ========================================================
-    // FIRESTORE LISTENER
-    // ========================================================
 
     await _service.listenForRequest(
       requestId: requestId,
@@ -475,7 +441,8 @@ class _InstaWalkContainerState extends State<InstaWalkContainer>
       },
       onCancelled: () {
         _finishSearch(
-          message: 'Walk request was cancelled.',
+          message:
+              'Walk request was cancelled.',
         );
       },
       onError: (Object error) {
@@ -485,7 +452,9 @@ class _InstaWalkContainerState extends State<InstaWalkContainer>
       },
     );
 
-    if (!mounted) return;
+    if (!mounted) {
+      return;
+    }
 
     if (_searching) {
       _startTimer();
@@ -493,7 +462,7 @@ class _InstaWalkContainerState extends State<InstaWalkContainer>
   }
 
   // ==========================================================
-  // RECOVER ACCEPTED REQUEST
+  // RECOVER ACCEPTED
   // ==========================================================
 
   void _recoverAcceptedRequest(
@@ -509,13 +478,15 @@ class _InstaWalkContainerState extends State<InstaWalkContainer>
 
     _requestId =
         accepted.requestId.trim().isEmpty
-            ? null
+            ? active.requestId
             : accepted.requestId;
 
     _stopTimer();
     _stopRadar();
 
-    if (!mounted) return;
+    if (!mounted) {
+      return;
+    }
 
     setState(() {
       _recovering = false;
@@ -524,10 +495,6 @@ class _InstaWalkContainerState extends State<InstaWalkContainer>
       _checkingAddress = false;
       _secondsLeft = 0;
     });
-
-    // ========================================================
-    // ACCEPTED = ACTIVE
-    // ========================================================
 
     _setActive(true);
 
@@ -549,7 +516,9 @@ class _InstaWalkContainerState extends State<InstaWalkContainer>
         FirebaseAuth.instance.currentUser;
 
     if (user == null) {
-      _message('Please login first.');
+      _message(
+        'Please login first.',
+      );
       return;
     }
 
@@ -559,14 +528,13 @@ class _InstaWalkContainerState extends State<InstaWalkContainer>
     });
 
     try {
-      // ======================================================
-      // OWNER PROFILE
-      // ======================================================
-
-      final QueryDocumentSnapshot<Map<String, dynamic>>? ownerDoc =
+      final QueryDocumentSnapshot<Map<String, dynamic>>?
+          ownerDoc =
           await _service.findOwnerProfile();
 
-      if (!mounted) return;
+      if (!mounted) {
+        return;
+      }
 
       if (ownerDoc == null) {
         setState(() {
@@ -576,18 +544,14 @@ class _InstaWalkContainerState extends State<InstaWalkContainer>
         _message(
           'Owner profile not found. Please complete your profile.',
         );
-
         return;
       }
 
       final Map<String, dynamic> data =
           ownerDoc.data();
 
-      // ======================================================
-      // OWNER ID
-      // ======================================================
-
-      final String ownerId = _readFirstString(
+      final String ownerId =
+          _readFirstString(
         data,
         const [
           'ownerId',
@@ -600,13 +564,11 @@ class _InstaWalkContainerState extends State<InstaWalkContainer>
           _checkingAddress = false;
         });
 
-        _message('Owner ID not found.');
+        _message(
+          'Owner ID not found.',
+        );
         return;
       }
-
-      // ======================================================
-      // PET NAME
-      // ======================================================
 
       _petName = _readFirstString(
         data,
@@ -622,11 +584,8 @@ class _InstaWalkContainerState extends State<InstaWalkContainer>
         _petName = 'Your Pet';
       }
 
-      // ======================================================
-      // ADDRESS
-      // ======================================================
-
-      final String address = _readFirstString(
+      final String address =
+          _readFirstString(
         data,
         const [
           'address',
@@ -643,26 +602,24 @@ class _InstaWalkContainerState extends State<InstaWalkContainer>
         await Navigator.push(
           context,
           MaterialPageRoute(
-            builder: (_) => const AddressScreen(),
+            builder: (_) =>
+                const AddressScreen(),
           ),
         );
 
-        if (!mounted) return;
+        if (!mounted) {
+          return;
+        }
 
         setState(() {
           _checkingAddress = false;
         });
 
-        // Do not automatically start search after
-        // returning from address screen.
         return;
       }
 
-      // ======================================================
-      // OWNER NAME
-      // ======================================================
-
-      String ownerName = _readFirstString(
+      String ownerName =
+          _readFirstString(
         data,
         const [
           'fullName',
@@ -676,28 +633,21 @@ class _InstaWalkContainerState extends State<InstaWalkContainer>
         ownerName = 'Dog Owner';
       }
 
-      // ======================================================
-      // LOCATION
-      // ======================================================
-
       final Position? position =
           await _getLocation();
 
-      if (!mounted) return;
+      if (!mounted) {
+        return;
+      }
 
       if (position == null) {
         setState(() {
           _checkingAddress = false;
         });
-
         return;
       }
 
       _ownerPosition = position;
-
-      // ======================================================
-      // START SEARCH
-      // ======================================================
 
       await _startSearch(
         ownerId: ownerId,
@@ -710,7 +660,9 @@ class _InstaWalkContainerState extends State<InstaWalkContainer>
         'Insta Walk start error: $e',
       );
 
-      if (!mounted) return;
+      if (!mounted) {
+        return;
+      }
 
       setState(() {
         _checkingAddress = false;
@@ -735,7 +687,6 @@ class _InstaWalkContainerState extends State<InstaWalkContainer>
         _message(
           'Please turn on location service.',
         );
-
         return null;
       }
 
@@ -755,7 +706,6 @@ class _InstaWalkContainerState extends State<InstaWalkContainer>
         _message(
           'Location permission is required.',
         );
-
         return null;
       }
 
@@ -797,7 +747,9 @@ class _InstaWalkContainerState extends State<InstaWalkContainer>
         ),
       );
 
-      if (!mounted) return;
+      if (!mounted) {
+        return;
+      }
 
       if (!result.success ||
           result.requestId == null ||
@@ -822,19 +774,13 @@ class _InstaWalkContainerState extends State<InstaWalkContainer>
         return;
       }
 
-      // ======================================================
-      // REQUEST
-      // ======================================================
-
-      _requestId = result.requestId;
+      _requestId =
+          result.requestId;
 
       _currentDuration =
           result.duration ??
-              InstaWalkSearchService.normalSearchDuration;
-
-      // ======================================================
-      // REAL REMAINING TIME
-      // ======================================================
+              InstaWalkSearchService
+                  .normalSearchDuration;
 
       Duration remaining =
           result.expiresAt!.difference(
@@ -845,16 +791,14 @@ class _InstaWalkContainerState extends State<InstaWalkContainer>
         remaining = Duration.zero;
       }
 
-      // ======================================================
-      // SEARCH ALREADY EXPIRED
-      // ======================================================
-
       if (remaining.inSeconds <= 0) {
         await _service.expireRequest(
           requestId: result.requestId!,
         );
 
-        if (!mounted) return;
+        if (!mounted) {
+          return;
+        }
 
         _resetSearchState();
 
@@ -867,42 +811,30 @@ class _InstaWalkContainerState extends State<InstaWalkContainer>
         return;
       }
 
-      // ======================================================
-      // STATE
-      // ======================================================
-
       setState(() {
         _checkingAddress = false;
         _searching = true;
         _searchFinished = false;
-        _secondsLeft = remaining.inSeconds;
+        _secondsLeft =
+            remaining.inSeconds;
       });
-
-      // ======================================================
-      // SEARCH STARTED = ACTIVE
-      // ======================================================
 
       _setActive(true);
 
-      // ======================================================
-      // RADAR
-      // ======================================================
-
       _startRadar();
 
-      // ======================================================
-      // LISTENER
-      // ======================================================
-
       await _service.listenForRequest(
-        requestId: result.requestId!,
-        onAccepted: _walkerAccepted,
+        requestId:
+            result.requestId!,
+        onAccepted:
+            _walkerAccepted,
         onExpired: () {
           _finishSearch();
         },
         onCancelled: () {
           _finishSearch(
-            message: 'Walk request was cancelled.',
+            message:
+                'Walk request was cancelled.',
           );
         },
         onError: (Object error) {
@@ -912,7 +844,9 @@ class _InstaWalkContainerState extends State<InstaWalkContainer>
         },
       );
 
-      if (!mounted) return;
+      if (!mounted) {
+        return;
+      }
 
       if (_searching) {
         _startTimer();
@@ -922,7 +856,9 @@ class _InstaWalkContainerState extends State<InstaWalkContainer>
         'Insta Walk search error: $e',
       );
 
-      if (!mounted) return;
+      if (!mounted) {
+        return;
+      }
 
       _stopTimer();
       _stopRadar();
@@ -945,11 +881,13 @@ class _InstaWalkContainerState extends State<InstaWalkContainer>
   }
 
   // ==========================================================
-  // RADAR START
+  // RADAR
   // ==========================================================
 
   void _startRadar() {
-    if (!mounted) return;
+    if (!mounted) {
+      return;
+    }
 
     if (!_radarController.isAnimating) {
       _radarController.repeat();
@@ -963,15 +901,29 @@ class _InstaWalkContainerState extends State<InstaWalkContainer>
   void _startTimer() {
     _stopTimer();
 
-    if (!mounted || !_searching) {
+    if (!mounted ||
+        !_searching) {
       return;
     }
 
     _timer = Timer.periodic(
       const Duration(seconds: 1),
       (Timer timer) async {
-        if (!mounted || !_searching) {
+        if (!mounted ||
+            !_searching) {
           timer.cancel();
+          return;
+        }
+
+        final String? id =
+            _requestId;
+
+        if (id == null ||
+            id.trim().isEmpty) {
+          timer.cancel();
+          _timer = null;
+
+          _finishSearch();
           return;
         }
 
@@ -979,22 +931,33 @@ class _InstaWalkContainerState extends State<InstaWalkContainer>
           timer.cancel();
           _timer = null;
 
-          final String? id = _requestId;
+          final InstaWalkRequestState state =
+              await _service.getRequestState(
+            id,
+          );
 
-          if (id != null &&
-              id.trim().isNotEmpty) {
-            try {
-              await _service.expireRequest(
-                requestId: id,
-              );
-            } catch (e) {
-              debugPrint(
-                'Expire request error: $e',
-              );
-            }
+          if (!mounted) {
+            return;
           }
 
-          if (!mounted) return;
+          if (state.isAccepted) {
+            _walkerAccepted(
+              InstaWalkAcceptedData.fromMap(
+                state.data ?? {},
+              ),
+            );
+            return;
+          }
+
+          if (state.isSearching) {
+            await _service.expireRequest(
+              requestId: id,
+            );
+          }
+
+          if (!mounted) {
+            return;
+          }
 
           _finishSearch();
           return;
@@ -1017,7 +980,9 @@ class _InstaWalkContainerState extends State<InstaWalkContainer>
     _stopTimer();
     _stopRadar();
 
-    if (!mounted) return;
+    if (!mounted) {
+      return;
+    }
 
     _requestId =
         data.requestId.trim().isEmpty
@@ -1030,10 +995,6 @@ class _InstaWalkContainerState extends State<InstaWalkContainer>
       _checkingAddress = false;
       _secondsLeft = 0;
     });
-
-    // ========================================================
-    // ACCEPTED = STILL ACTIVE
-    // ========================================================
 
     _setActive(true);
 
@@ -1071,10 +1032,6 @@ class _InstaWalkContainerState extends State<InstaWalkContainer>
       _checkingAddress = false;
       _secondsLeft = 0;
     });
-
-    // ========================================================
-    // FINISHED = HIDE PATTI
-    // ========================================================
 
     _setActive(false);
 
@@ -1127,7 +1084,9 @@ class _InstaWalkContainerState extends State<InstaWalkContainer>
   // ==========================================================
 
   void _message(String text) {
-    if (!mounted) return;
+    if (!mounted) {
+      return;
+    }
 
     final ScaffoldMessengerState messenger =
         ScaffoldMessenger.of(context);
@@ -1139,13 +1098,19 @@ class _InstaWalkContainerState extends State<InstaWalkContainer>
           content: Text(
             text,
             maxLines: 3,
-            overflow: TextOverflow.ellipsis,
+            overflow:
+                TextOverflow.ellipsis,
           ),
-          behavior: SnackBarBehavior.floating,
-          margin: const EdgeInsets.all(16),
-          duration: const Duration(seconds: 3),
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(14),
+          behavior:
+              SnackBarBehavior.floating,
+          margin:
+              const EdgeInsets.all(16),
+          duration:
+              const Duration(seconds: 3),
+          shape:
+              RoundedRectangleBorder(
+            borderRadius:
+                BorderRadius.circular(14),
           ),
         ),
       );
@@ -1160,7 +1125,8 @@ class _InstaWalkContainerState extends State<InstaWalkContainer>
     List<String> keys,
   ) {
     for (final String key in keys) {
-      final dynamic value = data[key];
+      final dynamic value =
+          data[key];
 
       if (value == null) {
         continue;
@@ -1223,71 +1189,89 @@ class _InstaWalkContainerState extends State<InstaWalkContainer>
   }
 
   // ==========================================================
-  // COMPACT NAVIGATION PATTI
+  // COMPACT PATTI
   // ==========================================================
 
   Widget _buildCompactPatti() {
-    final Widget patti = Container(
+    final Widget patti =
+        Container(
       width: double.infinity,
       height: 68,
-      padding: const EdgeInsets.symmetric(
+      padding:
+          const EdgeInsets.symmetric(
         horizontal: 15,
       ),
-      decoration: BoxDecoration(
-        gradient: const LinearGradient(
+      decoration:
+          BoxDecoration(
+        gradient:
+            const LinearGradient(
           colors: [
             Color(0xFF243746),
             Color(0xFF304E5A),
             Color(0xFF376A70),
           ],
-          begin: Alignment.centerLeft,
-          end: Alignment.centerRight,
+          begin:
+              Alignment.centerLeft,
+          end:
+              Alignment.centerRight,
         ),
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(
-          color: const Color(0xFF65D6C8)
-              .withValues(alpha: .20),
+        borderRadius:
+            BorderRadius.circular(20),
+        border:
+            Border.all(
+          color:
+              const Color(0xFF65D6C8)
+                  .withValues(
+            alpha: .20,
+          ),
         ),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withValues(
+            color:
+                Colors.black.withValues(
               alpha: .10,
             ),
             blurRadius: 16,
-            offset: const Offset(0, 6),
+            offset:
+                const Offset(0, 6),
           ),
         ],
       ),
       child: Row(
         children: [
-          // ==================================================
-          // ICON
-          // ==================================================
-
           Container(
             width: 40,
             height: 40,
-            decoration: BoxDecoration(
-              color: const Color(0xFF65D6C8)
-                  .withValues(alpha: .14),
-              shape: BoxShape.circle,
-              border: Border.all(
-                color: const Color(0xFF65D6C8)
-                    .withValues(alpha: .20),
+            decoration:
+                BoxDecoration(
+              color:
+                  const Color(0xFF65D6C8)
+                      .withValues(
+                alpha: .14,
+              ),
+              shape:
+                  BoxShape.circle,
+              border:
+                  Border.all(
+                color:
+                    const Color(0xFF65D6C8)
+                        .withValues(
+                  alpha: .20,
+                ),
               ),
             ),
-            child: const Icon(
+            child:
+                const Icon(
               Icons.flash_on_rounded,
-              color: Color(0xFF8FFFEF),
+              color:
+                  Color(0xFF8FFFEF),
               size: 21,
             ),
           ),
 
-          const SizedBox(width: 11),
-
-          // ==================================================
-          // CONTENT
-          // ==================================================
+          const SizedBox(
+            width: 11,
+          ),
 
           Expanded(
             child: Column(
@@ -1299,66 +1283,88 @@ class _InstaWalkContainerState extends State<InstaWalkContainer>
                 const Text(
                   'Insta Walk',
                   maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: TextStyle(
-                    color: Colors.white,
+                  overflow:
+                      TextOverflow.ellipsis,
+                  style:
+                      TextStyle(
+                    color:
+                        Colors.white,
                     fontSize: 14,
-                    fontWeight: FontWeight.w900,
+                    fontWeight:
+                        FontWeight.w900,
                   ),
                 ),
 
-                const SizedBox(height: 3),
+                const SizedBox(
+                  height: 3,
+                ),
 
                 Text(
                   _searching
                       ? 'Finding walker for $_petName'
                       : 'Walker is active',
                   maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(
-                    color: Colors.white70,
+                  overflow:
+                      TextOverflow.ellipsis,
+                  style:
+                      const TextStyle(
+                    color:
+                        Colors.white70,
                     fontSize: 11,
-                    fontWeight: FontWeight.w600,
+                    fontWeight:
+                        FontWeight.w600,
                   ),
                 ),
               ],
             ),
           ),
 
-          const SizedBox(width: 8),
-
-          // ==================================================
-          // STATUS
-          // ==================================================
+          const SizedBox(
+            width: 8,
+          ),
 
           Container(
-            padding: const EdgeInsets.symmetric(
+            padding:
+                const EdgeInsets.symmetric(
               horizontal: 8,
               vertical: 5,
             ),
-            decoration: BoxDecoration(
-              color: const Color(0xFF65D6C8)
-                  .withValues(alpha: .14),
+            decoration:
+                BoxDecoration(
+              color:
+                  const Color(0xFF65D6C8)
+                      .withValues(
+                alpha: .14,
+              ),
               borderRadius:
-                  BorderRadius.circular(20),
+                  BorderRadius.circular(
+                20,
+              ),
             ),
-            child: Text(
+            child:
+                Text(
               _searching
                   ? 'LIVE'
                   : 'ACTIVE',
-              style: const TextStyle(
-                color: Color(0xFF8FFFEF),
+              style:
+                  const TextStyle(
+                color:
+                    Color(0xFF8FFFEF),
                 fontSize: 8,
-                fontWeight: FontWeight.w900,
+                fontWeight:
+                    FontWeight.w900,
               ),
             ),
           ),
 
-          const SizedBox(width: 4),
+          const SizedBox(
+            width: 4,
+          ),
 
           const Icon(
             Icons.chevron_right_rounded,
-            color: Colors.white70,
+            color:
+                Colors.white70,
             size: 23,
           ),
         ],
@@ -1371,7 +1377,8 @@ class _InstaWalkContainerState extends State<InstaWalkContainer>
 
     return GestureDetector(
       onTap: widget.onTap,
-      behavior: HitTestBehavior.opaque,
+      behavior:
+          HitTestBehavior.opaque,
       child: patti,
     );
   }
@@ -1382,7 +1389,8 @@ class _InstaWalkContainerState extends State<InstaWalkContainer>
 
   Widget _buildFullScreen() {
     return Padding(
-      padding: const EdgeInsets.fromLTRB(
+      padding:
+          const EdgeInsets.fromLTRB(
         16,
         8,
         16,
@@ -1390,33 +1398,46 @@ class _InstaWalkContainerState extends State<InstaWalkContainer>
       ),
       child: Container(
         width: double.infinity,
-        padding: const EdgeInsets.all(20),
-        decoration: BoxDecoration(
-          gradient: const LinearGradient(
+        padding:
+            const EdgeInsets.all(20),
+        decoration:
+            BoxDecoration(
+          gradient:
+              const LinearGradient(
             colors: [
               Color(0xFF243746),
               Color(0xFF304E5A),
               Color(0xFF376A70),
             ],
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
+            begin:
+                Alignment.topLeft,
+            end:
+                Alignment.bottomRight,
           ),
-          borderRadius: BorderRadius.circular(25),
-          border: Border.all(
-            color: const Color(0xFF65D6C8)
-                .withValues(alpha: .18),
+          borderRadius:
+              BorderRadius.circular(25),
+          border:
+              Border.all(
+            color:
+                const Color(0xFF65D6C8)
+                    .withValues(
+              alpha: .18,
+            ),
           ),
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withValues(
+              color:
+                  Colors.black.withValues(
                 alpha: .10,
               ),
               blurRadius: 20,
-              offset: const Offset(0, 8),
+              offset:
+                  const Offset(0, 8),
             ),
           ],
         ),
-        child: _buildFullScreenContent(),
+        child:
+            _buildFullScreenContent(),
       ),
     );
   }
@@ -1430,9 +1451,11 @@ class _InstaWalkContainerState extends State<InstaWalkContainer>
       return const SizedBox(
         height: 180,
         child: Center(
-          child: CircularProgressIndicator(
+          child:
+              CircularProgressIndicator(
             strokeWidth: 2.5,
-            color: Color(0xFF65D6C8),
+            color:
+                Color(0xFF65D6C8),
           ),
         ),
       );
@@ -1444,54 +1467,53 @@ class _InstaWalkContainerState extends State<InstaWalkContainer>
       children: [
         _header(),
 
-        const SizedBox(height: 16),
+        const SizedBox(
+          height: 16,
+        ),
 
         Text(
           _searching
               ? 'Searching available walkers near your current location.'
               : 'Find an available walker nearby instantly.',
-          style: const TextStyle(
-            color: Colors.white70,
+          style:
+              const TextStyle(
+            color:
+                Colors.white70,
             fontSize: 13,
             height: 1.5,
           ),
         ),
 
-        const SizedBox(height: 20),
-
-        // ====================================================
-        // SEARCH BUTTON
-        // ====================================================
+        const SizedBox(
+          height: 20,
+        ),
 
         if (!_searching &&
             !_searchFinished)
           SizedBox(
             width: double.infinity,
-            child: InstaWalkSearchButton(
-              loading: _checkingAddress,
-              text: _checkingAddress
-                  ? 'Checking location...'
-                  : 'Find a Walker Now',
-              onPressed: _checkingAddress
-                  ? null
-                  : _findWalker,
+            child:
+                InstaWalkSearchButton(
+              loading:
+                  _checkingAddress,
+              text:
+                  _checkingAddress
+                      ? 'Checking location...'
+                      : 'Find a Walker Now',
+              onPressed:
+                  _checkingAddress
+                      ? null
+                      : _findWalker,
             ),
           ),
-
-        // ====================================================
-        // SEARCHING
-        // ====================================================
 
         if (_searching)
           _buildSearching(),
 
-        // ====================================================
-        // RETRY
-        // ====================================================
-
         if (_searchFinished)
           InstaWalkRetry(
-            onRetry: _retrySearch,
+            onRetry:
+                _retrySearch,
           ),
       ],
     );
@@ -1504,14 +1526,20 @@ class _InstaWalkContainerState extends State<InstaWalkContainer>
   Widget _buildSearching() {
     if (_ownerPosition != null) {
       return InstaWalkSearching(
-        timerText: _timerText(),
-        map: InstaWalkMapRadar(
-          ownerPoint: LatLng(
-            _ownerPosition!.latitude,
-            _ownerPosition!.longitude,
+        timerText:
+            _timerText(),
+        map:
+            InstaWalkMapRadar(
+          ownerPoint:
+              LatLng(
+            _ownerPosition!
+                .latitude,
+            _ownerPosition!
+                .longitude,
           ),
           searchRadiusKm:
-              InstaWalkSearchService.searchRadiusKm,
+              InstaWalkSearchService
+                  .searchRadiusKm,
           radarAnimation:
               _radarController,
         ),
@@ -1520,45 +1548,62 @@ class _InstaWalkContainerState extends State<InstaWalkContainer>
 
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.all(20),
-      decoration: BoxDecoration(
-        color: Colors.black.withValues(
+      padding:
+          const EdgeInsets.all(20),
+      decoration:
+          BoxDecoration(
+        color:
+            Colors.black.withValues(
           alpha: .12,
         ),
         borderRadius:
             BorderRadius.circular(18),
       ),
-      child: Column(
+      child:
+          Column(
         children: [
           const SizedBox(
             width: 52,
             height: 52,
-            child: CircularProgressIndicator(
+            child:
+                CircularProgressIndicator(
               strokeWidth: 3,
-              color: Color(0xFF65D6C8),
+              color:
+                  Color(0xFF65D6C8),
             ),
           ),
 
-          const SizedBox(height: 14),
+          const SizedBox(
+            height: 14,
+          ),
 
           const Text(
             'Searching nearby walkers',
-            textAlign: TextAlign.center,
-            style: TextStyle(
-              color: Colors.white,
+            textAlign:
+                TextAlign.center,
+            style:
+                TextStyle(
+              color:
+                  Colors.white,
               fontSize: 15,
-              fontWeight: FontWeight.w800,
+              fontWeight:
+                  FontWeight.w800,
             ),
           ),
 
-          const SizedBox(height: 6),
+          const SizedBox(
+            height: 6,
+          ),
 
           Text(
             _timerText(),
-            style: const TextStyle(
-              color: Color(0xFF8FFFEF),
+            style:
+                const TextStyle(
+              color:
+                  Color(0xFF8FFFEF),
               fontSize: 22,
-              fontWeight: FontWeight.w900,
+              fontWeight:
+                  FontWeight.w900,
             ),
           ),
         ],
@@ -1571,19 +1616,18 @@ class _InstaWalkContainerState extends State<InstaWalkContainer>
   // ==========================================================
 
   Widget _header() {
-    final bool isLive = _searching;
+    final bool isLive =
+        _searching;
 
     return Row(
       children: [
-        // ======================================================
-        // ICON
-        // ======================================================
-
         Container(
           width: 52,
           height: 52,
-          decoration: BoxDecoration(
-            gradient: const LinearGradient(
+          decoration:
+              BoxDecoration(
+            gradient:
+                const LinearGradient(
               colors: [
                 Color(0xFF65D6C8),
                 Color(0xFF8FFFEF),
@@ -1593,40 +1637,50 @@ class _InstaWalkContainerState extends State<InstaWalkContainer>
                 BorderRadius.circular(17),
             boxShadow: [
               BoxShadow(
-                color: const Color(0xFF65D6C8)
-                    .withValues(alpha: .25),
+                color:
+                    const Color(
+                  0xFF65D6C8,
+                ).withValues(
+                  alpha: .25,
+                ),
                 blurRadius: 12,
               ),
             ],
           ),
-          child: const Icon(
+          child:
+              const Icon(
             Icons.flash_on_rounded,
-            color: Color(0xFF243746),
+            color:
+                Color(0xFF243746),
             size: 29,
           ),
         ),
 
-        const SizedBox(width: 13),
-
-        // ======================================================
-        // TITLE
-        // ======================================================
+        const SizedBox(
+          width: 13,
+        ),
 
         Expanded(
-          child: Column(
+          child:
+              Column(
             crossAxisAlignment:
                 CrossAxisAlignment.start,
             children: [
               const Text(
                 'Insta Walk',
-                style: TextStyle(
-                  color: Colors.white,
+                style:
+                    TextStyle(
+                  color:
+                      Colors.white,
                   fontSize: 21,
-                  fontWeight: FontWeight.w900,
+                  fontWeight:
+                      FontWeight.w900,
                 ),
               ),
 
-              const SizedBox(height: 3),
+              const SizedBox(
+                height: 3,
+              ),
 
               Text(
                 isLive
@@ -1635,58 +1689,79 @@ class _InstaWalkContainerState extends State<InstaWalkContainer>
                 maxLines: 1,
                 overflow:
                     TextOverflow.ellipsis,
-                style: const TextStyle(
-                  color: Colors.white60,
+                style:
+                    const TextStyle(
+                  color:
+                      Colors.white60,
                   fontSize: 12,
-                  fontWeight: FontWeight.w500,
+                  fontWeight:
+                      FontWeight.w500,
                 ),
               ),
             ],
           ),
         ),
 
-        // ======================================================
-        // STATUS
-        // ======================================================
-
         Container(
-          padding: const EdgeInsets.symmetric(
+          padding:
+              const EdgeInsets.symmetric(
             horizontal: 9,
             vertical: 6,
           ),
-          decoration: BoxDecoration(
-            color: const Color(0xFF65D6C8)
-                .withValues(alpha: .12),
+          decoration:
+              BoxDecoration(
+            color:
+                const Color(
+              0xFF65D6C8,
+            ).withValues(
+              alpha: .12,
+            ),
             borderRadius:
-                BorderRadius.circular(20),
-            border: Border.all(
-              color: const Color(0xFF65D6C8)
-                  .withValues(alpha: .25),
+                BorderRadius.circular(
+              20,
+            ),
+            border:
+                Border.all(
+              color:
+                  const Color(
+                0xFF65D6C8,
+              ).withValues(
+                alpha: .25,
+              ),
             ),
           ),
-          child: Row(
+          child:
+              Row(
             mainAxisSize:
                 MainAxisSize.min,
             children: [
               Container(
                 width: 8,
                 height: 8,
-                decoration: const BoxDecoration(
-                  color: Color(0xFF65D6C8),
-                  shape: BoxShape.circle,
+                decoration:
+                    const BoxDecoration(
+                  color:
+                      Color(0xFF65D6C8),
+                  shape:
+                      BoxShape.circle,
                 ),
               ),
 
-              const SizedBox(width: 5),
+              const SizedBox(
+                width: 5,
+              ),
 
               Text(
                 isLive
                     ? 'LIVE'
                     : 'ACTIVE',
-                style: const TextStyle(
-                  color: Color(0xFF8FFFEF),
+                style:
+                    const TextStyle(
+                  color:
+                      Color(0xFF8FFFEF),
                   fontSize: 9,
-                  fontWeight: FontWeight.w900,
+                  fontWeight:
+                      FontWeight.w900,
                 ),
               ),
             ],
