@@ -197,6 +197,7 @@ class _InstaWalkContainerState extends State<InstaWalkContainer>
     _ownerPosition = null;
 
     if (!mounted) {
+      _setActive(false);
       return;
     }
 
