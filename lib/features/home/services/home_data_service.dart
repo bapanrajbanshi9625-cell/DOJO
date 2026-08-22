@@ -1,8 +1,6 @@
 // File location:
 // lib/features/home/services/home_data_service.dart
 
-import 'dart:async';
-
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 
@@ -10,27 +8,22 @@ import 'package:firebase_auth/firebase_auth.dart';
 /// HOME DATA SERVICE
 /// ============================================================
 ///
-/// HomeScreen के लिए Firestore से data fetch करने की सारी
-/// responsibility इस service की है.
+/// HomeScreen के लिए Firestore data service.
 ///
 /// यह service:
 ///   • Current Live Walk सुनती है
 ///   • Past Walks fetch करती है
+///   • Past Walks stream देती है
 ///   • Weekly statistics निकालती है
-///   • Total walks निकालती है
-///   • Total distance निकालती है
-///   • Total duration निकालती है
+///   • Distance / Duration format करती है
 ///
-/// IMPORTANT:
-/// अभी कोई Firestore field blindly assume नहीं किया गया है।
-/// Service कई common field names को safely पढ़ती है ताकि
-/// existing data structure खराब न हो।
 /// ============================================================
 
 class HomeDataService {
   HomeDataService._();
 
-  static final HomeDataService instance = HomeDataService._();
+  static final HomeDataService instance =
+      HomeDataService._();
 
   final FirebaseFirestore _firestore =
       FirebaseFirestore.instance;
@@ -59,20 +52,14 @@ class HomeDataService {
   }
 
   // ============================================================
-  // LIVE WALK STREAM
-  // ============================================================
-  //
-  // यह stream HomeScreen को current live walk देती है।
-  //
-  // पहले ownerUid से exact owner document खोजने की कोशिश होती है।
-  //
-  // Current project में live walk किस collection में save है,
-  // उसके लिए नीचे LIVE WALK COLLECTION को आसानी से बदला जा सकता है।
+  // LIVE WALK
   // ============================================================
 
   static const String liveWalkCollection =
       'active_walks';
 
+  /// HomeScreen को current active/live walk
+  /// real-time में सुनाता है.
   Stream<HomeLiveWalk?> liveWalkStream() {
     final String? ownerUid = currentOwnerUid;
 
@@ -88,18 +75,20 @@ class HomeDataService {
         )
         .snapshots()
         .map(
-      (QuerySnapshot<Map<String, dynamic>> snapshot) {
+      (
+        QuerySnapshot<Map<String, dynamic>> snapshot,
+      ) {
         if (snapshot.docs.isEmpty) {
           return null;
         }
 
-        // ------------------------------------------------------
-        // केवल वास्तव में LIVE document चुनना
-        // ------------------------------------------------------
-
-        for (final QueryDocumentSnapshot<Map<String, dynamic>>
-            doc in snapshot.docs) {
-          final Map<String, dynamic> data = doc.data();
+        for (
+          final QueryDocumentSnapshot<Map<String, dynamic>>
+              doc
+              in snapshot.docs
+        ) {
+          final Map<String, dynamic> data =
+              doc.data();
 
           if (_isLiveWalk(data)) {
             return HomeLiveWalk.fromFirestore(
@@ -112,41 +101,6 @@ class HomeDataService {
         return null;
       },
     );
-  }
-
-  // ============================================================
-  // CHECK LIVE WALK
-  // ============================================================
-
-  Future<HomeLiveWalk?> getCurrentLiveWalk() async {
-    final String? ownerUid = currentOwnerUid;
-
-    if (ownerUid == null) {
-      return null;
-    }
-
-    final QuerySnapshot<Map<String, dynamic>> snapshot =
-        await _firestore
-            .collection(liveWalkCollection)
-            .where(
-              'ownerId',
-              isEqualTo: ownerUid,
-            )
-            .get();
-
-    for (final QueryDocumentSnapshot<Map<String, dynamic>>
-        doc in snapshot.docs) {
-      final Map<String, dynamic> data = doc.data();
-
-      if (_isLiveWalk(data)) {
-        return HomeLiveWalk.fromFirestore(
-          doc.id,
-          data,
-        );
-      }
-    }
-
-    return null;
   }
 
   // ============================================================
@@ -224,13 +178,6 @@ class HomeDataService {
   // ============================================================
   // PAST WALKS
   // ============================================================
-  //
-  // Collection:
-  //     walk_history
-  //
-  // Owner identification के लिए कई existing field names
-  // support किए गए हैं।
-  // ============================================================
 
   static const String walkHistoryCollection =
       'walk_history';
@@ -244,16 +191,20 @@ class HomeDataService {
       return <HomePastWalk>[];
     }
 
-    final List<HomePastWalk> result = [];
+    final List<HomePastWalk> result =
+        <HomePastWalk>[];
 
     // ----------------------------------------------------------
-    // पहले ownerId से
+    // ownerId
     // ----------------------------------------------------------
 
     try {
-      final QuerySnapshot<Map<String, dynamic>> snapshot =
+      final QuerySnapshot<Map<String, dynamic>>
+          snapshot =
           await _firestore
-              .collection(walkHistoryCollection)
+              .collection(
+                walkHistoryCollection,
+              )
               .where(
                 'ownerId',
                 isEqualTo: ownerUid,
@@ -261,8 +212,11 @@ class HomeDataService {
               .limit(limit)
               .get();
 
-      for (final QueryDocumentSnapshot<Map<String, dynamic>>
-          doc in snapshot.docs) {
+      for (
+        final QueryDocumentSnapshot<
+            Map<String, dynamic>> doc
+            in snapshot.docs
+      ) {
         result.add(
           HomePastWalk.fromFirestore(
             doc.id,
@@ -270,19 +224,22 @@ class HomeDataService {
           ),
         );
       }
-    } catch (e) {
-      // Fallback नीचे try होगा।
+    } catch (_) {
+      // Fallback नीचे किया जाएगा.
     }
 
     // ----------------------------------------------------------
-    // अगर ownerId से data नहीं मिला तो ownerUid
+    // ownerUid fallback
     // ----------------------------------------------------------
 
     if (result.isEmpty) {
       try {
-        final QuerySnapshot<Map<String, dynamic>> snapshot =
+        final QuerySnapshot<Map<String, dynamic>>
+            snapshot =
             await _firestore
-                .collection(walkHistoryCollection)
+                .collection(
+                  walkHistoryCollection,
+                )
                 .where(
                   'ownerUid',
                   isEqualTo: ownerUid,
@@ -290,8 +247,11 @@ class HomeDataService {
                 .limit(limit)
                 .get();
 
-        for (final QueryDocumentSnapshot<Map<String, dynamic>>
-            doc in snapshot.docs) {
+        for (
+          final QueryDocumentSnapshot<
+              Map<String, dynamic>> doc
+              in snapshot.docs
+        ) {
           result.add(
             HomePastWalk.fromFirestore(
               doc.id,
@@ -299,17 +259,17 @@ class HomeDataService {
             ),
           );
         }
-      } catch (e) {
+      } catch (_) {
         // Safe fallback.
       }
     }
 
     // ----------------------------------------------------------
-    // Date के हिसाब से latest first
+    // Latest first
     // ----------------------------------------------------------
 
     result.sort(
-      (a, b) {
+      (HomePastWalk a, HomePastWalk b) {
         return b.date.compareTo(a.date);
       },
     );
@@ -319,9 +279,6 @@ class HomeDataService {
 
   // ============================================================
   // PAST WALKS STREAM
-  // ============================================================
-  //
-  // HomeScreen पर real-time refresh के लिए।
   // ============================================================
 
   Stream<List<HomePastWalk>> pastWalksStream({
@@ -344,7 +301,8 @@ class HomeDataService {
         .snapshots()
         .map(
       (
-        QuerySnapshot<Map<String, dynamic>> snapshot,
+        QuerySnapshot<Map<String, dynamic>>
+            snapshot,
       ) {
         final List<HomePastWalk> walks =
             snapshot.docs
@@ -362,7 +320,7 @@ class HomeDataService {
                 .toList();
 
         walks.sort(
-          (a, b) {
+          (HomePastWalk a, HomePastWalk b) {
             return b.date.compareTo(a.date);
           },
         );
@@ -382,34 +340,41 @@ class HomeDataService {
       limit: 100,
     );
 
-    final DateTime now = DateTime.now();
+    final DateTime now =
+        DateTime.now();
 
-    // Monday = start of week
-    final DateTime startOfWeek = DateTime(
-      now.year,
-      now.month,
-      now.day,
-    ).subtract(
-      Duration(
-        days: now.weekday - 1,
-      ),
-    );
+    final DateTime startOfWeek =
+        DateTime(
+          now.year,
+          now.month,
+          now.day,
+        ).subtract(
+          Duration(
+            days: now.weekday - 1,
+          ),
+        );
 
     final List<HomePastWalk> weeklyWalks =
-        walks.where(
-      (HomePastWalk walk) {
-        return !walk.date.isBefore(
-          startOfWeek,
-        );
-      },
-    ).toList();
+        walks
+            .where(
+              (HomePastWalk walk) {
+                return !walk.date.isBefore(
+                  startOfWeek,
+                );
+              },
+            )
+            .toList();
 
     double totalDistance = 0;
 
     int totalDurationMinutes = 0;
 
-    for (final HomePastWalk walk in weeklyWalks) {
+    for (
+      final HomePastWalk walk
+          in weeklyWalks
+    ) {
       totalDistance += walk.distanceKm;
+
       totalDurationMinutes +=
           walk.durationMinutes;
     }
@@ -529,7 +494,8 @@ class HomeDataService {
         return '$hours hrs';
       }
 
-      return '$hours hrs $remainingMinutes mins';
+      return '$hours hrs '
+          '$remainingMinutes mins';
     }
 
     return '$minutes mins';
@@ -542,17 +508,11 @@ class HomeDataService {
 
 class HomeLiveWalk {
   final String documentId;
-
   final String walkId;
-
   final String walkerUid;
-
   final String walkerName;
-
   final String? walkerPhone;
-
   final String status;
-
   final DateTime? startedAt;
 
   const HomeLiveWalk({
@@ -574,53 +534,52 @@ class HomeLiveWalk {
         data['startTime'] ??
         data['started_at'];
 
+    final String walkerNameValue =
+        HomeDataService._stringValue(
+      data['walkerName'] ??
+          data['walker'],
+    );
+
+    final String walkerPhoneValue =
+        HomeDataService._stringValue(
+      data['walkerPhone'] ??
+          data['phone'] ??
+          data['walkerMobile'],
+    );
+
     return HomeLiveWalk(
       documentId: documentId,
 
       walkId:
           HomeDataService._stringValue(
-            data['walkId'] ??
-                data['id'] ??
-                documentId,
-          ),
+        data['walkId'] ??
+            data['id'] ??
+            documentId,
+      ),
 
       walkerUid:
           HomeDataService._stringValue(
-            data['walkerUid'] ??
-                data['walkerId'] ??
-                data['walkerUID'],
-          ),
+        data['walkerUid'] ??
+            data['walkerId'] ??
+            data['walkerUID'],
+      ),
 
       walkerName:
-          HomeDataService._stringValue(
-                data['walkerName'] ??
-                    data['walker'],
-              ).isEmpty
+          walkerNameValue.isEmpty
               ? 'Walker'
-              : HomeDataService._stringValue(
-                  data['walkerName'] ??
-                      data['walker'],
-                ),
+              : walkerNameValue,
 
       walkerPhone:
-          HomeDataService._stringValue(
-            data['walkerPhone'] ??
-                data['phone'] ??
-                data['walkerMobile'],
-          ).isEmpty
+          walkerPhoneValue.isEmpty
               ? null
-              : HomeDataService._stringValue(
-                  data['walkerPhone'] ??
-                      data['phone'] ??
-                      data['walkerMobile'],
-                ),
+              : walkerPhoneValue,
 
       status:
           HomeDataService._stringValue(
-            data['status'] ??
-                data['walkStatus'] ??
-                data['currentStatus'],
-          ),
+        data['status'] ??
+            data['walkStatus'] ??
+            data['currentStatus'],
+      ),
 
       startedAt:
           startedAtValue == null
@@ -638,27 +597,16 @@ class HomeLiveWalk {
 
 class HomePastWalk {
   final String documentId;
-
   final String walkId;
-
   final String ownerUid;
-
   final String walkerUid;
-
   final String walkerName;
-
   final String dogName;
-
   final double distanceKm;
-
   final int durationMinutes;
-
   final int steps;
-
   final DateTime date;
-
   final String timeFormatted;
-
   final String status;
 
   const HomePastWalk({
@@ -701,59 +649,59 @@ class HomePastWalk {
         data['steps'] ??
         data['totalSteps'];
 
+    final String walkerNameValue =
+        HomeDataService._stringValue(
+      data['walkerName'] ??
+          data['walker'],
+    );
+
     return HomePastWalk(
       documentId: documentId,
 
       walkId:
           HomeDataService._stringValue(
-            data['walkId'] ??
-                data['id'] ??
-                documentId,
-          ),
+        data['walkId'] ??
+            data['id'] ??
+            documentId,
+      ),
 
       ownerUid:
           HomeDataService._stringValue(
-            data['ownerUid'] ??
-                data['ownerId'],
-          ),
+        data['ownerUid'] ??
+            data['ownerId'],
+      ),
 
       walkerUid:
           HomeDataService._stringValue(
-            data['walkerUid'] ??
-                data['walkerId'],
-          ),
+        data['walkerUid'] ??
+            data['walkerId'],
+      ),
 
       walkerName:
-          HomeDataService._stringValue(
-                data['walkerName'] ??
-                    data['walker'],
-              ).isEmpty
+          walkerNameValue.isEmpty
               ? 'Walker'
-              : HomeDataService._stringValue(
-                  data['walkerName'] ??
-                      data['walker'],
-                ),
+              : walkerNameValue,
 
       dogName:
           HomeDataService._stringValue(
-            data['dogName'] ??
-                data['petName'],
-          ),
+        data['dogName'] ??
+            data['petName'],
+      ),
 
       distanceKm:
           HomeDataService._doubleValue(
-            distanceValue,
-          ),
+        distanceValue,
+      ),
 
       durationMinutes:
           HomeDataService._intValue(
-            durationValue,
-          ),
+        durationValue,
+      ),
 
       steps:
           HomeDataService._intValue(
-            stepsValue,
-          ),
+        stepsValue,
+      ),
 
       date:
           dateValue == null
@@ -766,10 +714,10 @@ class HomePastWalk {
 
       timeFormatted:
           HomeDataService._stringValue(
-            data['timeFormatted'] ??
-                data['time'] ??
-                data['formattedTime'],
-          ),
+        data['timeFormatted'] ??
+            data['time'] ??
+            data['formattedTime'],
+      ),
 
       status:
           HomeDataService._stringValue(
@@ -787,11 +735,8 @@ class HomePastWalk {
 
 class HomeWeeklyStats {
   final int totalWalks;
-
   final double totalDistanceKm;
-
   final int totalDurationMinutes;
-
   final List<HomePastWalk> walks;
 
   const HomeWeeklyStats({
