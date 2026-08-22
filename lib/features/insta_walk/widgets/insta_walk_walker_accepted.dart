@@ -18,7 +18,9 @@ extension _WalkerAcceptedRole on _InstaWalkContainerState {
       _requestId = acceptedRequestId;
     }
 
-    if (!mounted) return;
+    if (!mounted) {
+      return;
+    }
 
     _updateState(() {
       _searching = false;
