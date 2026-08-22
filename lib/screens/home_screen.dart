@@ -1,13 +1,9 @@
 // File location: lib/screens/home_screen.dart
 
-import 'dart:convert';
-
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 
 import 'custom_app_bar.dart';
-import 'generate_qr_screen.dart';
 import 'live_walk_screen.dart';
 
 import '../features/home/services/home_data_service.dart'
@@ -84,129 +80,6 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   // =====================================================
-  // GENERATE OWNER QR
-  // =====================================================
-
-  Future<void> _openMyQRCode() async {
-    final User? user =
-        FirebaseAuth.instance.currentUser;
-
-    if (user == null) {
-      if (!mounted) return;
-
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text(
-            'Please login first.',
-          ),
-        ),
-      );
-
-      return;
-    }
-
-    final String ownerUid =
-        user.uid.trim();
-
-    if (ownerUid.isEmpty) {
-      if (!mounted) return;
-
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text(
-            'Owner UID is missing.',
-          ),
-        ),
-      );
-
-      return;
-    }
-
-    final String ownerName =
-        user.displayName?.trim().isNotEmpty == true
-            ? user.displayName!.trim()
-            : 'Owner';
-
-    final String ownerPhone =
-        user.phoneNumber?.trim().isNotEmpty == true
-            ? user.phoneNumber!.trim()
-            : '';
-
-    final String walkId =
-        'WALK_${DateTime.now().millisecondsSinceEpoch}';
-
-    final Map<String, dynamic> qrData = {
-      'type': 'owner',
-      'ownerUid': ownerUid,
-      'ownerName': ownerName,
-      'ownerPhone': ownerPhone,
-      'walkId': walkId,
-      'uid': ownerUid,
-      'userId': ownerUid,
-      'name': ownerName,
-      'phoneNumber': ownerPhone,
-    };
-
-    final String qrPayload =
-        jsonEncode(qrData);
-
-    try {
-      await FirebaseFirestore.instance
-          .collection('qr_codes')
-          .doc(ownerUid)
-          .set(
-        {
-          'type': 'owner',
-          'ownerUid': ownerUid,
-          'ownerName': ownerName,
-          'ownerPhone': ownerPhone,
-          'uid': ownerUid,
-          'userId': ownerUid,
-          'name': ownerName,
-          'phoneNumber': ownerPhone,
-          'walkId': walkId,
-          'qrData': qrPayload,
-          'scanned': false,
-          'scannedBy': null,
-          'scannedAt': null,
-          'updatedAt':
-              FieldValue.serverTimestamp(),
-        },
-        SetOptions(
-          merge: true,
-        ),
-      );
-
-      debugPrint(
-        'Owner QR saved successfully: $ownerUid',
-      );
-    } catch (e) {
-      debugPrint(
-        'Owner QR Firebase save failed: $e',
-      );
-    }
-
-    if (!mounted) return;
-
-    await showModalBottomSheet(
-      context: context,
-      backgroundColor: Colors.transparent,
-      isScrollControlled: true,
-      isDismissible: true,
-      enableDrag: true,
-      builder: (context) {
-        return OwnerQRBottomSheet(
-          ownerUid: ownerUid,
-          ownerName: ownerName,
-          ownerPhone: ownerPhone,
-          walkId: walkId,
-          qrPayload: qrPayload,
-        );
-      },
-    );
-  }
-
-  // =====================================================
   // OPEN LIVE WALK
   // =====================================================
 
@@ -215,8 +88,7 @@ class _HomeScreenState extends State<HomeScreen> {
   ) {
     if (!mounted) return;
 
-    final String walkId =
-        _readString(
+    final String walkId = _readString(
       data,
       const [
         'walkId',
@@ -225,8 +97,7 @@ class _HomeScreenState extends State<HomeScreen> {
       ],
     );
 
-    final String walkerUid =
-        _readString(
+    final String walkerUid = _readString(
       data,
       const [
         'walkerUid',
@@ -235,8 +106,7 @@ class _HomeScreenState extends State<HomeScreen> {
       ],
     );
 
-    final String walkerName =
-        _readString(
+    final String walkerName = _readString(
       data,
       const [
         'walkerName',
@@ -244,8 +114,7 @@ class _HomeScreenState extends State<HomeScreen> {
       ],
     );
 
-    final String walkerPhone =
-        _readString(
+    final String walkerPhone = _readString(
       data,
       const [
         'walkerPhone',
@@ -272,14 +141,12 @@ class _HomeScreenState extends State<HomeScreen> {
         builder: (_) => LiveWalkScreen(
           walkId: walkId,
           walkerUid: walkerUid,
-          walkerName:
-              walkerName.isEmpty
-                  ? 'Walker'
-                  : walkerName,
-          walkerPhone:
-              walkerPhone.isEmpty
-                  ? null
-                  : walkerPhone,
+          walkerName: walkerName.isEmpty
+              ? 'Walker'
+              : walkerName,
+          walkerPhone: walkerPhone.isEmpty
+              ? null
+              : walkerPhone,
         ),
       ),
     );
@@ -294,12 +161,10 @@ class _HomeScreenState extends State<HomeScreen> {
     List<String> keys,
   ) {
     for (final String key in keys) {
-      final dynamic value =
-          data[key];
+      final dynamic value = data[key];
 
       if (value != null) {
-        final String result =
-            value.toString().trim();
+        final String result = value.toString().trim();
 
         if (result.isNotEmpty) {
           return result;
@@ -323,42 +188,32 @@ class _HomeScreenState extends State<HomeScreen> {
       context: context,
       builder: (ctx) {
         return AlertDialog(
-          backgroundColor:
-              const Color(0xFFF7F8FA),
-          shape:
-              RoundedRectangleBorder(
-            borderRadius:
-                BorderRadius.circular(20),
+          backgroundColor: const Color(0xFFF7F8FA),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(20),
           ),
           title: Text(
             title,
-            style:
-                const TextStyle(
+            style: const TextStyle(
               color: HomeScreen.navy,
-              fontWeight:
-                  FontWeight.w900,
+              fontWeight: FontWeight.w900,
             ),
           ),
           content: Text(
             content,
-            style:
-                const TextStyle(
+            style: const TextStyle(
               color: HomeScreen.slate,
               height: 1.5,
             ),
           ),
           actions: [
             TextButton(
-              onPressed: () =>
-                  Navigator.pop(ctx),
+              onPressed: () => Navigator.pop(ctx),
               child: const Text(
                 'CLOSE',
-                style:
-                    TextStyle(
-                  color:
-                      HomeScreen.orange,
-                  fontWeight:
-                      FontWeight.bold,
+                style: TextStyle(
+                  color: HomeScreen.orange,
+                  fontWeight: FontWeight.bold,
                 ),
               ),
             ),
@@ -385,8 +240,7 @@ class _HomeScreenState extends State<HomeScreen> {
           'walkerName': walk.walkerName,
           'dogName': walk.dogName,
           'distanceKm': walk.distanceKm,
-          'durationMinutes':
-              walk.durationMinutes,
+          'durationMinutes': walk.durationMinutes,
           'date': walk.date,
           'status': walk.status,
 
@@ -404,17 +258,14 @@ class _HomeScreenState extends State<HomeScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor:
-          HomeScreen.background,
+      backgroundColor: HomeScreen.background,
 
       appBar: const CustomAppBar(),
 
       body: SingleChildScrollView(
-        physics:
-            const AlwaysScrollableScrollPhysics(),
+        physics: const AlwaysScrollableScrollPhysics(),
 
-        padding:
-            const EdgeInsets.fromLTRB(
+        padding: const EdgeInsets.fromLTRB(
           15,
           15,
           15,
@@ -422,8 +273,7 @@ class _HomeScreenState extends State<HomeScreen> {
         ),
 
         child: Column(
-          crossAxisAlignment:
-              CrossAxisAlignment.start,
+          crossAxisAlignment: CrossAxisAlignment.start,
 
           children: [
             // =========================================
@@ -442,8 +292,7 @@ class _HomeScreenState extends State<HomeScreen> {
 
             InstaWalkContainer(
               fullScreen: false,
-              onWalkerFound:
-                  _openInstaWalk,
+              onWalkerFound: _openInstaWalk,
             ),
 
             // =========================================
@@ -455,35 +304,25 @@ class _HomeScreenState extends State<HomeScreen> {
             ),
 
             StreamBuilder<
-                QuerySnapshot<
-                    Map<String, dynamic>>>(
-              stream:
-                  _liveWalkService
-                      .liveWalkStream(),
+                QuerySnapshot<Map<String, dynamic>>>(
+              stream: _liveWalkService.liveWalkStream(),
 
-              builder:
-                  (context, snapshot) {
+              builder: (context, snapshot) {
                 if (snapshot.hasError) {
-                  return const SizedBox
-                      .shrink();
+                  return const SizedBox.shrink();
                 }
 
                 if (!snapshot.hasData) {
-                  return const SizedBox
-                      .shrink();
+                  return const SizedBox.shrink();
                 }
 
-                final Map<String, dynamic>?
-                    liveWalkData =
-                    _liveWalkService
-                        .getLiveWalkData(
+                final Map<String, dynamic>? liveWalkData =
+                    _liveWalkService.getLiveWalkData(
                   snapshot.data!,
                 );
 
-                if (liveWalkData ==
-                    null) {
-                  return const SizedBox
-                      .shrink();
+                if (liveWalkData == null) {
+                  return const SizedBox.shrink();
                 }
 
                 return HomeLiveWalkBar(
@@ -505,8 +344,7 @@ class _HomeScreenState extends State<HomeScreen> {
             ),
 
             const HomeSectionTitle(
-              title:
-                  'This week processing',
+              title: 'This week processing',
             ),
 
             const SizedBox(
@@ -543,58 +381,34 @@ class _HomeScreenState extends State<HomeScreen> {
             ),
 
             StreamBuilder<
-                List<
-                    home_data.HomePastWalk>>(
-              stream:
-                  _homeDataService
-                      .pastWalksStream(
+                List<home_data.HomePastWalk>>(
+              stream: _homeDataService.pastWalksStream(
                 limit: 20,
               ),
 
-              builder:
-                  (context, snapshot) {
+              builder: (context, snapshot) {
                 // -------------------------------------
                 // ERROR
                 // -------------------------------------
 
                 if (snapshot.hasError) {
                   return Container(
-                    width:
-                        double.infinity,
-                    padding:
-                        const EdgeInsets
-                            .all(18),
-                    decoration:
-                        BoxDecoration(
-                      color:
-                          HomeScreen.card,
-                      borderRadius:
-                          BorderRadius
-                              .circular(
-                        14,
-                      ),
-                      border:
-                          Border.all(
-                        color:
-                            const Color(
-                          0xFFD4D9DF,
-                        ),
+                    width: double.infinity,
+                    padding: const EdgeInsets.all(18),
+                    decoration: BoxDecoration(
+                      color: HomeScreen.card,
+                      borderRadius: BorderRadius.circular(14),
+                      border: Border.all(
+                        color: const Color(0xFFD4D9DF),
                       ),
                     ),
-                    child:
-                        const Text(
+                    child: const Text(
                       'Unable to load past walks.',
-                      textAlign:
-                          TextAlign.center,
-                      style:
-                          TextStyle(
-                        color:
-                            HomeScreen.slate,
-                        fontSize:
-                            12,
-                        fontWeight:
-                            FontWeight
-                                .w600,
+                      textAlign: TextAlign.center,
+                      style: TextStyle(
+                        color: HomeScreen.slate,
+                        fontSize: 12,
+                        fontWeight: FontWeight.w600,
                       ),
                     ),
                   );
@@ -604,21 +418,14 @@ class _HomeScreenState extends State<HomeScreen> {
                 // LOADING
                 // -------------------------------------
 
-                if (snapshot
-                        .connectionState ==
-                    ConnectionState
-                        .waiting) {
+                if (snapshot.connectionState ==
+                    ConnectionState.waiting) {
                   return const SizedBox(
                     height: 70,
-                    child:
-                        Center(
-                      child:
-                          CircularProgressIndicator(
-                        strokeWidth:
-                            2,
-                        color:
-                            HomeScreen
-                                .orange,
+                    child: Center(
+                      child: CircularProgressIndicator(
+                        strokeWidth: 2,
+                        color: HomeScreen.orange,
                       ),
                     ),
                   );
@@ -628,20 +435,16 @@ class _HomeScreenState extends State<HomeScreen> {
                 // DATA
                 // -------------------------------------
 
-                final List<
-                        home_data.HomePastWalk>
-                    walks =
+                final List<home_data.HomePastWalk> walks =
                     snapshot.data ??
-                        <home_data
-                            .HomePastWalk>[];
+                        <home_data.HomePastWalk>[];
 
                 // -------------------------------------
                 // UI
                 // -------------------------------------
 
                 return HomePastWalk(
-                  walks:
-                      _pastWalkMaps(
+                  walks: _pastWalkMaps(
                     walks,
                   ),
 
@@ -660,78 +463,6 @@ class _HomeScreenState extends State<HomeScreen> {
             ),
           ],
         ),
-      ),
-
-      // ===============================================
-      // BOTTOM QR BUTTON
-      // ===============================================
-
-      floatingActionButtonLocation:
-          FloatingActionButtonLocation
-              .centerFloat,
-
-      floatingActionButton:
-          StreamBuilder<
-              QuerySnapshot<
-                  Map<String, dynamic>>>(
-        stream:
-            _liveWalkService
-                .liveWalkStream(),
-
-        builder:
-            (context, snapshot) {
-          final bool live =
-              snapshot.hasData &&
-              _liveWalkService
-                  .isLiveWalk(
-                snapshot.data!,
-              );
-
-          // =========================================
-          // LIVE WALK
-          // QR HIDDEN
-          // =========================================
-
-          if (live) {
-            return const SizedBox
-                .shrink();
-          }
-
-          // =========================================
-          // NORMAL
-          // QR BUTTON
-          // =========================================
-
-          return FloatingActionButton
-              .extended(
-            backgroundColor:
-                HomeScreen.orange,
-
-            foregroundColor:
-                Colors.white,
-
-            elevation: 8,
-
-            onPressed:
-                _openMyQRCode,
-
-            icon:
-                const Icon(
-              Icons.qr_code_2,
-            ),
-
-            label:
-                const Text(
-              'Generate QR Code',
-              style:
-                  TextStyle(
-                fontWeight:
-                    FontWeight
-                        .w900,
-              ),
-            ),
-          );
-        },
       ),
     );
   }
