@@ -10,7 +10,9 @@ extension _RecoveryRole on _InstaWalkContainerState {
         FirebaseAuth.instance.currentUser;
 
     if (user == null) {
-      if (!mounted) return;
+      if (!mounted) {
+        return;
+      }
 
       _updateState(() {
         _recovering = false;
@@ -30,12 +32,16 @@ extension _RecoveryRole on _InstaWalkContainerState {
           Map<String, dynamic>>? ownerDoc =
           await _service.findOwnerProfile();
 
-      if (!mounted) return;
+      if (!mounted) {
+        return;
+      }
 
       if (ownerDoc == null) {
         _resetSearchState();
 
-        if (!mounted) return;
+        if (!mounted) {
+          return;
+        }
 
         _updateState(() {
           _recovering = false;
@@ -74,7 +80,9 @@ extension _RecoveryRole on _InstaWalkContainerState {
       if (ownerId.isEmpty) {
         _resetSearchState();
 
-        if (!mounted) return;
+        if (!mounted) {
+          return;
+        }
 
         _updateState(() {
           _recovering = false;
@@ -89,12 +97,16 @@ extension _RecoveryRole on _InstaWalkContainerState {
         ownerId: ownerId,
       );
 
-      if (!mounted) return;
+      if (!mounted) {
+        return;
+      }
 
       if (active == null) {
         _resetSearchState();
 
-        if (!mounted) return;
+        if (!mounted) {
+          return;
+        }
 
         _updateState(() {
           _recovering = false;
@@ -104,19 +116,33 @@ extension _RecoveryRole on _InstaWalkContainerState {
         return;
       }
 
+      // --------------------------------------------------------
+      // SEARCHING
+      // --------------------------------------------------------
+
       if (active.isSearching) {
         await _recoverSearchingRequest(active);
         return;
       }
+
+      // --------------------------------------------------------
+      // ACCEPTED
+      // --------------------------------------------------------
 
       if (active.isAccepted) {
         _recoverAcceptedRequest(active);
         return;
       }
 
+      // --------------------------------------------------------
+      // OTHER STATE
+      // --------------------------------------------------------
+
       _resetSearchState();
 
-      if (!mounted) return;
+      if (!mounted) {
+        return;
+      }
 
       _updateState(() {
         _recovering = false;
@@ -128,11 +154,15 @@ extension _RecoveryRole on _InstaWalkContainerState {
         'Insta Walk recovery error: $e',
       );
 
-      if (!mounted) return;
+      if (!mounted) {
+        return;
+      }
 
       _resetSearchState();
 
-      if (!mounted) return;
+      if (!mounted) {
+        return;
+      }
 
       _updateState(() {
         _recovering = false;
@@ -160,7 +190,9 @@ extension _RecoveryRole on _InstaWalkContainerState {
         expiresAt == null) {
       _resetSearchState();
 
-      if (!mounted) return;
+      if (!mounted) {
+        return;
+      }
 
       _updateState(() {
         _recovering = false;
@@ -179,6 +211,10 @@ extension _RecoveryRole on _InstaWalkContainerState {
       remaining = Duration.zero;
     }
 
+    // ----------------------------------------------------------
+    // ALREADY EXPIRED
+    // ----------------------------------------------------------
+
     if (remaining.inSeconds <= 0) {
       try {
         await _service.expireRequest(
@@ -190,14 +226,18 @@ extension _RecoveryRole on _InstaWalkContainerState {
         );
       }
 
-      if (!mounted) return;
+      if (!mounted) {
+        return;
+      }
 
       _requestId = null;
       _ownerPosition = null;
 
       _resetSearchState();
 
-      if (!mounted) return;
+      if (!mounted) {
+        return;
+      }
 
       _updateState(() {
         _recovering = false;
@@ -207,12 +247,18 @@ extension _RecoveryRole on _InstaWalkContainerState {
       return;
     }
 
+    // ----------------------------------------------------------
+    // RESTORE REQUEST
+    // ----------------------------------------------------------
+
     _requestId = requestId;
 
     _ownerPosition =
         _readOwnerPosition(active.data);
 
-    if (!mounted) return;
+    if (!mounted) {
+      return;
+    }
 
     _updateState(() {
       _recovering = false;
@@ -226,6 +272,10 @@ extension _RecoveryRole on _InstaWalkContainerState {
     _setActive(true);
 
     _startRadar();
+
+    // ----------------------------------------------------------
+    // LISTEN FOR ACCEPTANCE
+    // ----------------------------------------------------------
 
     try {
       await _service.listenForRequest(
@@ -250,7 +300,9 @@ extension _RecoveryRole on _InstaWalkContainerState {
       );
     }
 
-    if (!mounted) return;
+    if (!mounted) {
+      return;
+    }
 
     if (_searching) {
       _startTimer();
@@ -281,7 +333,9 @@ extension _RecoveryRole on _InstaWalkContainerState {
     _stopTimer();
     _stopRadar();
 
-    if (!mounted) return;
+    if (!mounted) {
+      return;
+    }
 
     _updateState(() {
       _recovering = false;
