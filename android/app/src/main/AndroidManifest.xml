@@ -1,22 +1,68 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
 
     <!-- ==========================================================
-         INTERNET
-         Required for Firebase + OpenStreetMap tiles
+         NETWORK
          ========================================================== -->
+
     <uses-permission android:name="android.permission.INTERNET" />
 
     <!-- ==========================================================
          LOCATION
-         Used for Owner's current location
+         Used for live walk / owner's current location
          ========================================================== -->
+
     <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
     <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
+
+    <!-- ==========================================================
+         CAMERA
+         Used for QR scanner / profile selfie
+         ========================================================== -->
+
+    <uses-permission android:name="android.permission.CAMERA" />
+
+    <!-- ==========================================================
+         MICROPHONE
+         Add only if the app actually records/uses microphone
+         ========================================================== -->
+
+    <uses-permission android:name="android.permission.RECORD_AUDIO" />
+
+    <!-- ==========================================================
+         PHONE CALL
+         Only required if the app directly starts phone calls
+         using ACTION_CALL.
+         ========================================================== -->
+
+    <uses-permission android:name="android.permission.CALL_PHONE" />
+
+    <!-- ==========================================================
+         NOTIFICATIONS
+         Android 13+ runtime notification permission
+         ========================================================== -->
+
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+
+    <!-- ==========================================================
+         VIBRATION
+         Used for notifications / walk request alerts
+         ========================================================== -->
+
+    <uses-permission android:name="android.permission.VIBRATE" />
+
+    <!-- ==========================================================
+         APPLICATION
+         ========================================================== -->
 
     <application
         android:label="Dojo Walk"
         android:name="${applicationName}"
-        android:icon="@mipmap/ic_launcher">
+        android:icon="@mipmap/ic_launcher"
+        android:usesCleartextTraffic="false">
+
+        <!-- ======================================================
+             MAIN ACTIVITY
+             ====================================================== -->
 
         <activity
             android:name=".MainActivity"
@@ -33,11 +79,13 @@
                 android:resource="@style/NormalTheme" />
 
             <intent-filter>
+
                 <action
                     android:name="android.intent.action.MAIN" />
 
                 <category
                     android:name="android.intent.category.LAUNCHER" />
+
             </intent-filter>
 
         </activity>
@@ -45,6 +93,7 @@
         <!-- ======================================================
              FLUTTER ENGINE
              ====================================================== -->
+
         <meta-data
             android:name="flutterEmbedding"
             android:value="2" />
