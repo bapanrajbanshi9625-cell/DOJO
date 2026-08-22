@@ -1,720 +1,460 @@
+// lib/services/qr_service.dart
+
 import 'dart:async';
 import 'dart:convert';
 
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'package:flutter/foundation.dart';
-import 'package:flutter/material.dart';
-import 'package:geolocator/geolocator.dart';
 
-class GenerateQRButton extends StatefulWidget {
-  final bool isLiveWalk;
+/// ============================================================
+/// QR DATA
+/// ============================================================
 
-  final VoidCallback? onLiveWalkTap;
+class QRData {
+  final String ownerId;
+  final String ownerName;
+  final String walkId;
+  final String qrPayload;
 
-  // ==========================================================
-  // QR CONNECTION CALLBACK
-  //
-  // Walker QR scan करके connect होते ही parent को notify करेगा.
-  // Parent यहां से LiveWalkScreen खोल सकता है.
-  // ==========================================================
-
-  final void Function(QRScanState state)? onWalkerConnected;
-
-  const GenerateQRButton({
-    super.key,
-    this.isLiveWalk = false,
-    this.onLiveWalkTap,
-    this.onWalkerConnected,
+  const QRData({
+    required this.ownerId,
+    required this.ownerName,
+    required this.walkId,
+    required this.qrPayload,
   });
 
-  @override
-  State<GenerateQRButton> createState() =>
-      _GenerateQRButtonState();
-}
-
-class _GenerateQRButtonState
-    extends State<GenerateQRButton> {
-  StreamSubscription<QRScanState>?
-      _scanSubscription;
-
-  bool _opening = false;
-
-  // ==========================================================
-  // DISPOSE
-  // ==========================================================
-
-  @override
-  void dispose() {
-    _scanSubscription?.cancel();
-    super.dispose();
+  factory QRData.fromMap(Map<String, dynamic> map) {
+    return QRData(
+      ownerId: (map['ownerId'] ?? '').toString(),
+      ownerName: (map['ownerName'] ?? '').toString(),
+      walkId: (map['walkId'] ?? '').toString(),
+      qrPayload: (map['qrPayload'] ?? '').toString(),
+    );
   }
 
-  // ==========================================================
-  // OPEN QR
-  // ==========================================================
+  Map<String, dynamic> toMap() {
+    return {
+      'ownerId': ownerId,
+      'ownerName': ownerName,
+      'walkId': walkId,
+      'qrPayload': qrPayload,
+    };
+  }
+}
 
-  Future<void> _openQR() async {
-    if (_opening) {
+/// ============================================================
+/// QR SCAN STATE
+/// ============================================================
+
+class QRScanState {
+  final bool scanned;
+  final bool connected;
+
+  final String ownerId;
+  final String walkerId;
+  final String walkerName;
+  final String walkId;
+
+  const QRScanState({
+    this.scanned = false,
+    this.connected = false,
+    this.ownerId = '',
+    this.walkerId = '',
+    this.walkerName = '',
+    this.walkId = '',
+  });
+
+  factory QRScanState.fromFirestore(
+    DocumentSnapshot<Map<String, dynamic>> snapshot,
+  ) {
+    final data = snapshot.data() ?? <String, dynamic>{};
+
+    return QRScanState(
+      scanned: data['scanned'] == true,
+      connected: data['connected'] == true,
+      ownerId: (data['ownerId'] ?? '').toString(),
+      walkerId: (data['walkerId'] ?? '').toString(),
+      walkerName: (data['walkerName'] ?? '').toString(),
+      walkId: (data['walkId'] ?? '').toString(),
+    );
+  }
+
+  @override
+  String toString() {
+    return 'QRScanState('
+        'scanned: $scanned, '
+        'connected: $connected, '
+        'ownerId: $ownerId, '
+        'walkerId: $walkerId, '
+        'walkerName: $walkerName, '
+        'walkId: $walkId'
+        ')';
+  }
+}
+
+/// ============================================================
+/// QR SERVICE
+/// ============================================================
+///
+/// Owner:
+///     createOwnerQR()
+///     watchScan(ownerId)
+///
+/// Walker:
+///     scan QR payload
+///     markWalkerConnected()
+///
+/// Firestore:
+///     qr_connections/{ownerId}
+/// ============================================================
+
+class QRService {
+  QRService._();
+
+  static final QRService instance = QRService._();
+
+  final FirebaseFirestore _firestore =
+      FirebaseFirestore.instance;
+
+  final FirebaseAuth _auth =
+      FirebaseAuth.instance;
+
+  CollectionReference<Map<String, dynamic>>
+      get _connections =>
+          _firestore.collection('qr_connections');
+
+  /// ==========================================================
+  /// CREATE OWNER QR
+  /// ==========================================================
+
+  Future<QRData> createOwnerQR() async {
+    final User? user = _auth.currentUser;
+
+    if (user == null) {
+      throw Exception(
+        'Owner login required.',
+      );
+    }
+
+    final String ownerId = user.uid;
+
+    // ----------------------------------------------------------
+    // OWNER NAME
+    // ----------------------------------------------------------
+
+    String ownerName = 'Owner';
+
+    try {
+      final DocumentSnapshot<
+          Map<String, dynamic>> ownerDoc =
+          await _firestore
+              .collection('owners')
+              .doc(ownerId)
+              .get();
+
+      final Map<String, dynamic>? ownerData =
+          ownerDoc.data();
+
+      if (ownerData != null) {
+        ownerName =
+            (ownerData['name'] ??
+                    ownerData['Name'] ??
+                    ownerData['ownerName'] ??
+                    ownerData['Full Name'] ??
+                    'Owner')
+                .toString();
+      }
+    } catch (_) {
+      // Keep fallback name.
+    }
+
+    // ----------------------------------------------------------
+    // WALK ID
+    // ----------------------------------------------------------
+
+    final String walkId =
+        'walk_${DateTime.now().millisecondsSinceEpoch}';
+
+    // ----------------------------------------------------------
+    // QR PAYLOAD
+    // ----------------------------------------------------------
+
+    final Map<String, dynamic> payload = {
+      'type': 'dojo_owner_qr',
+      'version': 1,
+      'ownerId': ownerId,
+      'ownerName': ownerName,
+      'walkId': walkId,
+    };
+
+    final String qrPayload =
+        jsonEncode(payload);
+
+    // ----------------------------------------------------------
+    // CREATE / RESET CONNECTION
+    // ----------------------------------------------------------
+
+    await _connections.doc(ownerId).set(
+      {
+        'type': 'dojo_owner_qr',
+        'version': 1,
+        'ownerId': ownerId,
+        'ownerName': ownerName,
+        'walkId': walkId,
+
+        'scanned': false,
+        'connected': false,
+
+        'walkerId': null,
+        'walkerName': null,
+
+        'createdAt':
+            FieldValue.serverTimestamp(),
+
+        'updatedAt':
+            FieldValue.serverTimestamp(),
+      },
+      SetOptions(merge: false),
+    );
+
+    return QRData(
+      ownerId: ownerId,
+      ownerName: ownerName,
+      walkId: walkId,
+      qrPayload: qrPayload,
+    );
+  }
+
+  /// ==========================================================
+  /// WATCH WALKER SCAN
+  /// ==========================================================
+
+  Stream<QRScanState> watchScan(
+    String ownerId,
+  ) {
+    if (ownerId.trim().isEmpty) {
+      return Stream<QRScanState>.error(
+        Exception('Invalid owner ID.'),
+      );
+    }
+
+    return _connections
+        .doc(ownerId)
+        .snapshots()
+        .map(
+      (DocumentSnapshot<
+              Map<String, dynamic>> snapshot) {
+        if (!snapshot.exists) {
+          return const QRScanState();
+        }
+
+        return QRScanState
+            .fromFirestore(snapshot);
+      },
+    );
+  }
+
+  /// ==========================================================
+  /// WALKER CONNECT
+  /// ==========================================================
+  ///
+  /// Walker app QR scan के बाद इस method को call कर सकता है.
+  /// ==========================================================
+
+  Future<void> markWalkerConnected({
+    required String ownerId,
+    required String walkerId,
+    String walkerName = '',
+    String? walkId,
+  }) async {
+    if (ownerId.trim().isEmpty) {
+      throw Exception(
+        'Owner ID is required.',
+      );
+    }
+
+    if (walkerId.trim().isEmpty) {
+      throw Exception(
+        'Walker ID is required.',
+      );
+    }
+
+    await _connections.doc(ownerId).set(
+      {
+        'ownerId': ownerId,
+        'walkerId': walkerId,
+        'walkerName': walkerName,
+
+        'scanned': true,
+        'connected': true,
+
+        if (walkId != null &&
+            walkId.trim().isNotEmpty)
+          'walkId': walkId,
+
+        'updatedAt':
+            FieldValue.serverTimestamp(),
+      },
+      SetOptions(merge: true),
+    );
+  }
+
+  /// ==========================================================
+  /// MARK QR SCANNED
+  /// ==========================================================
+
+  Future<void> markScanned({
+    required String ownerId,
+    required String walkerId,
+    String walkerName = '',
+    String? walkId,
+  }) async {
+    if (ownerId.trim().isEmpty) {
+      throw Exception(
+        'Owner ID is required.',
+      );
+    }
+
+    if (walkerId.trim().isEmpty) {
+      throw Exception(
+        'Walker ID is required.',
+      );
+    }
+
+    await _connections.doc(ownerId).set(
+      {
+        'ownerId': ownerId,
+        'walkerId': walkerId,
+        'walkerName': walkerName,
+
+        'scanned': true,
+
+        if (walkId != null &&
+            walkId.trim().isNotEmpty)
+          'walkId': walkId,
+
+        'updatedAt':
+            FieldValue.serverTimestamp(),
+      },
+      SetOptions(merge: true),
+    );
+  }
+
+  /// ==========================================================
+  /// END / CLEAR CONNECTION
+  /// ==========================================================
+
+  Future<void> clearConnection(
+    String ownerId,
+  ) async {
+    if (ownerId.trim().isEmpty) {
       return;
     }
 
-    setState(() {
-      _opening = true;
-    });
+    await _connections.doc(ownerId).set(
+      {
+        'scanned': false,
+        'connected': false,
+        'walkerId': null,
+        'walkerName': null,
+        'updatedAt':
+            FieldValue.serverTimestamp(),
+      },
+      SetOptions(merge: true),
+    );
+  }
+
+  /// ==========================================================
+  /// DELETE CONNECTION
+  /// ==========================================================
+
+  Future<void> deleteConnection(
+    String ownerId,
+  ) async {
+    if (ownerId.trim().isEmpty) {
+      return;
+    }
+
+    await _connections
+        .doc(ownerId)
+        .delete();
+  }
+
+  /// ==========================================================
+  /// PARSE QR PAYLOAD
+  /// ==========================================================
+
+  static Map<String, dynamic> parsePayload(
+    String rawPayload,
+  ) {
+    final String value =
+        rawPayload.trim();
+
+    if (value.isEmpty) {
+      throw const FormatException(
+        'Empty QR code.',
+      );
+    }
+
+    dynamic decoded;
 
     try {
-      // ------------------------------------------------------
-      // CREATE QR
-      // ------------------------------------------------------
-
-      final QRData? qr =
-          await QRService.instance
-              .createOwnerQR();
-
-      if (!mounted || qr == null) {
-        return;
-      }
-
-      // ------------------------------------------------------
-      // CANCEL OLD LISTENER
-      // ------------------------------------------------------
-
-      await _scanSubscription?.cancel();
-
-      // ------------------------------------------------------
-      // WATCH WALKER SCAN
-      // ------------------------------------------------------
-
-      _scanSubscription =
-          QRService.instance
-              .watchScan(qr.ownerId)
-              .listen(
-        (QRScanState state) {
-          if (!mounted) {
-            return;
-          }
-
-          // -----------------------------------------------
-          // WAITING
-          // -----------------------------------------------
-
-          if (!state.scanned &&
-              !state.connected) {
-            return;
-          }
-
-          // -----------------------------------------------
-          // WALKER CONNECTED
-          // -----------------------------------------------
-
-          widget.onWalkerConnected?.call(state);
-        },
+      decoded = jsonDecode(value);
+    } catch (_) {
+      throw const FormatException(
+        'Invalid Dojo QR code.',
       );
-
-      // ------------------------------------------------------
-      // OPEN QR BOTTOM SHEET
-      // ------------------------------------------------------
-
-      await showModalBottomSheet<void>(
-        context: context,
-        backgroundColor:
-            Colors.transparent,
-        isScrollControlled: true,
-        isDismissible: true,
-        enableDrag: true,
-        builder: (_) {
-          return QRBottomSheet(
-            data: qr,
-          );
-        },
-      );
-    } catch (e) {
-      if (!mounted) {
-        return;
-      }
-
-      ScaffoldMessenger.of(context)
-          .showSnackBar(
-        SnackBar(
-          content: Text(
-            e.toString().replaceFirst(
-                  'Exception: ',
-                  '',
-                ),
-          ),
-          behavior:
-              SnackBarBehavior.floating,
-        ),
-      );
-    } finally {
-      if (mounted) {
-        setState(() {
-          _opening = false;
-        });
-      }
-    }
-  }
-
-  // ==========================================================
-  // BUILD
-  // ==========================================================
-
-  @override
-  Widget build(BuildContext context) {
-    // --------------------------------------------------------
-    // LIVE WALK
-    // --------------------------------------------------------
-
-    if (widget.isLiveWalk) {
-      return _liveWalkBar();
     }
 
-    // --------------------------------------------------------
-    // QR BUTTON
-    // --------------------------------------------------------
+    if (decoded is! Map) {
+      throw const FormatException(
+        'Invalid QR payload.',
+      );
+    }
 
-    return Material(
-      color: Colors.transparent,
-      child: InkWell(
-        onTap:
-            _opening ? null : _openQR,
-        borderRadius:
-            BorderRadius.circular(18),
-        child: Container(
-          height: 58,
-          padding:
-              const EdgeInsets.symmetric(
-            horizontal: 18,
-          ),
-          decoration: BoxDecoration(
-            gradient:
-                const LinearGradient(
-              begin:
-                  Alignment.topLeft,
-              end:
-                  Alignment.bottomRight,
-              colors: [
-                Color(0xFFFF6A2A),
-                Color(0xFFF4511E),
-                Color(0xFFE83E0E),
-              ],
-            ),
-            borderRadius:
-                BorderRadius.circular(18),
-            boxShadow: [
-              BoxShadow(
-                color: const Color(
-                  0xFFF4511E,
-                ).withValues(
-                  alpha: .30,
-                ),
-                blurRadius: 18,
-                offset:
-                    const Offset(0, 7),
-              ),
-            ],
-          ),
-          child: Row(
-            children: [
-              // ------------------------------------------------
-              // ICON
-              // ------------------------------------------------
-
-              Container(
-                width: 40,
-                height: 40,
-                decoration:
-                    BoxDecoration(
-                  color: Colors.white,
-                  borderRadius:
-                      BorderRadius.circular(
-                    13,
-                  ),
-                ),
-                child: _opening
-                    ? const Padding(
-                        padding:
-                            EdgeInsets.all(
-                          11,
-                        ),
-                        child:
-                            CircularProgressIndicator(
-                          strokeWidth:
-                              2.5,
-                        ),
-                      )
-                    : const Icon(
-                        Icons
-                            .qr_code_scanner_rounded,
-                        color:
-                            Color(0xFFF4511E),
-                        size: 25,
-                      ),
-              ),
-
-              const SizedBox(
-                width: 12,
-              ),
-
-              // ------------------------------------------------
-              // TEXT
-              // ------------------------------------------------
-
-              const Expanded(
-                child: Column(
-                  mainAxisAlignment:
-                      MainAxisAlignment
-                          .center,
-                  crossAxisAlignment:
-                      CrossAxisAlignment
-                          .start,
-                  children: [
-                    Text(
-                      'Show QR Code',
-                      maxLines: 1,
-                      overflow:
-                          TextOverflow
-                              .ellipsis,
-                      style: TextStyle(
-                        color:
-                            Colors.white,
-                        fontSize: 14,
-                        fontWeight:
-                            FontWeight.w900,
-                      ),
-                    ),
-                    SizedBox(
-                      height: 2,
-                    ),
-                    Text(
-                      'Let your walker scan',
-                      maxLines: 1,
-                      overflow:
-                          TextOverflow
-                              .ellipsis,
-                      style: TextStyle(
-                        color:
-                            Colors.white70,
-                        fontSize: 10,
-                        fontWeight:
-                            FontWeight.w600,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-
-              // ------------------------------------------------
-              // ARROW
-              // ------------------------------------------------
-
-              Container(
-                width: 31,
-                height: 31,
-                decoration:
-                    BoxDecoration(
-                  color: Colors.white
-                      .withValues(
-                    alpha: .16,
-                  ),
-                  shape:
-                      BoxShape.circle,
-                ),
-                child: const Icon(
-                  Icons
-                      .arrow_forward_ios_rounded,
-                  color:
-                      Colors.white,
-                  size: 13,
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
+    final Map<String, dynamic> data =
+        Map<String, dynamic>.from(
+      decoded,
     );
+
+    if (data['type'] !=
+        'dojo_owner_qr') {
+      throw const FormatException(
+        'This QR code is not a Dojo Owner QR.',
+      );
+    }
+
+    final String ownerId =
+        (data['ownerId'] ?? '').toString();
+
+    if (ownerId.isEmpty) {
+      throw const FormatException(
+        'Owner ID missing from QR.',
+      );
+    }
+
+    return data;
   }
 
-  // ==========================================================
-  // LIVE WALK BAR
-  // ==========================================================
+  /// ==========================================================
+  /// QR DATA FROM PAYLOAD
+  /// ==========================================================
 
-  Widget _liveWalkBar() {
-    return Padding(
-      padding:
-          const EdgeInsets.symmetric(
-        horizontal: 15,
-      ),
-      child: SizedBox(
-        width: double.infinity,
-        height: 56,
-        child: Material(
-          color: Colors.transparent,
-          child: InkWell(
-            onTap:
-                widget.onLiveWalkTap,
-            borderRadius:
-                BorderRadius.circular(16),
-            child: Ink(
-              decoration:
-                  BoxDecoration(
-                gradient:
-                    const LinearGradient(
-                  colors: [
-                    Color(0xFF1B8F4D),
-                    Color(0xFF126B39),
-                  ],
-                ),
-                borderRadius:
-                    BorderRadius.circular(
-                  16,
-                ),
-              ),
-              child: const Row(
-                children: [
-                  SizedBox(
-                    width: 14,
-                  ),
-                  Icon(
-                    Icons
-                        .directions_walk_rounded,
-                    color:
-                        Colors.white,
-                  ),
-                  SizedBox(
-                    width: 11,
-                  ),
-                  Expanded(
-                    child: Text(
-                      'Live Walk',
-                      style:
-                          TextStyle(
-                        color:
-                            Colors.white,
-                        fontSize: 15,
-                        fontWeight:
-                            FontWeight.w900,
-                      ),
-                    ),
-                  ),
-                  Icon(
-                    Icons
-                        .arrow_forward_ios_rounded,
-                    color:
-                        Colors.white,
-                    size: 14,
-                  ),
-                  SizedBox(
-                    width: 14,
-                  ),
-                ],
-              ),
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-}
+  static QRData dataFromPayload(
+    String rawPayload,
+  ) {
+    final Map<String, dynamic> data =
+        parsePayload(rawPayload);
 
-// ============================================================
-// QR BOTTOM SHEET
-// ============================================================
-
-class QRBottomSheet
-    extends StatelessWidget {
-  final QRData data;
-
-  const QRBottomSheet({
-    super.key,
-    required this.data,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return SafeArea(
-      child: Container(
-        width: double.infinity,
-        padding:
-            const EdgeInsets.fromLTRB(
-          22,
-          10,
-          22,
-          26,
-        ),
-        decoration:
-            const BoxDecoration(
-          color: Colors.white,
-          borderRadius:
-              BorderRadius.vertical(
-            top: Radius.circular(30),
-          ),
-        ),
-        child: Column(
-          mainAxisSize:
-              MainAxisSize.min,
-          children: [
-            // ==================================================
-            // HANDLE
-            // ==================================================
-
-            Container(
-              width: 44,
-              height: 5,
-              decoration:
-                  BoxDecoration(
-                color:
-                    const Color(
-                  0xFFD1D5DB,
-                ),
-                borderRadius:
-                    BorderRadius.circular(
-                  20,
-                ),
-              ),
-            ),
-
-            const SizedBox(
-              height: 16,
-            ),
-
-            // ==================================================
-            // HEADER
-            // ==================================================
-
-            Row(
-              children: [
-                const Expanded(
-                  child: Text(
-                    'Scan to Connect',
-                    textAlign:
-                        TextAlign.center,
-                    style: TextStyle(
-                      fontSize: 20,
-                      fontWeight:
-                          FontWeight.w900,
-                      color:
-                          Color(0xFF111827),
-                    ),
-                  ),
-                ),
-                IconButton(
-                  onPressed: () {
-                    Navigator.pop(
-                      context,
-                    );
-                  },
-                  icon: const Icon(
-                    Icons.close_rounded,
-                  ),
-                ),
-              ],
-            ),
-
-            const SizedBox(
-              height: 3,
-            ),
-
-            // ==================================================
-            // NAME
-            // ==================================================
-
-            Text(
-              data.ownerName,
-              textAlign:
-                  TextAlign.center,
-              style:
-                  const TextStyle(
-                fontSize: 16,
-                fontWeight:
-                    FontWeight.w800,
-              ),
-            ),
-
-            const SizedBox(
-              height: 4,
-            ),
-
-            // ==================================================
-            // REAL ID
-            // ==================================================
-
-            Text(
-              'ID: ${data.ownerId}',
-              textAlign:
-                  TextAlign.center,
-              style:
-                  const TextStyle(
-                fontSize: 11,
-                color:
-                    Color(0xFF64748B),
-                fontWeight:
-                    FontWeight.w600,
-              ),
-            ),
-
-            const SizedBox(
-              height: 18,
-            ),
-
-            // ==================================================
-            // QR
-            // ==================================================
-
-            Container(
-              padding:
-                  const EdgeInsets.all(
-                14,
-              ),
-              decoration:
-                  BoxDecoration(
-                color: Colors.white,
-                borderRadius:
-                    BorderRadius.circular(
-                  22,
-                ),
-                border: Border.all(
-                  color:
-                      const Color(
-                    0xFFE5E7EB,
-                  ),
-                ),
-                boxShadow: [
-                  BoxShadow(
-                    color:
-                        Colors.black
-                            .withValues(
-                      alpha: .08,
-                    ),
-                    blurRadius: 20,
-                    offset:
-                        const Offset(
-                      0,
-                      7,
-                    ),
-                  ),
-                ],
-              ),
-              child: QrImageView(
-                data:
-                    data.qrPayload,
-                size: 215,
-                version:
-                    QrVersions.auto,
-                backgroundColor:
-                    Colors.white,
-                errorCorrectionLevel:
-                    QrErrorCorrectLevel.H,
-              ),
-            ),
-
-            const SizedBox(
-              height: 16,
-            ),
-
-            // ==================================================
-            // MESSAGE
-            // ==================================================
-
-            const Text(
-              'Scan this QR with the Walker app',
-              textAlign:
-                  TextAlign.center,
-              style: TextStyle(
-                fontSize: 13,
-                color:
-                    Color(0xFF64748B),
-                fontWeight:
-                    FontWeight.w600,
-              ),
-            ),
-
-            const SizedBox(
-              height: 12,
-            ),
-
-            // ==================================================
-            // WAITING
-            // ==================================================
-
-            Container(
-              padding:
-                  const EdgeInsets
-                      .symmetric(
-                horizontal: 15,
-                vertical: 10,
-              ),
-              decoration:
-                  BoxDecoration(
-                color:
-                    const Color(
-                  0xFFF0FDF4,
-                ),
-                borderRadius:
-                    BorderRadius.circular(
-                  30,
-                ),
-              ),
-              child: const Row(
-                mainAxisSize:
-                    MainAxisSize.min,
-                children: [
-                  SizedBox(
-                    width: 8,
-                    height: 8,
-                    child:
-                        DecoratedBox(
-                      decoration:
-                          BoxDecoration(
-                        color:
-                            Color(0xFF22C55E),
-                        shape:
-                            BoxShape.circle,
-                      ),
-                    ),
-                  ),
-                  SizedBox(
-                    width: 8,
-                  ),
-                  Text(
-                    'Waiting for Walker...',
-                    style:
-                        TextStyle(
-                      color:
-                          Color(0xFF166534),
-                      fontSize: 12,
-                      fontWeight:
-                          FontWeight.w800,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-
-            const SizedBox(
-              height: 10,
-            ),
-
-            // ==================================================
-            // WALK ID
-            // ==================================================
-
-            Text(
-              'Walk ID: ${data.walkId}',
-              maxLines: 1,
-              overflow:
-                  TextOverflow.ellipsis,
-              style:
-                  const TextStyle(
-                color:
-                    Color(0xFF9CA3AF),
-                fontSize: 9,
-              ),
-            ),
-          ],
-        ),
-      ),
+    return QRData(
+      ownerId:
+          (data['ownerId'] ?? '').toString(),
+      ownerName:
+          (data['ownerName'] ?? 'Owner')
+              .toString(),
+      walkId:
+          (data['walkId'] ?? '').toString(),
+      qrPayload: rawPayload,
     );
   }
 }
