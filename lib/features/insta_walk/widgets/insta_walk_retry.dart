@@ -1,3 +1,6 @@
+// File location:
+// lib/features/insta_walk/widgets/insta_walk_retry.dart
+
 import 'package:flutter/material.dart';
 
 class InstaWalkRetry extends StatelessWidget {
@@ -13,12 +16,14 @@ class InstaWalkRetry extends StatelessWidget {
     return Column(
       children: [
         Container(
+          width: double.infinity,
           padding: const EdgeInsets.all(14),
           decoration: BoxDecoration(
-            color: Colors.white
-                .withValues(alpha: .09),
-            borderRadius:
-                BorderRadius.circular(16),
+            color: Colors.white.withValues(alpha: .09),
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(
+              color: Colors.white.withValues(alpha: .10),
+            ),
           ),
           child: const Row(
             children: [
@@ -34,6 +39,7 @@ class InstaWalkRetry extends StatelessWidget {
                   style: TextStyle(
                     color: Colors.white,
                     fontWeight: FontWeight.w800,
+                    fontSize: 13,
                   ),
                 ),
               ),
@@ -50,22 +56,21 @@ class InstaWalkRetry extends StatelessWidget {
             onPressed: onRetry,
             icon: const Icon(
               Icons.refresh_rounded,
+              size: 21,
             ),
             label: const Text(
               'Search Again',
               style: TextStyle(
                 fontWeight: FontWeight.w900,
+                fontSize: 14,
               ),
             ),
             style: ElevatedButton.styleFrom(
-              backgroundColor:
-                  const Color(0xFF65D6C8),
-              foregroundColor:
-                  const Color(0xFF172733),
+              backgroundColor: const Color(0xFF65D6C8),
+              foregroundColor: const Color(0xFF172733),
               elevation: 0,
               shape: RoundedRectangleBorder(
-                borderRadius:
-                    BorderRadius.circular(17),
+                borderRadius: BorderRadius.circular(17),
               ),
             ),
           ),
