@@ -10,40 +10,59 @@ class WalksFirestoreService {
   final FirebaseAuth _auth =
       FirebaseAuth.instance;
 
+  // ============================================================
+  // OWNER WALKS
+  //
+  // BUSINESS ID IS THE PRIMARY BACKEND KEY.
+  // Firebase UID is used only to locate the owner's profile once.
+  // ============================================================
+
   Stream<List<WalkModel>> watchOwnerWalks() async* {
-    final user = _auth.currentUser;
+    final User? user = _auth.currentUser;
 
     if (user == null) {
-      yield [];
+      yield <WalkModel>[];
       return;
     }
 
     try {
-      // Firebase UID से Owner Profile खोजें
-      final ownerDoc = await _firestore
-          .collection('ownerProfiles')
-          .doc(user.uid)
-          .get();
+      final DocumentSnapshot<Map<String, dynamic>> ownerDoc =
+          await _firestore
+              .collection('ownerProfiles')
+              .doc(user.uid)
+              .get();
 
-      final data = ownerDoc.data();
+      if (!ownerDoc.exists) {
+        yield <WalkModel>[];
+        return;
+      }
+
+      final Map<String, dynamic>? data =
+          ownerDoc.data();
 
       final String ownerId =
           data?['ownerId']?.toString().trim() ?? '';
 
       if (ownerId.isEmpty) {
-        yield [];
+        yield <WalkModel>[];
         return;
       }
 
-      // अब Walks में Owner ID से search होगा
-      await for (final snapshot in _firestore
-          .collection('walks')
-          .where(
-            'ownerId',
-            isEqualTo: ownerId,
-          )
-          .snapshots()) {
-        final walks = snapshot.docs
+      // ========================================================
+      // FROM HERE ON:
+      //
+      // OWNER BUSINESS ID
+      // ========================================================
+
+      await for (final QuerySnapshot<Map<String, dynamic>> snapshot
+          in _firestore
+              .collection('walks')
+              .where(
+                'ownerId',
+                isEqualTo: ownerId,
+              )
+              .snapshots()) {
+        final List<WalkModel> walks = snapshot.docs
             .map(WalkModel.fromFirestore)
             .toList();
 
@@ -54,7 +73,7 @@ class WalksFirestoreService {
         yield walks;
       }
     } catch (_) {
-      yield [];
+      yield <WalkModel>[];
     }
   }
 }
