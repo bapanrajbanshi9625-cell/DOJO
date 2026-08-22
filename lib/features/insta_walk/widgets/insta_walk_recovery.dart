@@ -12,7 +12,7 @@ extension _RecoveryRole on _InstaWalkContainerState {
     if (user == null) {
       if (!mounted) return;
 
-      setState(() {
+      _updateState(() {
         _recovering = false;
         _searching = false;
         _searchFinished = false;
@@ -37,7 +37,7 @@ extension _RecoveryRole on _InstaWalkContainerState {
 
         if (!mounted) return;
 
-        setState(() {
+        _updateState(() {
           _recovering = false;
         });
 
@@ -76,7 +76,7 @@ extension _RecoveryRole on _InstaWalkContainerState {
 
         if (!mounted) return;
 
-        setState(() {
+        _updateState(() {
           _recovering = false;
         });
 
@@ -96,7 +96,7 @@ extension _RecoveryRole on _InstaWalkContainerState {
 
         if (!mounted) return;
 
-        setState(() {
+        _updateState(() {
           _recovering = false;
         });
 
@@ -104,33 +104,21 @@ extension _RecoveryRole on _InstaWalkContainerState {
         return;
       }
 
-      // --------------------------------------------------------
-      // SEARCHING
-      // --------------------------------------------------------
-
       if (active.isSearching) {
         await _recoverSearchingRequest(active);
         return;
       }
-
-      // --------------------------------------------------------
-      // ACCEPTED
-      // --------------------------------------------------------
 
       if (active.isAccepted) {
         _recoverAcceptedRequest(active);
         return;
       }
 
-      // --------------------------------------------------------
-      // OTHER STATE
-      // --------------------------------------------------------
-
       _resetSearchState();
 
       if (!mounted) return;
 
-      setState(() {
+      _updateState(() {
         _recovering = false;
       });
 
@@ -146,7 +134,7 @@ extension _RecoveryRole on _InstaWalkContainerState {
 
       if (!mounted) return;
 
-      setState(() {
+      _updateState(() {
         _recovering = false;
       });
 
@@ -174,7 +162,7 @@ extension _RecoveryRole on _InstaWalkContainerState {
 
       if (!mounted) return;
 
-      setState(() {
+      _updateState(() {
         _recovering = false;
       });
 
@@ -190,10 +178,6 @@ extension _RecoveryRole on _InstaWalkContainerState {
     if (remaining.isNegative) {
       remaining = Duration.zero;
     }
-
-    // ----------------------------------------------------------
-    // ALREADY EXPIRED
-    // ----------------------------------------------------------
 
     if (remaining.inSeconds <= 0) {
       try {
@@ -215,17 +199,13 @@ extension _RecoveryRole on _InstaWalkContainerState {
 
       if (!mounted) return;
 
-      setState(() {
+      _updateState(() {
         _recovering = false;
       });
 
       _setActive(false);
       return;
     }
-
-    // ----------------------------------------------------------
-    // RESTORE REQUEST
-    // ----------------------------------------------------------
 
     _requestId = requestId;
 
@@ -234,7 +214,7 @@ extension _RecoveryRole on _InstaWalkContainerState {
 
     if (!mounted) return;
 
-    setState(() {
+    _updateState(() {
       _recovering = false;
       _searching = true;
       _searchFinished = false;
@@ -246,10 +226,6 @@ extension _RecoveryRole on _InstaWalkContainerState {
     _setActive(true);
 
     _startRadar();
-
-    // ----------------------------------------------------------
-    // LISTEN FOR ACCEPTANCE
-    // ----------------------------------------------------------
 
     try {
       await _service.listenForRequest(
@@ -307,7 +283,7 @@ extension _RecoveryRole on _InstaWalkContainerState {
 
     if (!mounted) return;
 
-    setState(() {
+    _updateState(() {
       _recovering = false;
       _searching = false;
       _searchFinished = false;
