@@ -40,6 +40,10 @@ extension _StopSearchRole on _InstaWalkContainerState {
     });
 
     try {
+      // --------------------------------------------------------
+      // CANCEL FIRESTORE REQUEST
+      // --------------------------------------------------------
+
       final bool cancelled =
           await _service.cancelSearch(
         requestId: requestId,
@@ -79,7 +83,8 @@ extension _StopSearchRole on _InstaWalkContainerState {
       }
 
       // --------------------------------------------------------
-      // CANCEL FAILED — READ FIRESTORE AGAIN
+      // CANCEL FAILED
+      // READ FIRESTORE AGAIN
       // --------------------------------------------------------
 
       final InstaWalkRequestState state =
