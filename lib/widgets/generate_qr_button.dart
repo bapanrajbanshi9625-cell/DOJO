@@ -6,6 +6,7 @@ import 'package:qr_flutter/qr_flutter.dart';
 import '../services/qr_service.dart';
 
 class GenerateQRButton extends StatefulWidget {
+class GenerateQRButton extends StatefulWidget {
   final bool isLiveWalk;
 
   final VoidCallback? onLiveWalkTap;
