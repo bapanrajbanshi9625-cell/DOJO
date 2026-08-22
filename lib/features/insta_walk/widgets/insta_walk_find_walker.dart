@@ -21,7 +21,9 @@ extension _FindWalkerRole on _InstaWalkContainerState {
       return;
     }
 
-    if (!mounted) return;
+    if (!mounted) {
+      return;
+    }
 
     _updateState(() {
       _checkingAddress = true;
@@ -33,7 +35,9 @@ extension _FindWalkerRole on _InstaWalkContainerState {
           Map<String, dynamic>>? ownerDoc =
           await _service.findOwnerProfile();
 
-      if (!mounted) return;
+      if (!mounted) {
+        return;
+      }
 
       if (ownerDoc == null) {
         _updateState(() {
@@ -93,7 +97,9 @@ extension _FindWalkerRole on _InstaWalkContainerState {
       );
 
       if (address.isEmpty) {
-        if (!mounted) return;
+        if (!mounted) {
+          return;
+        }
 
         _updateState(() {
           _checkingAddress = false;
@@ -107,7 +113,9 @@ extension _FindWalkerRole on _InstaWalkContainerState {
           ),
         );
 
-        if (!mounted) return;
+        if (!mounted) {
+          return;
+        }
 
         _updateState(() {
           _checkingAddress = false;
@@ -134,7 +142,9 @@ extension _FindWalkerRole on _InstaWalkContainerState {
       final Position? position =
           await _getLocation();
 
-      if (!mounted) return;
+      if (!mounted) {
+        return;
+      }
 
       if (position == null) {
         _updateState(() {
@@ -157,7 +167,9 @@ extension _FindWalkerRole on _InstaWalkContainerState {
         'Insta Walk start error: $e',
       );
 
-      if (!mounted) return;
+      if (!mounted) {
+        return;
+      }
 
       _updateState(() {
         _checkingAddress = false;
