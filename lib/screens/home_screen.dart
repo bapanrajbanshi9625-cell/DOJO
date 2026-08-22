@@ -10,7 +10,6 @@ import '../features/home/services/home_data_service.dart'
     as home_data;
 import '../features/home/services/home_live_walk_service.dart';
 
-import '../features/home/widgets/home_live_walk_bar.dart';
 import '../features/home/widgets/home_past_walk.dart';
 import '../features/home/widgets/home_section_title.dart';
 import '../features/home/widgets/home_weekly_processing.dart';
@@ -44,13 +43,6 @@ class _HomeScreenState extends State<HomeScreen> {
       home_data.HomeDataService.instance;
 
   // =====================================================
-  // LIVE WALK SERVICE
-  // =====================================================
-
-  final HomeLiveWalkService _liveWalkService =
-      HomeLiveWalkService.instance;
-
-  // =====================================================
   // OPEN FULL INSTA WALK
   // =====================================================
 
@@ -77,102 +69,6 @@ class _HomeScreenState extends State<HomeScreen> {
         ),
       ),
     );
-  }
-
-  // =====================================================
-  // OPEN LIVE WALK
-  // =====================================================
-
-  void _openLiveWalk(
-    Map<String, dynamic> data,
-  ) {
-    if (!mounted) return;
-
-    final String walkId = _readString(
-      data,
-      const [
-        'walkId',
-        'walkID',
-        'id',
-      ],
-    );
-
-    final String walkerUid = _readString(
-      data,
-      const [
-        'walkerUid',
-        'walkerUID',
-        'walkerId',
-      ],
-    );
-
-    final String walkerName = _readString(
-      data,
-      const [
-        'walkerName',
-        'name',
-      ],
-    );
-
-    final String walkerPhone = _readString(
-      data,
-      const [
-        'walkerPhone',
-        'phone',
-        'phoneNumber',
-      ],
-    );
-
-    if (walkId.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text(
-            'Live Walk information is not ready yet.',
-          ),
-        ),
-      );
-
-      return;
-    }
-
-    Navigator.push(
-      context,
-      MaterialPageRoute(
-        builder: (_) => LiveWalkScreen(
-          walkId: walkId,
-          walkerUid: walkerUid,
-          walkerName: walkerName.isEmpty
-              ? 'Walker'
-              : walkerName,
-          walkerPhone: walkerPhone.isEmpty
-              ? null
-              : walkerPhone,
-        ),
-      ),
-    );
-  }
-
-  // =====================================================
-  // STRING READER
-  // =====================================================
-
-  String _readString(
-    Map<String, dynamic> data,
-    List<String> keys,
-  ) {
-    for (final String key in keys) {
-      final dynamic value = data[key];
-
-      if (value != null) {
-        final String result = value.toString().trim();
-
-        if (result.isNotEmpty) {
-          return result;
-        }
-      }
-    }
-
-    return '';
   }
 
   // =====================================================
@@ -269,12 +165,11 @@ class _HomeScreenState extends State<HomeScreen> {
           15,
           15,
           15,
-          105,
+          24,
         ),
 
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
-
           children: [
             // =========================================
             // WELCOME
@@ -293,46 +188,6 @@ class _HomeScreenState extends State<HomeScreen> {
             InstaWalkContainer(
               fullScreen: false,
               onWalkerFound: _openInstaWalk,
-            ),
-
-            // =========================================
-            // LIVE WALK
-            // =========================================
-
-            const SizedBox(
-              height: 14,
-            ),
-
-            StreamBuilder<
-                QuerySnapshot<Map<String, dynamic>>>(
-              stream: _liveWalkService.liveWalkStream(),
-
-              builder: (context, snapshot) {
-                if (snapshot.hasError) {
-                  return const SizedBox.shrink();
-                }
-
-                if (!snapshot.hasData) {
-                  return const SizedBox.shrink();
-                }
-
-                final Map<String, dynamic>? liveWalkData =
-                    _liveWalkService.getLiveWalkData(
-                  snapshot.data!,
-                );
-
-                if (liveWalkData == null) {
-                  return const SizedBox.shrink();
-                }
-
-                return HomeLiveWalkBar(
-                  onTap: () {
-                    _openLiveWalk(
-                      liveWalkData,
-                    );
-                  },
-                );
-              },
             ),
 
             // =========================================
@@ -447,7 +302,6 @@ class _HomeScreenState extends State<HomeScreen> {
                   walks: _pastWalkMaps(
                     walks,
                   ),
-
                   onDetails: (
                     title,
                     content,
