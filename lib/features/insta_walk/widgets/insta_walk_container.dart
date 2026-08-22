@@ -12,7 +12,7 @@ import 'insta_walk_map_radar.dart';
 import 'insta_walk_retry.dart';
 import 'insta_walk_search_button.dart';
 import 'insta_walk_searching.dart';
-
+import '../../../screens/address_screen.dart';
 part 'insta_walk_controller.dart';
 part 'insta_walk_view.dart';
 
