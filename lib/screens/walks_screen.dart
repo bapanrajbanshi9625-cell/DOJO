@@ -4,7 +4,6 @@ import 'package:flutter/material.dart';
 
 import '../core/constants/app_colors.dart';
 import '../features/insta_walk/widgets/insta_walk_container.dart';
-import '../features/walks/widgets/walks_header.dart';
 import '../features/walks/containers/active_walker_container.dart';
 
 import 'custom_app_bar.dart';
