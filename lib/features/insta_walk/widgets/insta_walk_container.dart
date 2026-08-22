@@ -56,7 +56,8 @@ class InstaWalkContainer extends StatefulWidget {
 class _InstaWalkContainerState extends State<InstaWalkContainer>
     with
         SingleTickerProviderStateMixin,
-        _InstaWalkController {
+        _InstaWalkController,
+        _InstaWalkView {
   // ==========================================================
   // SERVICE
   // ==========================================================
